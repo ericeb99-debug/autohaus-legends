@@ -675,7 +675,7 @@ body.theme-light .body-shape .tire{fill:#1f211f;stroke:rgba(255,255,255,.72);}
 .latest-review small{display:block;color:var(--ink-1);font-size:10.5px;line-height:1.45;margin-top:2px;}
 /* Status-Kacheln unten */
 .dash-lower-grid{display:block;}
-.bottom-status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+.bottom-status{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;}
 .bottom-status > div{
   min-height:76px;padding:12px;display:grid;
   grid-template-columns:34px minmax(0,1fr);grid-template-rows:auto auto auto;gap:1px 11px;align-content:center;
@@ -692,6 +692,73 @@ body.theme-light .body-shape .tire{fill:#1f211f;stroke:rgba(255,255,255,.72);}
 .status-ico.purple{color:var(--violet);background:var(--violet-dim);}
 .status-ico.blue{color:var(--blue);background:var(--blue-dim);}
 .status-ico.red{color:var(--crimson);background:var(--crimson-dim);}
+/* KPI-Varianten: Ring (Erfolgsquote) und Stern (Legacy) */
+.kpi-split{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:2px;}
+.kpi-ring{--p:0;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
+  background:conic-gradient(var(--emerald) calc(var(--p)*1%), rgba(148,163,184,.15) 0);}
+.kpi-ring span{width:42px;height:42px;border-radius:50%;background:var(--panel);}
+.kpi-star{width:54px;height:54px;display:grid;place-items:center;flex:0 0 auto;color:var(--violet);
+  filter:drop-shadow(0 0 14px rgba(160,107,255,.5));}
+.kpi-star svg{width:36px;height:36px;stroke:currentColor;stroke-width:1.4;stroke-linejoin:round;
+  fill:color-mix(in srgb,var(--violet) 32%, transparent);}
+/* Aktuelle Aufträge */
+.order-list{display:grid;gap:8px;}
+.order-row{
+  display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:11px;align-items:center;
+  padding:10px 12px;border-radius:11px;cursor:pointer;
+  border:1px solid var(--line);background:var(--surface);transition:.15s border-color;
+}
+.order-row:hover{border-color:var(--line-hi);}
+.order-row .avatar{width:36px;height:36px;font-size:11.5px;}
+.order-row b{display:block;font-size:12.5px;color:var(--ink-0);}
+.order-row small{display:block;color:var(--ink-2);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.order-side{display:grid;gap:4px;justify-items:end;}
+.order-price{font:700 12.5px/1 var(--font-m);color:var(--brass);}
+.order-badge{font-size:9px;font-weight:800;padding:3px 7px;border-radius:20px;background:var(--blue-dim);color:var(--blue);white-space:nowrap;}
+.order-badge.hot{background:var(--crimson-dim);color:var(--crimson);}
+.order-badge.bank{background:var(--violet-dim);color:var(--violet);}
+.panel-link{display:inline-flex;align-items:center;gap:6px;margin-top:11px;color:var(--ink-1);font-size:11.5px;font-weight:600;cursor:pointer;transition:.15s color;}
+.panel-link:hover{color:var(--brass);}
+/* Fahrzeugbestand-Panel */
+.stock-hero{position:relative;min-height:74px;overflow:hidden;margin-bottom:2px;}
+.stock-count{font:800 36px/1 var(--font-m);color:var(--ink-0);}
+.stock-count small{display:block;font:600 11px/1 var(--font-b);color:var(--ink-2);margin-top:6px;}
+.stock-visual{position:absolute;right:-14px;top:-10px;width:200px;opacity:.5;pointer-events:none;}
+.stock-breakdown{display:grid;gap:7px;margin:12px 0;}
+.stock-line{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-1);padding:7px 11px;border-radius:9px;background:var(--surface);border:1px solid var(--line);}
+.stock-line b{font:700 13px/1 var(--font-m);}
+.stock-line.green b{color:var(--emerald);}
+.stock-line.gold b{color:var(--brass);}
+.stock-line.purple b{color:var(--violet);}
+.stock-line.blue b{color:var(--blue);}
+/* Offene Forderungen */
+.claims-total{font:800 24px/1.1 var(--font-m);color:var(--crimson);margin-bottom:12px;}
+.claims-total small{display:block;color:var(--ink-2);font:600 10.5px/1.3 var(--font-b);margin-top:5px;}
+.claim-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:9px 11px;border-radius:10px;background:var(--surface);border:1px solid var(--line);margin-bottom:7px;font-size:12px;cursor:pointer;transition:.15s border-color;}
+.claim-row:hover{border-color:var(--line-hi);}
+.claim-row > span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-0);}
+.claim-row b{font:700 12px/1 var(--font-m);color:var(--ink-0);}
+.claim-badge{font-size:9px;font-weight:800;padding:3px 8px;border-radius:20px;background:var(--crimson-dim);color:var(--crimson);white-space:nowrap;}
+.claim-badge.scheduled{background:var(--brass-dim);color:var(--brass);}
+/* Aktivitäten-Feed */
+.activity-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line);margin-bottom:7px;}
+.activity-ico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font:800 12px/1 var(--font-d);background:var(--blue-dim);color:var(--blue);}
+.activity-ico.good{background:var(--emerald-dim);color:var(--emerald);}
+.activity-ico.warn{background:var(--crimson-dim);color:var(--crimson);}
+.activity-row small{color:var(--ink-1);font-size:11px;line-height:1.4;max-height:31px;overflow:hidden;}
+.activity-row em{font-style:normal;color:var(--ink-2);font-size:9.5px;white-space:nowrap;align-self:start;margin-top:2px;}
+/* Liniendiagramm (Business Insights) */
+.chart-legend{display:flex;align-items:center;gap:14px;margin-bottom:10px;font-size:10.5px;color:var(--ink-1);font-weight:600;}
+.chart-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+.chart-legend .revenue-sum{margin-left:auto;color:var(--ink-2);font-family:var(--font-m);font-size:10px;}
+.line-chart{position:relative;height:170px;}
+.line-chart svg{position:absolute;left:0;right:0;top:0;bottom:16px;width:100%;height:calc(100% - 16px);}
+.line-cols{position:absolute;inset:0;display:flex;}
+.line-col{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;outline:none;border-radius:6px;}
+.line-col:hover,.line-col:focus{background:linear-gradient(180deg,rgba(255,255,255,.045),transparent 80%);}
+.line-col small{color:var(--ink-2);font-size:9px;white-space:nowrap;padding-bottom:1px;}
+.line-col .bar-tooltip{bottom:auto;top:4px;}
+.line-col:hover .bar-tooltip,.line-col:focus .bar-tooltip{display:block;}
 
 /* ---------- 11. POSTFACH / CHAT ---------- */
 .mailbox-layout{display:flex;gap:14px;min-height:60vh;}
@@ -962,6 +1029,7 @@ body.theme-light .notif-overlay{background:rgba(30,41,59,.2);}
   .dash-main-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
   .dash-right{grid-column:1 / -1;grid-template-columns:repeat(2,minmax(0,1fr));}
   .dash-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .bottom-status{grid-template-columns:repeat(3,minmax(0,1fr));}
   .program-grid{grid-template-columns:repeat(3,minmax(120px,1fr));}
   .listing-metrics{grid-template-columns:repeat(3,minmax(0,1fr));}
 }
@@ -3513,11 +3581,32 @@ function dashIcon(label){
   return `<span class="dash-icon">${label}</span>`;
 }
 function dashKpi(label, value, delta, tone, icon, points){
+  const negative = String(delta).trim().startsWith('-');
   return `<div class="dash-kpi ${tone}">
-    <div class="dash-kpi-head">${dashIcon(icon)}<span>${label}</span></div>
+    <div class="dash-kpi-head"><span>${label}</span>${dashIcon(icon)}</div>
     <div class="dash-kpi-value">${value}</div>
-    <div class="dash-kpi-meta"><span class="pos">${delta}</span></div>
+    <div class="dash-kpi-meta"><span class="${negative?'neg':'pos'}">${delta}</span></div>
     <div class="dash-kpi-chart">${dashSpark(points, tone==='gold'?'#ffc342':tone==='green'?'#4ade80':tone==='purple'?'#9b6cff':'#3f73ff')}</div>
+  </div>`;
+}
+function dashKpiRing(label, pct){
+  pct = clamp(Math.round(pct||0),0,100);
+  const word = pct>=85?'Sehr gut':pct>=70?'Gut':pct>=50?'Solide':'Ausbauf&auml;hig';
+  return `<div class="dash-kpi green">
+    <div class="dash-kpi-head"><span>${label}</span></div>
+    <div class="kpi-split">
+      <div><div class="dash-kpi-value">${pct}%</div><div class="dash-kpi-meta"><span class="pos">${word}</span></div></div>
+      <span class="kpi-ring" style="--p:${pct}"><span></span></span>
+    </div>
+  </div>`;
+}
+function dashKpiLegacy(label, points){
+  return `<div class="dash-kpi purple">
+    <div class="dash-kpi-head"><span>${label}</span></div>
+    <div class="kpi-split">
+      <div><div class="dash-kpi-value">${points}</div><div class="dash-kpi-meta"><span style="color:var(--violet);">${legacyLabel()}</span></div></div>
+      <span class="kpi-star"><svg viewBox="0 0 24 24">${REF_ICON_PATHS.reviews}</svg></span>
+    </div>
   </div>`;
 }
 function dashVehicleCard(c){
@@ -3573,8 +3662,9 @@ function dashReviewsPanel(){
     const pct = total ? Math.round(count/total*100) : 0;
     return `<div class="rating-row"><span>${stars} Sterne</span><div><i style="width:${pct}%"></i></div><b>${pct}%</b></div>`;
   }).join('');
+  const unanswered = reviews.filter(r=>!r.reply).length;
   return `<div class="dash-panel dash-side-panel">
-    <div class="dash-panel-head"><b>Kundenbewertungen</b><button onclick="navigateTo('reviews')">Alle anzeigen</button></div>
+    <div class="dash-panel-head"><b>Kundenbewertungen${unanswered?` <strong>${unanswered} offen</strong>`:''}</b><button onclick="navigateTo('reviews')">Alle anzeigen</button></div>
     <div class="review-score"><strong>${avgStars?avgStars.toFixed(1).replace('.',','):'0,0'}</strong><span class="stars">${starsText(Math.round(avgStars||0))}</span><small>(${total} Bewertungen)</small></div>
     <div class="rating-bars">${rows}</div>
     ${latest?`<div class="latest-review"><span class="avatar">${(latest.customerName||'K').slice(0,2).toUpperCase()}</span><span><b>${escapeHtml(latest.customerName)}</b><small>${starsText(latest.stars||0)} · ${escapeHtml((latest.text||'').slice(0,90))}</small></span></div>`:''}
@@ -3612,20 +3702,116 @@ function dashRevenueChart(){
     buckets[idx].profit += s.profit||0;
     buckets[idx].count += 1;
   });
-  const max = Math.max(...buckets.map(b=>b.value),1);
   const totalRevenue = sumBy(chartSales,s=>s.salePrice||0);
+  // Liniendiagramm: Umsatz (violett, mit Fläche) und Gewinn (grün) je Zeit-Bucket
+  const W = 600, H = 150, PAD = 6;
+  const maxVal = Math.max(...buckets.map(b=>Math.max(b.value, b.profit)), 1);
+  const minVal = Math.min(...buckets.map(b=>Math.min(0, b.profit)), 0);
+  const span = Math.max(1, maxVal - minVal);
+  const px = i => buckets.length>1 ? PAD + i*((W-2*PAD)/(buckets.length-1)) : W/2;
+  const py = v => PAD + (H-2*PAD) * (1 - (v-minVal)/span);
+  const revPts = buckets.map((b,i)=>`${px(i).toFixed(1)},${py(b.value).toFixed(1)}`).join(' ');
+  const profitPts = buckets.map((b,i)=>`${px(i).toFixed(1)},${py(b.profit).toFixed(1)}`).join(' ');
+  const areaPts = `${PAD},${py(0).toFixed(1)} ${revPts} ${(W-PAD)},${py(0).toFixed(1)}`;
   return `<div class="dash-panel revenue-panel">
-    <div class="dash-panel-head"><b>Umsatzentwicklung</b><button class="dash-range-btn" onclick="cycleDashRevenueRange()" title="Zeitraum wechseln">${dashRevenueRangeLabel()}</button></div>
-    <div class="revenue-total">${money(totalRevenue)}<span class="pos">+ ${dashDelta(sumBy((state.salesHistory||[]).filter(s=>s.day>=state.day-30),s=>s.salePrice||0),sumBy((state.salesHistory||[]).filter(s=>s.day<state.day-30 && s.day>=state.day-60),s=>s.salePrice||0))}</span></div>
-    <div class="bar-chart">${buckets.map(b=>{
-      const pct = totalRevenue ? Math.round((b.value/totalRevenue)*100) : 0;
-      const avgSale = b.count ? Math.round(b.value/b.count) : 0;
-      return `<div class="bar-col" tabindex="0">
-        <span style="height:${Math.max(5,Math.round(b.value/max*100))}%"></span>
-        <small>${b.label}</small>
-        <em class="bar-tooltip"><b>${b.label}</b><br>Zeitraum: Tag ${b.from}-${b.to}<br>Umsatz: ${money(b.value)}<br>Gewinn: ${money(b.profit)}<br>Verkäufe: ${b.count}<br>Ø Verkauf: ${money(avgSale)}<br>Anteil: ${pct}%</em>
-      </div>`;
-    }).join('')}</div>
+    <div class="dash-panel-head"><b>Business Insights</b><button class="dash-range-btn" onclick="cycleDashRevenueRange()" title="Zeitraum wechseln">${dashRevenueRangeLabel()}</button></div>
+    <div class="chart-legend"><span><i style="background:var(--emerald)"></i>Gewinn</span><span><i style="background:var(--violet)"></i>Umsatz</span><span class="revenue-sum">${money(totalRevenue)} Umsatz gesamt</span></div>
+    <div class="line-chart">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <line x1="${PAD}" y1="${py(0).toFixed(1)}" x2="${W-PAD}" y2="${py(0).toFixed(1)}" stroke="rgba(148,163,184,.2)" stroke-width="1" stroke-dasharray="4 4"></line>
+        <polygon points="${areaPts}" fill="var(--violet)" opacity="0.10"></polygon>
+        <polyline points="${revPts}" fill="none" stroke="var(--violet)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+        <polyline points="${profitPts}" fill="none" stroke="var(--emerald)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+      </svg>
+      <div class="line-cols">${buckets.map(b=>{
+        const pct = totalRevenue ? Math.round((b.value/totalRevenue)*100) : 0;
+        const avgSale = b.count ? Math.round(b.value/b.count) : 0;
+        return `<div class="line-col" tabindex="0">
+          <small>${b.label}</small>
+          <em class="bar-tooltip"><b>${b.label}</b><br>Zeitraum: Tag ${b.from}-${b.to}<br>Umsatz: ${money(b.value)}<br>Gewinn: ${money(b.profit)}<br>Verkäufe: ${b.count}<br>Ø Verkauf: ${money(avgSale)}<br>Anteil: ${pct}%</em>
+        </div>`;
+      }).join('')}</div>
+    </div>
+  </div>`;
+}
+function dashOrdersPanel(){
+  const offers = [...activeOffers()].sort((a,b)=>{
+    const am = a.messages && a.messages.length ? a.messages[a.messages.length-1].day : 0;
+    const bm = b.messages && b.messages.length ? b.messages[b.messages.length-1].day : 0;
+    return bm-am;
+  }).slice(0,4);
+  const rows = offers.map(o=>{
+    const c = findCar(o.carId);
+    const initials = (o.name||'K').split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+    let badge = `<span class="order-badge">${Math.max(0,Math.round(o.patience))} Tage Geduld</span>`;
+    if(o.applicationPending) badge = `<span class="order-badge bank">Bank pr&uuml;ft</span>`;
+    else if((o.patience||0)<=1) badge = `<span class="order-badge hot">Springt bald ab</span>`;
+    return `<div class="order-row" onclick="navigateTo('mailbox');openConversation('${o.id}')">
+      <span class="avatar">${initials}</span>
+      <span><b>${escapeHtml(o.name||'Kunde')}</b><small>${c?escapeHtml(c.brand+' '+c.model):'Fahrzeug'} · ${escapeHtml(o.persona||'')}</small></span>
+      <span class="order-side"><span class="order-price">${money(o.amount)}</span>${badge}</span>
+    </div>`;
+  }).join('');
+  return `<div class="dash-panel">
+    <div class="dash-panel-head"><b>Aktuelle Auftr&auml;ge <strong>${activeOffers().length}</strong></b><button onclick="navigateTo('listings')">Inserate</button></div>
+    <div class="order-list">${rows || '<p class="subtle" style="margin:0;">Keine offenen Kundenanfragen. Inserierte Fahrzeuge erzeugen neue Auftr&auml;ge.</p>'}</div>
+    <div class="panel-link" onclick="navigateTo('mailbox')">Alle Auftr&auml;ge anzeigen &rarr;</div>
+  </div>`;
+}
+function dashStockPanel(){
+  const inv = activeInventory();
+  const listed = activeListingIds().length;
+  const inWorkshop = new Set((state.workshopJobs||[]).map(j=>j.carId)).size;
+  const reserved = inv.filter(c=>c.reservedFor && c.reservedFor.expiresDay>state.day).length;
+  const delivering = activeDeliveries().filter(d=>!['completed','pickup_completed'].includes(d.status)).length;
+  const carCards = inv.slice(0,2).map(dashVehicleCard).join('');
+  return `<div class="dash-panel inventory-panel">
+    <div class="dash-panel-head"><b>Fahrzeugbestand</b><button onclick="navigateTo('inventory')">Zum Fahrzeugbestand</button></div>
+    <div class="stock-hero">
+      <div class="stock-count">${inv.length}<small>Fahrzeuge</small></div>
+      <div class="stock-visual">${inv[0]?renderCarPhoto(inv[0]):''}</div>
+    </div>
+    <div class="stock-breakdown">
+      <div class="stock-line green"><span>Im Verkauf</span><b>${listed}</b></div>
+      <div class="stock-line gold"><span>In Werkstatt</span><b>${inWorkshop}</b></div>
+      <div class="stock-line purple"><span>Reserviert</span><b>${reserved}</b></div>
+      <div class="stock-line blue"><span>In Lieferung</span><b>${delivering}</b></div>
+    </div>
+    <div class="dash-car-row">${carCards}</div>
+  </div>`;
+}
+function dashClaimsPanel(){
+  const claims = activeClaims();
+  const total = sumBy(claims, x=>claimTotal(x.claim));
+  const rows = claims.slice(0,4).map(x=>{
+    const due = x.claim.actionRequired || (x.claim.nextActionDay||0)<=state.day;
+    const label = due ? claimStatusLabel(x.claim) : `Tag ${x.claim.nextActionDay}`;
+    return `<div class="claim-row" onclick="navigateTo('contracts')">
+      <span>${escapeHtml(x.contract.customerName||'Kunde')}</span>
+      <b>${money(claimTotal(x.claim))}</b>
+      <span class="claim-badge ${due?'':'scheduled'}">${escapeHtml(label)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="dash-panel">
+    <div class="dash-panel-head"><b>Offene Forderungen</b><button onclick="navigateTo('contracts')">Vertr&auml;ge</button></div>
+    ${claims.length ? `<div class="claims-total">${money(total)}<small>Gesamtbetrag aus ${claims.length} Vertrag/Vertr&auml;gen</small></div>${rows}` : '<div class="notice good" style="margin:0;">Keine offenen Forderungen – alle Raten gehen p&uuml;nktlich ein.</div>'}
+    ${claims.length ? `<div class="panel-link" onclick="navigateTo('contracts')">Zur Forderungsverwaltung &rarr;</div>` : ''}
+  </div>`;
+}
+function dashActivityPanel(){
+  const items = (state.notifications||[]).slice(0,5);
+  const icoFor = kind => kind==='good' ? ['good','&check;'] : kind==='warn' ? ['warn','!'] : ['','i'];
+  const rows = items.map(n=>{
+    const [cls, glyph] = icoFor(n.kind);
+    return `<div class="activity-row">
+      <span class="activity-ico ${cls}">${glyph}</span>
+      <small>${n.msg}</small>
+      <em>Tag ${n.day}</em>
+    </div>`;
+  }).join('');
+  return `<div class="dash-panel dash-side-panel">
+    <div class="dash-panel-head"><b>Aktivit&auml;ten</b><button onclick="toggleNotifPanel(event)">Alle anzeigen</button></div>
+    ${rows || '<p class="subtle" style="margin:0;">Noch keine Ereignisse.</p>'}
   </div>`;
 }
 function dashTasksPanel(){
@@ -3666,32 +3852,29 @@ function renderPremiumDashboard(){
   const hist = state.cashHistory.slice(-18);
   const cashPts = hist.map(h=>h.cash||h.net||0);
   const netPts = hist.map(h=>h.net||0);
-  const inv = activeInventory();
-  const carCards = inv.slice(0,4).map(dashVehicleCard).join('');
+  const cashDeltaAbs = todaysDelta();
   return `
     <div class="dashboard-premium">
       <div class="ref-section-title">Übersicht</div>
       <div class="dash-kpi-grid">
-        ${dashKpi('Kontostand', money(state.cash), dashDelta(state.cash, Math.max(1,state.cash-todaysDelta())), 'green', 'KO', cashPts)}
-        ${dashKpi('Monatsgewinn', money(monthProfit), dashDelta(monthProfit, prevProfit), 'gold', 'MG', netPts)}
+        ${dashKpi('Kontostand', money(state.cash), `${fmtDelta(cashDeltaAbs)} (${dashDelta(state.cash, Math.max(1,state.cash-cashDeltaAbs))})`, 'green', 'KO', cashPts)}
+        ${dashKpi('Monatsgewinn', money(monthProfit), `${fmtDelta(monthProfit-prevProfit)} (${dashDelta(monthProfit, prevProfit)})`, 'gold', 'MG', netPts)}
         ${dashKpi('Unternehmenswert', money(valuation.value), dashDelta(valuation.value, Math.max(1,valuation.value-(state.totalProfit||0))), 'blue', 'UW', cashPts)}
-        ${dashKpi('Erfolgsquote', `${idx.successRate||0} %`, '+3,1%', 'blue', 'ER', netPts)}
-        ${dashKpi(legacyKpiLabel, `${Math.round(idx.total||0)} %`, '+2,8%', 'purple', legacyKpiIcon, netPts)}
+        ${dashKpiRing('Erfolgsquote', idx.successRate||0)}
+        ${dashKpiLegacy(legacyKpiLabel, Math.round(idx.total||0))}
       </div>
       <div class="dash-main-grid">
-        <div class="dash-left dash-orders">
-          ${dashTasksPanel()}
+        <div class="dash-left">
+          ${dashOrdersPanel()}
           ${dashRevenueChart()}
         </div>
         <div class="dash-left">
-          <div class="dash-panel inventory-panel">
-            <div class="dash-panel-head"><b>Fahrzeugbestand <strong>${inv.length}</strong></b><button onclick="navigateTo('inventory')">Alle Fahrzeuge anzeigen</button></div>
-            <div class="dash-car-row">${carCards || '<div class="empty-state">Noch keine Fahrzeuge im Bestand.</div>'}</div>
-          </div>
-          <div class="dash-lower-grid">${dashBottomStatus()}</div>
+          ${dashStockPanel()}
+          ${dashClaimsPanel()}
         </div>
-        <div class="dash-right">${dashMessagesPanel()}${dashReviewsPanel()}</div>
+        <div class="dash-right">${dashReviewsPanel()}${dashActivityPanel()}</div>
       </div>
+      <div class="dash-lower-grid">${dashBottomStatus()}</div>
     </div>
   `;
 }
