@@ -178,6 +178,9 @@ button:focus-visible,.btn:focus-visible,[role="button"]:focus-visible,input:focu
   flex:1;overflow-y:auto;padding:22px 26px 26px;
   animation:pagefade .18s ease;
 }
+/* Rerender durch die Spieluhr (Tageswechsel): Einblend-Animationen ueberspringen,
+   damit die Seite nicht bei jedem Spieltag sichtbar "neu laedt". */
+#pagecontent.quiet-rerender,#pagecontent.quiet-rerender *{animation-duration:0s !important;animation-delay:0s !important;}
 @keyframes pagefade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 /* Login-Screen ersetzt das komplette Raster */
 .profile-screen{
@@ -2074,6 +2077,100 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
   #updateHint{top:70px;left:14px;right:14px;max-width:none;}
 }
 
+/* ---------- NOTIZBLOCK (frei schwebendes Spieler-Widget, oberster UI-Layer) ---------- */
+#notepadLayer{position:fixed;inset:0;z-index:4700;pointer-events:none;display:none;}
+body.np-visible #notepadLayer{display:block;}
+.notepad-fab{
+  position:absolute;width:52px;height:52px;border-radius:16px;pointer-events:auto;cursor:grab;
+  display:grid;place-items:center;color:var(--brass);padding:0;
+  background:linear-gradient(160deg, color-mix(in srgb, var(--panel-hi) 86%, transparent), color-mix(in srgb, var(--panel) 82%, transparent));
+  backdrop-filter:blur(10px) saturate(1.15);-webkit-backdrop-filter:blur(10px) saturate(1.15);
+  border:1px solid color-mix(in srgb, var(--brass) 45%, var(--line-hi));
+  box-shadow:var(--shadow-1), 0 0 24px -10px color-mix(in srgb, var(--brass) 55%, transparent);
+  transition:transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  touch-action:none;user-select:none;-webkit-user-select:none;
+  animation:npfabin .5s var(--ease-premium) both;
+}
+.notepad-fab:hover{transform:translateY(-2px) scale(1.05);border-color:var(--brass);}
+.notepad-fab.dragging{cursor:grabbing;transform:scale(1.1);box-shadow:var(--shadow-2), 0 0 30px -8px color-mix(in srgb, var(--brass) 70%, transparent);}
+.notepad-fab.active{
+  border-color:var(--brass);color:var(--brass);
+  box-shadow:var(--shadow-1), 0 0 26px -6px color-mix(in srgb, var(--brass) 75%, transparent);
+}
+.notepad-fab svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;}
+@keyframes npfabin{from{opacity:0;transform:scale(.6);}60%{transform:scale(1.06);}to{opacity:1;transform:scale(1);}}
+.notepad-pad{
+  position:absolute;width:340px;height:430px;pointer-events:auto;display:none;flex-direction:column;
+  border-radius:18px;overflow:hidden;
+  border:1px solid color-mix(in srgb, var(--brass) 32%, var(--line-hi));
+  background:linear-gradient(165deg, color-mix(in srgb, var(--panel-hi) 94%, transparent), color-mix(in srgb, var(--panel) 90%, transparent));
+  backdrop-filter:blur(14px) saturate(1.18);-webkit-backdrop-filter:blur(14px) saturate(1.18);
+  box-shadow:var(--shadow-2), 0 0 40px -16px color-mix(in srgb, var(--brass) 45%, transparent);
+}
+.notepad-pad.open{display:flex;animation:npopen .36s var(--ease-premium) both;}
+.notepad-pad.closing{animation:npclose .22s var(--ease-premium) forwards;}
+@keyframes npopen{0%{opacity:0;transform:translateY(16px) scale(.9);}62%{opacity:1;transform:translateY(-4px) scale(1.012);}100%{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes npclose{to{opacity:0;transform:translateY(12px) scale(.93);}}
+.notepad-head{
+  display:flex;align-items:center;gap:9px;padding:11px 11px 9px 14px;flex:0 0 auto;
+  cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--brass) 10%, transparent), transparent);
+  border-bottom:1px solid var(--line);
+}
+.notepad-head.dragging{cursor:grabbing;}
+.notepad-head .np-ic{display:grid;color:var(--brass);}
+.notepad-head .np-ic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.notepad-head b{flex:1;font-family:var(--font-d);font-size:14px;font-weight:800;letter-spacing:-.1px;color:var(--ink-0);}
+.notepad-tools{display:flex;gap:6px;}
+.notepad-tools button{
+  width:27px;height:27px;border-radius:8px;cursor:pointer;padding:0;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-1);
+  display:grid;place-items:center;font-family:var(--font-m);font-size:12px;font-weight:800;line-height:1;
+  transition:color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+.notepad-tools button:hover{color:var(--ink-0);border-color:var(--line-hi);background:var(--surface-hi);transform:translateY(-1px);}
+/* Ringbindung zwischen Kopf und Papier */
+.notepad-binding{
+  flex:0 0 auto;display:flex;justify-content:space-evenly;align-items:center;height:18px;
+  background:linear-gradient(180deg, transparent 45%, #efe9da 45%);
+  position:relative;z-index:1;
+}
+body.theme-light .notepad-binding{background:linear-gradient(180deg, transparent 45%, #f3eee1 45%);}
+.notepad-binding i{
+  width:8px;height:16px;border-radius:4px;margin-top:-4px;
+  background:linear-gradient(180deg,#5a6478,#1a1f2b 55%,#2e3547);
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:inset 0 -2px 3px rgba(0,0,0,.55), 0 2px 3px rgba(0,0,0,.35);
+}
+/* Papier mit Linien (Linien scrollen dank background-attachment:local mit) */
+.notepad-text{
+  flex:1;width:100%;border:none;outline:none;resize:none;min-height:0;
+  padding:8px 16px 14px 38px;
+  font-family:var(--font-b);font-size:13px;line-height:22px;color:#2c3040;caret-color:#8a6d1f;
+  background-color:#f6f1e4;
+  background-image:
+    linear-gradient(90deg, transparent 27px, rgba(196,94,94,.30) 27px, rgba(196,94,94,.30) 28.5px, transparent 28.5px),
+    repeating-linear-gradient(180deg, transparent, transparent 21px, rgba(88,110,160,.18) 21px, rgba(88,110,160,.18) 22px);
+  background-attachment:local, local;
+}
+.notepad-text::placeholder{color:#9a9483;}
+.notepad-text::selection{background:rgba(214,173,86,.35);}
+.notepad-foot{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:7px 13px;border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--ink-2);
+}
+#npSaveState{display:inline-flex;align-items:center;gap:5px;}
+#npSaveState::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--emerald);box-shadow:0 0 7px var(--emerald);}
+#npSaveState.pulse{animation:npsaved .5s var(--ease-premium);}
+@keyframes npsaved{0%{opacity:.35;}100%{opacity:1;}}
+@media (prefers-reduced-motion: reduce){
+  .notepad-fab,.notepad-pad.open,.notepad-pad.closing,#npSaveState.pulse{animation:none;}
+}
+@media (max-width:760px){
+  .notepad-pad{width:min(340px, calc(100vw - 24px));height:min(430px, calc(100vh - 120px));}
+}
+
 </style>
 </head>
 <body>
@@ -2122,9 +2219,8 @@ const APPS = [
    Wenn du (eine KI) Änderungen an diesem Spiel vornimmst, pflege
    den Changelog IMMER automatisch mit — der Spieler soll ihn nie
    doppelt schreiben müssen:
-   1. Erhöhe GAME_VERSION (semantisch: major.minor.patch).
-   2. Setze "version" in package.json auf denselben Wert.
-   3. Füge GANZ OBEN im CHANGELOG-Array einen neuen Eintrag hinzu:
+   1. GAME_VERSION und package.json NICHT automatisch ändern.
+   2. Füge GANZ OBEN im CHANGELOG-Array einen neuen Eintrag hinzu:
       {
         version:'x.x.x',
         date:'JJJJ-MM-TT',
@@ -2135,9 +2231,8 @@ const APPS = [
       }
       Leere Abschnitte einfach weglassen. Einträge auf Deutsch,
       aus Spielersicht formuliert, keine technischen Interna.
-   4. Fertig — Anzeige in "Updates & News", Sortierung (neueste
-      Version oben) und das einmalige "Willkommen bei Version
-      x.x.x"-Fenster nach dem Update erfolgen automatisch.
+   3. Fertig — Anzeige in "Updates & News" erfolgt ohne sichtbare
+      Versionsnummern im Spiel.
    ============================================================ */
 const GAME_VERSION = '1.1.1';
 // Kartenbilder stammen aus der vorhandenen Hintergrund-Galerie (assets/backgrounds/).
@@ -2173,16 +2268,46 @@ const UPD_SVG = {
 };
 const CHANGELOG = [
   {
-    version:'1.1.1', date:'2026-07-06', type:'hotfix',
-    title:'Versions- & Icon-Fixes',
+    version:'1.1.1', date:'2026-07-07', type:'feature',
+    title:'Neues Komfort-Widget',
+    headline:'Ein persönlicher Notizblock begleitet dich jetzt auf jeder Seite von Autohaus Legends.',
+    sections:{
+      new:[
+        'Ein frei schwebender Notizblock ist jederzeit verfügbar, egal ob du gerade Fahrzeuge prüfst, Kunden verwaltest oder deine Finanzen ansiehst.',
+        'Icon und geöffneter Notizblock lassen sich frei verschieben und merken sich ihre Position dauerhaft.',
+        'Eigene Notizen, Preisideen, To-dos, Kundenhinweise und Ziele werden automatisch gespeichert.',
+      ],
+      improved:[
+        'Der Notizblock startet eingeklappt als hochwertiges Glas-Icon und öffnet sich weich als Business-Notizblock mit Papierdesign und Ringbindung.',
+      ],
+    },
+  },
+  {
+    version:'1.1.1', date:'2026-07-07', type:'hotfix',
+    title:'Stabilitätsverbesserungen',
+    headline:'Geöffnete Bereiche bleiben jetzt ruhig stehen, während die Spielzeit weiterläuft.',
     sections:{
       improved:[
-        'Die Versionsnummer wird jetzt überall einheitlich angezeigt: Login, Update-Center, Einstellungen und Willkommensfenster.',
+        'Wenn ein neuer Spieltag beginnt, bleibt deine aktuelle Ansicht geöffnet und springt nicht mehr ständig an den Anfang zurück.',
+        'Beim Lesen, Scrollen oder Bearbeiten bleiben Seiten deutlich stabiler, auch wenn im Hintergrund Zeit, Markt und Kunden weiterlaufen.',
+        'Updates & News zeigt Neuerungen jetzt klarer als Spieler-News statt als technische Versionsliste.',
+      ],
+      fixed:[
+        'Das störende Neuladen der aktuellen Seite während der laufenden Spielzeit wurde behoben.',
+      ],
+    },
+  },
+  {
+    version:'1.1.1', date:'2026-07-06', type:'hotfix',
+    title:'Update- & Icon-Feinschliff',
+    sections:{
+      improved:[
+        'Update-Hinweise, Login, Einstellungen und Willkommensfenster wirken jetzt einheitlicher und aufgeräumter.',
       ],
       fixed:[
         'Die Update-Installation schlug bei Entwicklungs-Builds an der Signaturprüfung fehl („not signed by the application owner“).',
         'Im Willkommensfenster nach einem Update erschien der Text „rocket“ statt des eigentlichen Icons.',
-        'Das Willkommensfenster begrüßte nach einem Update mit der falschen (alten) Versionsnummer.',
+        'Das Willkommensfenster zeigte nach einem Update veraltete Update-Informationen.',
       ],
     },
   },
@@ -2192,15 +2317,15 @@ const CHANGELOG = [
     headline:'Autohaus Legends erhält ein eigenes, dauerhaftes Update-Center — alle Neuerungen ab sofort übersichtlich im Spiel.',
     sections:{
       new:[
-        'Neues Programm „Updates & News“ im Programme-Menü: alle Versionen, Neuerungen und Bugfixes als moderne Update-Karten.',
-        'Willkommensfenster nach jedem Update: Beim ersten Start einer neuen Version werden die Neuerungen einmalig vorgestellt.',
+        'Neues Programm „Updates & News“ im Programme-Menü: alle Neuerungen, Verbesserungen und Bugfixes als moderne Update-Karten.',
+        'Willkommensfenster nach jedem Update: Beim ersten Start einer neuen Ausgabe werden die Neuerungen einmalig vorgestellt.',
         'Dezente Benachrichtigung oben rechts, falls während einer Spielsitzung ein neues Update erscheint — ohne Unterbrechung.',
         'Update-Typen mit eigener Optik: Großes Inhaltsupdate, Content-, Feature-, Balance-, Bugfix-Update und Hotfix.',
       ],
       improved:[
         'Updates werden nie mehr mitten im Spiel installiert — nur noch nach dem Login oder auf ausdrücklichen Wunsch.',
-        '„Nach Updates suchen“ meldet sich ruhiger: Ist alles aktuell, erscheint nur ein kurzer Hinweis mit der aktuellen Version.',
-        'Die aktuelle Version ist jetzt überall sichtbar: im Update-Center, in den Einstellungen und auf dem Anmeldebildschirm.',
+        '„Nach Updates suchen“ meldet sich ruhiger: Ist alles aktuell, erscheint nur ein kurzer Hinweis ohne technische Details.',
+        'Update-Informationen sind jetzt im Update-Center, in den Einstellungen und auf dem Anmeldebildschirm leichter erreichbar.',
       ],
       fixed:[
         'Der Update-Dialog konnte bisher mitten in einer laufenden Spielsitzung erscheinen und das Spiel unterbrechen.',
@@ -4281,6 +4406,201 @@ async function storageSet(key, value){
   throw new Error('window.storage ist nicht verfuegbar. Spielstaende werden nicht im Browser-Speicher gespeichert.');
 }
 function profileStateKey(profileId){ return 'autodealer-state-v3-'+profileId; }
+const PLAYER_NOTEPAD_KEY = 'autodealer-player-notepad-v1';
+let playerNotepad = null;
+let notepadSaveTimer = null;
+let notepadDrag = null;
+function defaultNotepadData(){
+  const vw = Math.max(360, window.innerWidth || 1280);
+  const vh = Math.max(520, window.innerHeight || 800);
+  return {
+    text:'',
+    open:false,
+    fab:{x:Math.max(18, vw-88), y:Math.max(82, Math.min(vh-76, 112))},
+    pad:{x:Math.max(18, vw-390), y:Math.max(82, Math.min(vh-460, 128))},
+  };
+}
+function clampNotepadPos(pos, w, h){
+  const margin = 12;
+  const vw = Math.max(320, window.innerWidth || 1280);
+  const vh = Math.max(420, window.innerHeight || 800);
+  return {
+    x:Math.round(clamp(Number(pos?.x)||margin, margin, Math.max(margin, vw-w-margin))),
+    y:Math.round(clamp(Number(pos?.y)||margin, margin, Math.max(margin, vh-h-margin))),
+  };
+}
+function normalizeNotepadData(data){
+  const d = defaultNotepadData();
+  if(data && typeof data === 'object'){
+    d.text = typeof data.text === 'string' ? data.text : '';
+    d.open = !!data.open;
+    d.fab = clampNotepadPos(data.fab || d.fab, 52, 52);
+    d.pad = clampNotepadPos(data.pad || d.pad, 340, 430);
+  }
+  return d;
+}
+async function loadPlayerNotepad(){
+  if(playerNotepad) return playerNotepad;
+  try{
+    const res = await storageGet(PLAYER_NOTEPAD_KEY);
+    playerNotepad = normalizeNotepadData(res && res.value ? JSON.parse(res.value) : null);
+  }catch(e){
+    playerNotepad = normalizeNotepadData(null);
+  }
+  return playerNotepad;
+}
+function savePlayerNotepadSoon(immediate){
+  if(!playerNotepad) return;
+  clearTimeout(notepadSaveTimer);
+  const run = async ()=>{
+    try{
+      await storageSet(PLAYER_NOTEPAD_KEY, JSON.stringify(playerNotepad));
+      pulseNotepadSaveState();
+    }catch(e){
+      const el = document.getElementById('npSaveState');
+      if(el) el.textContent = 'Speichern fehlgeschlagen';
+    }
+  };
+  if(immediate) run();
+  else notepadSaveTimer = setTimeout(run, 360);
+}
+function notepadIconSvg(){
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a3 3 0 0 1 3 3v13a2 2 0 0 1-2 2H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z"/><path d="M8 3v18"/><path d="M11 8h5"/><path d="M11 12h5"/><path d="M11 16h4"/><path d="M5 7H3"/><path d="M5 12H3"/><path d="M5 17H3"/></svg>`;
+}
+async function ensureNotepadWidget(){
+  await loadPlayerNotepad();
+  let layer = document.getElementById('notepadLayer');
+  if(!layer){
+    layer = document.createElement('div');
+    layer.id = 'notepadLayer';
+    document.getElementById('app')?.appendChild(layer);
+  }
+  layer.innerHTML = `
+    <button class="notepad-fab ${playerNotepad.open?'active':''}" id="notepadFab" type="button" title="Notizblock" aria-label="Notizblock öffnen">${notepadIconSvg()}</button>
+    <section class="notepad-pad ${playerNotepad.open?'open':''}" id="notepadPad" aria-label="Persönlicher Notizblock">
+      <div class="notepad-head" id="notepadHead">
+        <span class="np-ic">${notepadIconSvg()}</span>
+        <b>Notizblock</b>
+        <div class="notepad-tools">
+          <button type="button" onclick="toggleNotepad(false)" title="Einklappen">–</button>
+        </div>
+      </div>
+      <div class="notepad-binding">${Array.from({length:9},()=>'<i></i>').join('')}</div>
+      <textarea class="notepad-text" id="notepadText" spellcheck="false" placeholder="Fahrzeuge, Preise, Ideen, To-dos, Kunden, Ziele...">${escapeHtml(playerNotepad.text)}</textarea>
+      <div class="notepad-foot"><span id="npSaveState">Automatisch gespeichert</span><span>Spieler-Notizen</span></div>
+    </section>
+  `;
+  document.body.classList.add('np-visible');
+  applyNotepadPositions();
+  bindNotepadWidget();
+}
+function applyNotepadPositions(){
+  if(!playerNotepad) return;
+  const fab = document.getElementById('notepadFab');
+  const pad = document.getElementById('notepadPad');
+  playerNotepad.fab = clampNotepadPos(playerNotepad.fab, 52, 52);
+  playerNotepad.pad = clampNotepadPos(playerNotepad.pad, 340, 430);
+  if(fab){ fab.style.left = playerNotepad.fab.x+'px'; fab.style.top = playerNotepad.fab.y+'px'; }
+  if(pad){ pad.style.left = playerNotepad.pad.x+'px'; pad.style.top = playerNotepad.pad.y+'px'; }
+}
+function bindNotepadWidget(){
+  const fab = document.getElementById('notepadFab');
+  const head = document.getElementById('notepadHead');
+  const text = document.getElementById('notepadText');
+  if(fab){
+    fab.onclick = ()=>{ if(fab.dataset.dragged === '1'){ fab.dataset.dragged = '0'; return; } toggleNotepad(); };
+    fab.onpointerdown = ev=>startNotepadDrag(ev, 'fab');
+  }
+  if(head) head.onpointerdown = ev=>startNotepadDrag(ev, 'pad');
+  if(text){
+    text.oninput = ()=>{
+      playerNotepad.text = text.value;
+      const el = document.getElementById('npSaveState');
+      if(el) el.textContent = 'Speichert...';
+      savePlayerNotepadSoon(false);
+    };
+    text.onkeydown = handleNotepadListContinuation;
+  }
+}
+function toggleNotepad(forceOpen){
+  if(!playerNotepad) return;
+  const nextOpen = typeof forceOpen === 'boolean' ? forceOpen : !playerNotepad.open;
+  const pad = document.getElementById('notepadPad');
+  const fab = document.getElementById('notepadFab');
+  playerNotepad.open = nextOpen;
+  if(fab) fab.classList.toggle('active', nextOpen);
+  if(pad){
+    if(nextOpen){
+      pad.classList.remove('closing');
+      pad.classList.add('open');
+      requestAnimationFrame(()=>document.getElementById('notepadText')?.focus());
+    } else {
+      pad.classList.add('closing');
+      setTimeout(()=>{ pad.classList.remove('open','closing'); }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 230);
+    }
+  }
+  savePlayerNotepadSoon(true);
+}
+function startNotepadDrag(ev, target){
+  if(ev.button !== undefined && ev.button !== 0) return;
+  const el = target === 'fab' ? document.getElementById('notepadFab') : document.getElementById('notepadPad');
+  if(!el || !playerNotepad) return;
+  ev.preventDefault();
+  el.setPointerCapture?.(ev.pointerId);
+  const current = target === 'fab' ? playerNotepad.fab : playerNotepad.pad;
+  notepadDrag = {target, el, pointerId:ev.pointerId, startX:ev.clientX, startY:ev.clientY, x:current.x, y:current.y, moved:false};
+  el.classList.add('dragging');
+  document.getElementById('notepadHead')?.classList.toggle('dragging', target==='pad');
+  window.addEventListener('pointermove', moveNotepadDrag);
+  window.addEventListener('pointerup', endNotepadDrag, {once:true});
+}
+function moveNotepadDrag(ev){
+  if(!notepadDrag || ev.pointerId !== notepadDrag.pointerId) return;
+  const dx = ev.clientX - notepadDrag.startX;
+  const dy = ev.clientY - notepadDrag.startY;
+  if(Math.abs(dx)+Math.abs(dy)>4) notepadDrag.moved = true;
+  const size = notepadDrag.target === 'fab' ? [52,52] : [340,430];
+  const pos = clampNotepadPos({x:notepadDrag.x+dx, y:notepadDrag.y+dy}, size[0], size[1]);
+  notepadDrag.el.style.left = pos.x+'px';
+  notepadDrag.el.style.top = pos.y+'px';
+  if(notepadDrag.target === 'fab') playerNotepad.fab = pos;
+  else playerNotepad.pad = pos;
+}
+function endNotepadDrag(ev){
+  if(!notepadDrag) return;
+  window.removeEventListener('pointermove', moveNotepadDrag);
+  notepadDrag.el.classList.remove('dragging');
+  document.getElementById('notepadHead')?.classList.remove('dragging');
+  if(notepadDrag.target === 'fab' && notepadDrag.moved) notepadDrag.el.dataset.dragged = '1';
+  notepadDrag = null;
+  savePlayerNotepadSoon(true);
+}
+function pulseNotepadSaveState(){
+  const el = document.getElementById('npSaveState');
+  if(!el) return;
+  el.textContent = 'Automatisch gespeichert';
+  el.classList.remove('pulse');
+  void el.offsetWidth;
+  el.classList.add('pulse');
+}
+function handleNotepadListContinuation(ev){
+  if(ev.key !== 'Enter' || ev.shiftKey || ev.ctrlKey || ev.altKey) return;
+  const ta = ev.target;
+  const before = ta.value.slice(0, ta.selectionStart);
+  const line = before.split('\n').pop() || '';
+  const bullet = line.match(/^(\s*)([-*•]\s+)$/) || line.match(/^(\s*)([-*•]\s+).+/);
+  const numbered = line.match(/^(\s*)(\d+)\.\s*$/) || line.match(/^(\s*)(\d+)\.\s+.+/);
+  let insert = '';
+  if(bullet) insert = '\n' + bullet[1] + (bullet[2] || '- ');
+  if(numbered) insert = '\n' + numbered[1] + (Number(numbered[2])+1) + '. ';
+  if(!insert) return;
+  ev.preventDefault();
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  ta.value = ta.value.slice(0,start) + insert + ta.value.slice(end);
+  ta.selectionStart = ta.selectionEnd = start + insert.length;
+  ta.dispatchEvent(new Event('input'));
+}
 function cp1252ByteForChar(ch){
   const code = ch.codePointAt(0);
   if(code <= 0xff) return code;
@@ -4380,8 +4700,10 @@ function renderGameShell(){
   `;
   applyAppBackground(state?.backgroundId || 'standard', true);
   enhancePremiumUi();
+  ensureNotepadWidget();
 }
 async function renderProfileLogin(){
+  document.body.classList.remove('np-visible');
   document.body.classList.remove('theme-light');
   document.body.classList.remove('has-app-bg');
   const profiles = await loadProfiles();
@@ -4410,7 +4732,7 @@ async function renderProfileLogin(){
               <div class="login-feature"><b>Reputation & Legacy</b><span>Wachse vom kleinen Händler zur Premium-Adresse.</span></div>
             </div>
             <div class="login-version-row" style="margin-top:14px;">
-              <span class="chip">Autohaus Legends v${GAME_VERSION}</span>
+              <span class="chip">Autohaus Legends</span>
               <span class="chip">${profiles.length} Profil${profiles.length===1?'':'e'}</span>
               <span class="chip">${lastPlayed?'Letzter Speicherstand '+new Date(lastPlayed).toLocaleDateString('de-DE'):'Noch kein Speicherstand'}</span>
             </div>
@@ -5012,7 +5334,7 @@ function startProfileGame(){
     startGameClock();
     gameClockStarted = true;
   }
-  // Nach dem Login einmalig die Neuerungen der frisch installierten Version zeigen.
+  // Nach dem Login einmalig die Neuerungen der frisch installierten Ausgabe zeigen.
   maybeShowVersionWelcome();
 }
 async function switchProfile(){
@@ -5130,7 +5452,7 @@ function showUpdateHint(version){
   el.id = 'updateHint';
   el.innerHTML = `
     <div class="uh-icon">⬇</div>
-    <div class="uh-text"><b>Neues Update verfügbar${version?` (${escapeHtml(version)})`:''}.</b>Bitte prüfe Updates nach deiner Spielsitzung — dein Spiel läuft ungestört weiter.</div>
+    <div class="uh-text"><b>Neues Update verfügbar.</b>Bitte prüfe Updates nach deiner Spielsitzung — dein Spiel läuft ungestört weiter.</div>
     <button class="uh-close" onclick="dismissUpdateHint()" title="Ausblenden">×</button>
   `;
   document.body.appendChild(el);
@@ -5145,7 +5467,7 @@ function dismissUpdateHint(instant){
   setTimeout(()=>{ if(el.parentNode) el.remove(); }, 320);
 }
 function offerUpdateInstall(version){
-  const label = version ? `Update ${version} ist bereit.` : 'Update ist bereit.';
+  const label = 'Ein Update ist bereit.';
   showModal(`
     <h2 class="section-title">Update bereit</h2>
     <p class="subtle">${escapeHtml(label)} Jetzt neu starten und installieren?</p>
@@ -5179,15 +5501,15 @@ function handleUpdaterStatus(payload){
     return;
   }
   if(payload.type === 'update-available'){
-    const label = payload.version ? `Update ${payload.version} verfügbar.` : 'Update verfügbar.';
+    const label = 'Ein Update ist verfügbar.';
     setUpdateUi('available', label);
     if(manual) showToast('⬇️', `${label} Download startet...`);
     else if(inGameSession()) showUpdateHint(payload.version);
     return;
   }
   if(payload.type === 'update-not-available'){
-    setUpdateUi('current', `Autohaus Legends ist auf dem neuesten Stand. Aktuelle Version: ${GAME_VERSION}`);
-    if(manual) showToast('✅', `<b>Autohaus Legends ist auf dem neuesten Stand.</b><br>Aktuelle Version: ${GAME_VERSION}`);
+    setUpdateUi('current', 'Autohaus Legends ist auf dem neuesten Stand.');
+    if(manual) showToast('✅', '<b>Autohaus Legends ist auf dem neuesten Stand.</b>');
     updateManualCheck = false;
     return;
   }
@@ -5198,7 +5520,7 @@ function handleUpdaterStatus(payload){
   }
   if(payload.type === 'update-downloaded'){
     pendingUpdateVersion = payload.version || pendingUpdateVersion || null;
-    const label = payload.version ? `Update ${payload.version} ist bereit.` : 'Update ist bereit.';
+    const label = 'Ein Update ist bereit.';
     setUpdateUi('ready', label);
     if(manual || !inGameSession()){
       // Bewusste Prüfung oder Login-Bildschirm: Installation darf angeboten werden.
@@ -5228,7 +5550,7 @@ async function checkForUpdatesManual(){
   }
   if(pendingUpdateVersion){
     // Update wurde bereits heruntergeladen: direkt anbieten statt erneut zu prüfen.
-    setUpdateUi('ready', `Update ${pendingUpdateVersion} ist bereit.`);
+    setUpdateUi('ready', 'Ein Update ist bereit.');
     offerUpdateInstall(pendingUpdateVersion);
     return;
   }
@@ -5278,7 +5600,7 @@ async function maybeShowVersionWelcome(){
     showModal(`
       <div class="welcome-version-head">
         <div class="wv-icon">${UPD_SVG[meta.icon] || UPD_SVG.gear}</div>
-        <h2>Willkommen bei Version ${escapeHtml(GAME_VERSION)}</h2>
+        <h2>Willkommen zurück</h2>
         <p>${entry && entry.title ? escapeHtml(entry.title) + ' — ' : ''}Das ist neu in Autohaus Legends:</p>
       </div>
       <div class="welcome-changelog">${entry ? renderChangelogSections(entry) : '<div class="upd-empty">Details findest du unter „Updates &amp; News“.</div>'}</div>
@@ -6157,7 +6479,7 @@ function renderBottomBar(){
     return `<div class="bottom-tab ${currentPage===id?'active':''} ${badge?'has-badge':''}" onclick="navigateTo('${id}')">${refIcon(id)}<span>${escapeHtml(app?.name||id)}</span>${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}</div>`;
   }).join('');
   const editBtn = `<button class="nav-edit-btn" onclick="openNavCustomize('bottom')" title="Leiste anpassen">${navEditIcon()}</button>`;
-  bar.innerHTML = `${editBtn}<div class="bottom-logo">AL</div><div class="bottom-title"><b>Autohaus Legends</b><small>v${GAME_VERSION}</small></div>
+  bar.innerHTML = `${editBtn}<div class="bottom-logo">AL</div><div class="bottom-title"><b>Autohaus Legends</b><small>Premium Management</small></div>
     <span class="savebadge" id="savebadge"><span class="sdot"></span><span><b>Automatisch gespeichert</b><small>Spielstand wird nach jeder Aktion gesichert</small></span></span>
     <div class="bottom-tabs">${tabs}</div>
     <div class="bottom-tools">
@@ -6400,6 +6722,10 @@ function renderApp(appId){
   if(appId !== currentPage) return;
   renderPageContent();
 }
+// true, solange die Spieluhr (Tageswechsel/Preis-Update) den Rerender auslöst.
+// Dann werden Einblend-Animationen unterdrückt und die Scrollposition gehalten,
+// damit sich der Tageswechsel nicht wie ein Neuladen der Seite anfühlt.
+let quietClockRender = false;
 function renderPageContent(){
   captureActiveDrafts();
   if(currentPage === 'branches') currentPage = 'dashboard';
@@ -6410,8 +6736,13 @@ function renderPageContent(){
   };
   const el = document.getElementById('pagecontent');
   if(el && fns[currentPage]){
+    const samePage = el.dataset.renderedPage === currentPage;
+    const prevScroll = samePage ? el.scrollTop : 0;
+    el.classList.toggle('quiet-rerender', quietClockRender && samePage);
     const chatScroll = captureActiveChatScroll();
     el.innerHTML = fns[currentPage]();
+    el.dataset.renderedPage = currentPage;
+    el.scrollTop = prevScroll;
     restoreActiveChatScroll(chatScroll);
     if(!chatScroll) keepActiveChatAtBottom();
     scrollActiveMarketSearchMatch();
@@ -6506,6 +6837,18 @@ function refreshProgressChrome(){
   renderSidebar();
   if(['dashboard','legacy','insights'].includes(currentPage) && !isEditingElement(document.activeElement)){
     renderPageContent();
+  }
+  if(document.getElementById('notifOverlay')) renderNotifPanel();
+  enhancePremiumUi();
+}
+function refreshClockChrome(){
+  if(!state || !document.getElementById('topbar') || !document.getElementById('sidebar')) return;
+  renderTopbar();
+  renderSidebar();
+  const bar = document.getElementById('dayProgress');
+  if(bar){
+    const dayDuration = state.dayDurationMs || DEFAULT_DAY_DURATION_MS;
+    bar.style.width = Math.round((dayElapsedMs/dayDuration)*100)+'%';
   }
   if(document.getElementById('notifOverlay')) renderNotifPanel();
   enhancePremiumUi();
@@ -13923,12 +14266,12 @@ function renderUpdateCard(entry, index){
       <div class="upd-head">
         <span class="upd-type-ic">${UPD_SVG[meta.icon] || UPD_SVG.gear}</span>
         <div class="upd-head-title">
-          <b>Version ${escapeHtml(entry.version)}</b>
+          <b>${escapeHtml(entry.title || meta.label)}</b>
           <small>${fmtUpdateDate(entry.date)}</small>
         </div>
         <span class="upd-badge">${escapeHtml(meta.badge)}</span>
       </div>
-      ${isMajor?`<div class="upd-major-line"><span class="spark">✦</span>${escapeHtml(entry.title || meta.label)}</div>`:''}
+      ${isMajor && entry.headline?`<div class="upd-major-line"><span class="spark">✦</span>${escapeHtml(meta.label)}</div>`:''}
       ${sub?`<p class="upd-headline">${escapeHtml(sub)}</p>`:''}
       ${renderUpdateColumns(entry, true)}
     </div>
@@ -13953,8 +14296,8 @@ function renderUpdates(){
       <div class="upd-hero-side">
         <div class="upd-brand"><span class="b1">Autohaus</span><span class="b2">LEGENDS</span></div>
         <div class="upd-version-panel">
-          <small>Deine Version</small>
-          <div class="vnum">${escapeHtml(GAME_VERSION)}</div>
+          <small>Status</small>
+          <div class="vnum">Aktuell</div>
           <span class="vstatus" id="updateStatusText">${escapeHtml(statusLabel)}</span>
           <span class="upd-version-check">${UPD_SVG.check}</span>
         </div>
@@ -13991,7 +14334,7 @@ function renderSettings(){
     <div class="notice">Die Spielzeit läuft automatisch weiter (ein Spieltag alle paar Sekunden) und pausiert, solange ein Dialogfenster geöffnet ist.</div>
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">App-Updates</h3>
     <div class="offer-card">
-      <p class="subtle" style="margin:0 0 6px;">Du nutzt Version <b style="font-family:var(--font-m);color:var(--brass);">${escapeHtml(GAME_VERSION)}</b>. Autohaus Legends prüft nach dem Login automatisch auf Updates — niemals während einer laufenden Spielsitzung.</p>
+      <p class="subtle" style="margin:0 0 6px;">Autohaus Legends prüft nach dem Login automatisch auf Updates — niemals während einer laufenden Spielsitzung.</p>
       <div class="row-actions" style="max-width:520px;">
         <button class="btn btn-primary" onclick="checkForUpdatesManual()">Nach Updates suchen</button>
         <button class="btn btn-ghost" onclick="navigateTo('updates')">📰 Updates &amp; News öffnen</button>
@@ -14217,7 +14560,7 @@ function updateMarketPrices(){
   refreshMarketPool();
   recordMarketSnapshot();
 
-  renderAllOpen();
+  refreshClockChrome();
   scheduleSave();
 }
 
@@ -14562,13 +14905,18 @@ function nextDay(){
 
   cleanupTransientCustomers();
   ensureCandidates();
-  renderAllOpen();
+  refreshClockChrome();
   scheduleSave();
 }
 
 /* =============================== INIT =============================== */
 async function init(){
   initUpdaterBridge();
+  window.addEventListener('resize', ()=>{
+    if(!playerNotepad || !document.getElementById('notepadLayer')) return;
+    applyNotepadPositions();
+    savePlayerNotepadSoon(false);
+  });
   // Hintergruende aus assets/backgrounds/ erkennen; nach 2,5s weiterladen, Scan laeuft dann im Hintergrund fertig.
   await Promise.race([discoverAppBackgrounds(), new Promise(r=>setTimeout(r, 2500))]);
   await renderProfileLogin();
