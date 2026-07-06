@@ -2257,7 +2257,7 @@ function updateVehicleFileState(c){
   return c.vehicleFile;
 }
 function vehicleFileDebugHtml(c){
-  if(!state?.chatDebug && localStorage.getItem('autodealerChatDebug')!=='1') return '';
+  if(!state?.chatDebug) return '';
   normalizeVehicleIssues(c);
   const file = updateVehicleFileState(c);
   const open = (c.issues||[]).filter(i=>!i.repaired);
@@ -3767,7 +3767,7 @@ function runPurchaseResponsePipeline(req, text){
     nextRecommendedReaction: purchaseNextRecommendedReaction(req, analysis),
   };
   req.lastPurchaseChatDebug = debug;
-  if(state.chatDebug || localStorage.getItem('autodealerChatDebug')==='1') console.debug('[PurchaseChatPipeline]', debug);
+  if(state.chatDebug) console.debug('[PurchaseChatPipeline]', debug);
   return {analysis, reply, debug};
 }
 function extractMoneyAmounts(text){
@@ -3900,17 +3900,20 @@ function completePrivatePurchase(req, price){
 
 /* =============================== PERSISTENCE =============================== */
 async function storageGet(key){
+  console.log('[Renderer] storageGet called for key:', key, '| window.storage available:', !!(window.storage && window.storage.get));
   if(window.storage && typeof window.storage.get==='function'){
+    console.log('[Renderer] Using window.storage to read', key);
     return await window.storage.get(key);
   }
-  return {value: localStorage.getItem(key)};
+  throw new Error('window.storage ist nicht verfuegbar. Spielstaende werden nicht im Browser-Speicher gelesen.');
 }
 async function storageSet(key, value){
+  console.log('[Renderer] storageSet called for key:', key, '| window.storage available:', !!(window.storage && window.storage.set));
   if(window.storage && typeof window.storage.set==='function'){
+    console.log('[Renderer] Using window.storage to save', key);
     return await window.storage.set(key, value);
   }
-  if(value === '' || value === null || value === undefined) localStorage.removeItem(key);
-  else localStorage.setItem(key, value);
+  throw new Error('window.storage ist nicht verfuegbar. Spielstaende werden nicht im Browser-Speicher gespeichert.');
 }
 function profileStateKey(profileId){ return 'autodealer-state-v3-'+profileId; }
 function cp1252ByteForChar(ch){
@@ -7932,7 +7935,7 @@ function renderPurchaseRequestDetail(id){
       : '';
     return `<div class="bubble ${m.from==='player'?'player':'customer'}">${escapeHtml(m.text)}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">Tag ${m.day}</div>${counterButton}</div>`;
   }).join('');
-  const debug = (state.chatDebug || localStorage.getItem('autodealerChatDebug')==='1') && r.lastPurchaseChatDebug ? `<div class="notice" style="display:block;margin-top:8px;border-color:rgba(92,134,255,.32);">
+  const debug = state.chatDebug && r.lastPurchaseChatDebug ? `<div class="notice" style="display:block;margin-top:8px;border-color:rgba(92,134,255,.32);">
     <b>Ankaufschat-Debug</b><br>
     Intent: ${escapeHtml(r.lastPurchaseChatDebug.intent)} · Zustand: ${escapeHtml(r.lastPurchaseChatDebug.conversationState)}<br>
     Offene Frage: ${escapeHtml(r.lastPurchaseChatDebug.openQuestion ? r.lastPurchaseChatDebug.openQuestion.text : 'keine')}<br>
@@ -8511,7 +8514,7 @@ function renderConversationThread(offerId){
     ? `${o.chatStatus || 'Kunde meldet sich später ...'} voraussichtlich Tag ${o.pendingReply.dueDay}`
     : `${o.name} antwortet voraussichtlich Tag ${o.pendingReply?.dueDay}`;
   const waiting = o.pendingReply ? `<div class="notice" style="margin-top:8px;">⏳ ${escapeHtml(waitingText)}</div>` : '';
-  const debug = (state.chatDebug || localStorage.getItem('autodealerChatDebug')==='1') && o.lastChatDebug ? `<div class="notice" style="display:block;margin-top:8px;border-color:rgba(92,134,255,.32);">
+  const debug = state.chatDebug && o.lastChatDebug ? `<div class="notice" style="display:block;margin-top:8px;border-color:rgba(92,134,255,.32);">
     <b>Chat-Debug</b><br>
     Intent: ${escapeHtml(o.lastChatDebug.intent)} · Zustand: ${escapeHtml(o.lastChatDebug.conversationState)}<br>
     Offene Frage: ${escapeHtml(o.lastChatDebug.openQuestion ? o.lastChatDebug.openQuestion.text : 'keine')}<br>
@@ -8848,7 +8851,7 @@ function runCustomerResponsePipeline(o, text){
     nextRecommendedReaction: nextRecommendedReaction(o, analysis),
   };
   o.lastChatDebug = debug;
-  if(state.chatDebug || localStorage.getItem('autodealerChatDebug')==='1') console.debug('[CustomerChatPipeline]', debug);
+  if(state.chatDebug) console.debug('[CustomerChatPipeline]', debug);
   return {kind:'ai', analysis, sourceText:text, reply, debug};
 }
 function scheduleAiReply(o, analysis, sourceText){
@@ -13343,7 +13346,6 @@ function setPaymentDelayPercent(v){
 }
 function toggleChatDebug(){
   state.chatDebug = !state.chatDebug;
-  try{ localStorage.setItem('autodealerChatDebug', state.chatDebug ? '1' : '0'); }catch(e){}
   renderAllOpen(); scheduleSave();
 }
 function setDunningFee(key, value){
