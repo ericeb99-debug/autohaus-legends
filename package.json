@@ -4,12 +4,13 @@
   "version": "1.0.0",
   "description": "Autohaus Legends - AutoDealer Simulator als Desktop-App (Electron-Huelle um autodealer-simulator.html)",
   "main": "main.js",
-  "author": "Eric",
+  "author": "Autohaus Legends",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win"
+    "build": "electron-builder --win",
+    "reset:game-data": "node scripts/reset-game-data.js"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -28,13 +29,39 @@
       "assets/**/*"
     ],
     "win": {
+      "icon": "assets/logos/app-icon.ico",
+      "signtoolOptions": {
+        "publisherName": "Autohaus Legends"
+      },
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
+      "artifactName": "AutohausLegendsSetup.exe",
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Autohaus Legends",
+      "uninstallDisplayName": "Autohaus Legends",
+      "installerIcon": "assets/logos/app-icon.ico",
+      "uninstallerIcon": "assets/logos/app-icon.ico",
+      "installerHeaderIcon": "assets/logos/app-icon.ico"
+    },
+    "portable": {
+      "artifactName": "AutohausLegendsPortable.exe"
     }
   }
 }

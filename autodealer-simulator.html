@@ -1482,7 +1482,9 @@ body.theme-light .notif-overlay{background:rgba(30,41,59,.2);}
   color:var(--brass-ink);font:900 15px/1 var(--font-d);
   background:linear-gradient(135deg,#f1d99c,var(--brass));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.48);
+  overflow:hidden;
 }
+.login-mark img{width:100%;height:100%;object-fit:cover;display:block;}
 .login-brand h1{margin:0;color:var(--ink-0);font:900 clamp(32px,5vw,58px)/.95 var(--font-d);letter-spacing:0;}
 .login-brand small{display:block;margin-top:7px;color:var(--brass);font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;}
 .login-copy{max-width:580px;}
@@ -1521,6 +1523,7 @@ body.theme-light .notif-overlay{background:rgba(30,41,59,.2);}
   min-width:0;flex:1;padding:8px 10px;border-radius:9px;background:rgba(5,8,14,.55);
   border:1px solid var(--line);color:var(--ink-0);
 }
+.login-error{display:none;margin:0 0 12px;border-color:rgba(255,91,91,.36);color:var(--ink-0);}
 .login-new-game{
   border-radius:16px;padding:16px;background:linear-gradient(155deg,rgba(216,172,82,.1),rgba(255,255,255,.035));
   border:1px solid rgba(216,172,82,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
@@ -4028,7 +4031,7 @@ async function renderProfileLogin(){
         <section class="login-hero">
           <div>
             <div class="login-brand">
-              <div class="login-mark">AL</div>
+              <div class="login-mark"><img src="assets/logos/app-logo.png" alt=""></div>
               <div>
                 <h1>Autohaus Legends</h1>
                 <small>Premium Autohaus Management</small>
@@ -4059,15 +4062,16 @@ async function renderProfileLogin(){
             </div>
             <div class="profile-panel-badge">Secure Save</div>
           </div>
+          <div id="loginError" class="notice login-error" role="alert"></div>
           <div class="profile-grid">
             ${profiles.map(p=>`<div class="profile-card">
               <div class="name">${escapeHtml(p.name)}</div>
               <div class="meta">Zuletzt gespielt: ${p.lastPlayed?new Date(p.lastPlayed).toLocaleString('de-DE'):'noch nie'}${p.migratedLegacy?'<br>Alter Spielstand: kein Passwort gesetzt':''}</div>
               <div class="unlock">
-                <input type="password" id="pw_${p.id}" placeholder="${p.password?'Passwort':'Kein Passwort'}" onkeydown="if(event.key==='Enter'){selectProfile('${p.id}');}">
-                <button class="btn btn-primary btn-sm" onclick="selectProfile('${p.id}')">Fortsetzen</button>
+                <input type="password" id="pw_${p.id}" data-profile-login-control="1" placeholder="${p.password?'Passwort':'Kein Passwort'}" onkeydown="if(event.key==='Enter'){selectProfile('${p.id}');}">
+                <button class="btn btn-primary btn-sm" id="loginBtn_${p.id}" data-profile-login-control="1" onclick="selectProfile('${p.id}')">Fortsetzen</button>
               </div>
-              <button class="btn btn-danger btn-sm" style="margin-top:10px;" onclick="event.stopPropagation(); deleteProfileFromLogin('${p.id}')">Löschen</button>
+              <button class="btn btn-danger btn-sm" data-profile-login-control="1" style="margin-top:10px;" onclick="event.stopPropagation(); deleteProfileFromLogin('${p.id}')">Löschen</button>
             </div>`).join('') || '<div class="notice">Noch kein Profil vorhanden.</div>'}
           </div>
           <div class="login-new-game">
@@ -4459,13 +4463,36 @@ async function deleteProfileFromLogin(profileId){
   if(!profile) return;
   const pw = document.getElementById('pw_'+profileId)?.value || '';
   if((profile.password||'') !== pw){
-    alert(profile.password ? 'Falsches Passwort.' : 'Dieser alte Spielstand hat kein Passwort. Feld leer lassen.');
+    showLoginError(profile.password ? 'Falsches Passwort.' : 'Dieser alte Spielstand hat kein Passwort. Feld leer lassen.', profileId);
     return;
   }
   if(!confirm(`Spielstand "${profile.name}" löschen? Der gespeicherte Spielstand wird entfernt.`)) return;
   await storageSet(profileStateKey(profileId), '');
   await saveProfiles(profiles.filter(p=>p.id!==profileId));
   renderProfileLogin();
+}
+function setProfileLoginBusy(profileId, busy){
+  document.querySelectorAll('[data-profile-login-control="1"]').forEach(el=>{
+    el.disabled = !!busy;
+  });
+  const btn = document.getElementById('loginBtn_'+profileId);
+  if(btn) btn.textContent = busy ? 'Lädt...' : 'Fortsetzen';
+}
+function showLoginError(message, profileId){
+  const el = document.getElementById('loginError');
+  if(el){
+    el.textContent = message;
+    el.style.display = 'block';
+  } else {
+    alert(message);
+  }
+  setProfileLoginBusy(profileId, false);
+  const input = document.getElementById('pw_'+profileId);
+  if(input){
+    input.disabled = false;
+    input.focus();
+    input.select();
+  }
 }
 async function createProfileFromLogin(){
   // Temporaeres Debug-Log fuer den Erstellungsablauf; bei Bedarf spaeter entfernen.
@@ -4544,27 +4571,46 @@ async function createProfileFromLogin(){
   }
 }
 async function selectProfile(profileId){
-  const profiles = await loadProfiles();
-  const profile = profiles.find(p=>p.id===profileId);
-  if(!profile) return;
-  const pw = document.getElementById('pw_'+profileId)?.value || '';
-  if((profile.password||'') !== pw){
-    alert(profile.password ? 'Falsches Passwort.' : 'Dieser alte Spielstand hat kein Passwort. Feld leer lassen.');
-    return;
+  let started = false;
+  try{
+    setProfileLoginBusy(profileId, true);
+    const errorEl = document.getElementById('loginError');
+    if(errorEl){ errorEl.textContent = ''; errorEl.style.display = 'none'; }
+    const profiles = await loadProfiles();
+    const profile = profiles.find(p=>p.id===profileId);
+    if(!profile){
+      showLoginError('Profil wurde nicht gefunden. Bitte erneut auswählen.', profileId);
+      return;
+    }
+    const pw = document.getElementById('pw_'+profileId)?.value || '';
+    if((profile.password||'') !== pw){
+      showLoginError(profile.password ? 'Falsches Passwort.' : 'Dieser alte Spielstand hat kein Passwort. Feld leer lassen.', profileId);
+      return;
+    }
+    activeProfileId = profile.id;
+    activeProfileName = profile.name;
+    const loaded = await loadGame(profile.id);
+    if(!loaded){
+      state = defaultState();
+      refreshMarketPool();
+      seedInitialInventory();
+      state.cashHistory.push({day:1, cash:state.cash, net:0});
+    } else {
+      migrateState();
+    }
+    await upsertProfileMeta(profile.id, {lastPlayed:Date.now()});
+    started = true;
+    startProfileGame();
+  }catch(e){
+    console.error('[ProfileLogin] Login fehlgeschlagen:', e);
+    activeProfileId = null;
+    activeProfileName = '';
+    state = null;
+    try{ await renderProfileLogin(); }catch(_){}
+    showLoginError('Login fehlgeschlagen. Bitte erneut versuchen.', profileId);
+  }finally{
+    if(!started && document.getElementById('loginError')) setProfileLoginBusy(profileId, false);
   }
-  activeProfileId = profile.id;
-  activeProfileName = profile.name;
-  const loaded = await loadGame(profile.id);
-  if(!loaded){
-    state = defaultState();
-    refreshMarketPool();
-    seedInitialInventory();
-    state.cashHistory.push({day:1, cash:state.cash, net:0});
-  } else {
-    migrateState();
-  }
-  await upsertProfileMeta(profile.id, {lastPlayed:Date.now()});
-  startProfileGame();
 }
 function startProfileGame(){
   applyTheme();

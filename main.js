@@ -10,6 +10,7 @@ app.setName('Autohaus Legends');
 
 const ROOT = __dirname;
 const savesDir = path.join(app.getPath('userData'), 'Saves');
+const storageDirs = ['Local Storage', 'Session Storage'];
 
 function getFilenameForKey(key) {
   if (key === 'autodealer-profiles' || key === 'autodealer-profiles-v1') return 'profiles.json';
@@ -20,6 +21,19 @@ function getFilenameForKey(key) {
   }
   const cleanKey = key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   return `${cleanKey}.json`;
+}
+
+async function resetGameData() {
+  await fs.mkdir(savesDir, { recursive: true });
+  const entries = await fs.readdir(savesDir, { withFileTypes: true }).catch(() => []);
+  const saveFilePattern = /^(profiles(?:\.backup)?|save_[a-z0-9-]+(?:\.backup)?)\.json$/i;
+  await Promise.all(entries
+    .filter(entry => entry.isFile() && saveFilePattern.test(entry.name))
+    .map(entry => fs.unlink(path.join(savesDir, entry.name)).catch(() => {})));
+
+  await Promise.all(storageDirs.map(dir =>
+    fs.rm(path.join(app.getPath('userData'), dir), { recursive: true, force: true }).catch(() => {})
+  ));
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -41,6 +55,12 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     nativeTheme.themeSource = 'dark';
+
+    if (process.argv.includes('--reset-game-data')) {
+      await resetGameData();
+      app.quit();
+      return;
+    }
     
     await fs.mkdir(savesDir, { recursive: true });
 
@@ -124,6 +144,7 @@ function createWindow() {
     autoHideMenuBar: true,        // Menue versteckt; Alt zeigt es, F11 = Vollbild bleibt verfuegbar
     backgroundColor: '#0d1322',   // dunkler App-Hintergrund, passend zum Spiel (kein weisses Aufblitzen)
     show: false,                  // erst zeigen, wenn fertig geladen
+    icon: path.join(__dirname, 'assets', 'logos', 'app-icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
