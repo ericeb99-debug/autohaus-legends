@@ -1844,6 +1844,234 @@ body.premium-click .btn-primary,
   .chat-vehicle-visual{display:none;}
 }
 
+/* ---------- UPDATES & NEWS ---------- */
+.upd-hero{
+  position:relative;overflow:hidden;border-radius:var(--radius);
+  border:1px solid var(--line-hi);
+  background:linear-gradient(160deg,var(--panel-hi),var(--panel) 60%);
+  box-shadow:var(--shadow-1);
+  padding:24px 26px;margin-bottom:18px;
+  display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:18px 26px;
+  animation:updfade .5s var(--ease-premium) both;
+}
+.upd-hero::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(640px 240px at 10% -50%, var(--brass-dim), transparent 70%),
+    radial-gradient(520px 260px at 96% 140%, var(--blue-dim), transparent 72%);
+}
+.upd-hero-main{position:relative;display:flex;align-items:flex-start;gap:18px;min-width:260px;flex:1;}
+.upd-hero-icon{
+  flex:0 0 auto;width:62px;height:62px;border-radius:16px;display:grid;place-items:center;
+  color:var(--brass);border:2px solid color-mix(in srgb, var(--brass) 75%, transparent);
+  background:color-mix(in srgb, var(--brass) 8%, transparent);
+  box-shadow:0 0 26px -6px color-mix(in srgb, var(--brass) 55%, transparent), inset 0 0 14px -6px color-mix(in srgb, var(--brass) 40%, transparent);
+}
+.upd-hero-icon svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+.upd-hero-main h1{
+  font-family:var(--font-d);font-size:clamp(28px,3.6vw,38px);font-weight:800;
+  letter-spacing:-.6px;margin:0 0 8px;color:var(--ink-0);line-height:1.05;
+}
+.upd-hero-sub{color:var(--ink-1);font-size:13.5px;line-height:1.5;margin:0;max-width:560px;}
+.upd-hero-side{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:12px;min-width:230px;}
+.upd-brand{text-align:right;font-family:var(--font-d);line-height:1.12;user-select:none;}
+.upd-brand .b1{display:block;font-size:11.5px;font-weight:800;letter-spacing:.42em;color:var(--ink-0);margin-right:-.42em;}
+.upd-brand .b2{
+  display:block;font-size:22px;font-weight:900;letter-spacing:.14em;margin-right:-.14em;
+  background:linear-gradient(180deg,#f4d78a,var(--brass) 60%,#a3752a);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.upd-brand .b2::after{content:'';display:block;height:2px;margin-top:3px;background:linear-gradient(90deg,transparent,var(--brass),transparent);}
+.upd-version-panel{
+  position:relative;width:100%;max-width:250px;border-radius:14px;padding:12px 48px 12px 15px;
+  border:1px solid var(--line-hi);
+  background:linear-gradient(165deg,var(--panel-hi),var(--panel));
+  box-shadow:var(--shadow-1);
+}
+.upd-version-panel small{display:block;font-size:11.5px;color:var(--ink-1);margin-bottom:2px;}
+.upd-version-panel .vnum{font-family:var(--font-d);font-size:27px;font-weight:800;letter-spacing:-.5px;color:var(--ink-0);line-height:1.1;}
+.upd-version-panel .vstatus{display:block;font-size:11px;color:var(--ink-1);margin-top:3px;}
+.upd-version-check{
+  position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;
+  display:grid;place-items:center;color:#fff;
+  background:linear-gradient(160deg,#4fdd8e,var(--emerald));
+  box-shadow:0 0 14px -2px color-mix(in srgb, var(--emerald) 70%, transparent);
+}
+.upd-version-check svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;}
+.upd-section-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:20px 0 14px;flex-wrap:wrap;}
+.upd-section-label{
+  font-family:var(--font-d);font-size:17px;font-weight:800;letter-spacing:-.2px;color:var(--ink-0);
+  display:flex;align-items:center;gap:9px;margin:0;
+}
+.upd-section-label .star{color:var(--brass);font-size:15px;}
+.upd-check-btn{
+  display:inline-flex;align-items:center;gap:9px;padding:10px 18px;border-radius:12px;cursor:pointer;
+  font-family:var(--font-b);font-size:12.5px;font-weight:700;color:var(--brass);
+  border:1px solid color-mix(in srgb, var(--brass) 55%, transparent);
+  background:linear-gradient(165deg, color-mix(in srgb, var(--brass) 10%, var(--panel-hi)), var(--panel));
+  box-shadow:var(--shadow-1);
+  transition:transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+.upd-check-btn:hover{transform:translateY(var(--hover-lift));border-color:var(--brass);box-shadow:var(--shadow-1),0 0 22px -8px color-mix(in srgb, var(--brass) 65%, transparent);}
+.upd-check-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+.upd-status-line{font-size:11.5px;color:var(--ink-2);}
+.upd-card{
+  --upd-accent:var(--blue);
+  position:relative;overflow:hidden;border-radius:16px;
+  display:grid;grid-template-columns:300px minmax(0,1fr);
+  border:1px solid color-mix(in srgb, var(--upd-accent) 45%, var(--line));
+  background:linear-gradient(168deg,var(--panel-hi),var(--panel) 70%);
+  box-shadow:var(--shadow-1);
+  margin-bottom:18px;
+  animation:updcardin .55s var(--ease-premium) both;
+  animation-delay:calc(var(--i,0) * 80ms);
+  transition:transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+.upd-card:hover{transform:translateY(var(--hover-lift));border-color:color-mix(in srgb, var(--upd-accent) 70%, var(--line));}
+.upd-card.upd-major{
+  --upd-accent:var(--brass);
+  box-shadow:var(--shadow-1), 0 0 46px -14px color-mix(in srgb, var(--brass) 60%, transparent);
+}
+.upd-art{
+  position:relative;min-height:200px;overflow:hidden;
+  background-size:cover;background-position:center;
+  background-color:var(--bg-2);
+}
+.upd-art::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg, rgba(0,0,0,.14) 0%, transparent 45%, var(--panel) 100%);
+}
+body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,255,.05) 0%, transparent 45%, var(--panel) 100%);}
+.upd-ribbon{
+  position:absolute;top:26px;left:-44px;z-index:2;transform:rotate(-45deg);
+  padding:6px 52px;text-align:center;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--upd-accent) 88%, #fff), var(--upd-accent));
+  color:#fff;font-size:9.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;
+  box-shadow:0 5px 16px rgba(0,0,0,.42);text-shadow:0 1px 2px rgba(0,0,0,.35);
+}
+.upd-body{padding:18px 24px 20px;min-width:0;position:relative;}
+.upd-head{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+.upd-type-ic{
+  flex:0 0 auto;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;
+  color:var(--upd-accent);
+  border:2px solid var(--upd-accent);
+  background:color-mix(in srgb, var(--upd-accent) 10%, transparent);
+  box-shadow:0 0 18px -6px color-mix(in srgb, var(--upd-accent) 60%, transparent);
+}
+.upd-type-ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.upd-head-title{flex:1;min-width:150px;}
+.upd-head-title b{display:block;font-family:var(--font-d);font-size:24px;font-weight:800;letter-spacing:-.4px;color:var(--ink-0);line-height:1.1;}
+.upd-head-title small{display:block;margin-top:3px;font-family:var(--font-m);font-size:11.5px;color:var(--ink-2);}
+.upd-badge{
+  flex:0 0 auto;display:inline-flex;align-items:center;padding:7px 15px;border-radius:999px;white-space:nowrap;
+  font-size:10.5px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--upd-accent);
+  background:color-mix(in srgb, var(--upd-accent) 12%, transparent);
+  border:1px solid color-mix(in srgb, var(--upd-accent) 55%, transparent);
+}
+.upd-major-line{
+  display:flex;align-items:center;gap:10px;margin:12px 0 4px;
+  font-family:var(--font-d);font-size:19px;font-weight:800;letter-spacing:-.2px;color:var(--brass);
+}
+.upd-major-line .spark{font-size:16px;}
+.upd-headline{color:var(--ink-1);font-size:12.5px;line-height:1.55;margin:2px 0 0;max-width:600px;}
+.upd-cols{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  margin-top:16px;padding-top:16px;border-top:1px solid var(--line);
+}
+.upd-col{--ccol:var(--blue);padding:0 18px;min-width:0;border-left:1px solid var(--line);}
+.upd-col:first-child{padding-left:0;border-left:none;}
+.upd-col.new{--ccol:var(--emerald);}
+.upd-col.improved{--ccol:var(--blue);}
+.upd-col.fixed{--ccol:#e0873c;}
+.upd-col-head{display:flex;align-items:center;gap:9px;margin-bottom:5px;}
+.upd-col-head .cic{
+  flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  color:var(--ccol);border:1.6px solid var(--ccol);
+  background:color-mix(in srgb, var(--ccol) 10%, transparent);
+}
+.upd-col-head .cic svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+.upd-col-head b{font-family:var(--font-d);font-size:15.5px;font-weight:800;letter-spacing:-.1px;color:var(--ccol);}
+.upd-col-line{height:1px;margin:2px 0 9px;background:linear-gradient(90deg, color-mix(in srgb, var(--ccol) 55%, transparent), transparent);}
+.upd-col ul{list-style:none;margin:0;padding:0;display:grid;gap:5px;}
+.upd-col li{
+  position:relative;padding-left:13px;color:var(--ink-1);font-size:12.5px;line-height:1.5;overflow-wrap:break-word;
+}
+.upd-col li::before{content:'•';position:absolute;left:0;top:0;color:var(--ccol);font-weight:900;}
+.upd-col li.none{color:var(--ink-2);font-style:italic;}
+.upd-empty{color:var(--ink-2);font-size:12px;font-style:italic;}
+.upd-older{display:none;}
+.upd-older.open{display:block;animation:updfade .4s var(--ease-premium) both;}
+.upd-older-toggle{
+  display:flex;align-items:center;justify-content:center;gap:9px;margin:4px auto 22px;
+  min-width:300px;padding:11px 30px;border-radius:12px;cursor:pointer;
+  font-family:var(--font-b);font-size:12.5px;font-weight:700;color:var(--ink-1);
+  border:1px solid var(--line-hi);
+  background:linear-gradient(165deg,var(--panel-hi),var(--panel));
+  box-shadow:var(--shadow-1);
+  transition:transform var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.upd-older-toggle:hover{transform:translateY(var(--hover-lift));color:var(--ink-0);border-color:color-mix(in srgb, var(--brass) 45%, var(--line-hi));}
+.upd-older-toggle .chev{display:inline-grid;transition:transform var(--transition-normal);}
+.upd-older-toggle.open .chev{transform:rotate(180deg);}
+.upd-older-toggle svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+@keyframes updcardin{from{opacity:0;transform:translateY(16px) scale(.985);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes updfade{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@media (max-width:1150px){
+  .upd-cols{grid-template-columns:1fr;gap:14px;}
+  .upd-col{padding:0;border-left:none;}
+}
+@media (max-width:900px){
+  .upd-card{grid-template-columns:1fr;}
+  .upd-art{min-height:130px;}
+  .upd-art::after{background:linear-gradient(180deg, rgba(0,0,0,.1) 30%, var(--panel) 100%);}
+  .upd-hero-side{align-items:flex-start;}
+}
+/* Willkommensfenster nach Update */
+.modal.modal-welcome{max-width:620px;}
+.welcome-version-head{text-align:center;padding:6px 0 16px;}
+.welcome-version-head .wv-icon{
+  width:62px;height:62px;margin:0 auto 12px;border-radius:18px;display:grid;place-items:center;font-size:30px;
+  background:linear-gradient(150deg,var(--brass-dim),transparent 140%);
+  border:1px solid color-mix(in srgb, var(--brass) 46%, transparent);
+  box-shadow:0 0 36px -10px color-mix(in srgb, var(--brass) 60%, transparent);
+}
+.welcome-version-head h2{font-family:var(--font-d);font-size:23px;font-weight:800;letter-spacing:-.3px;margin:0 0 4px;}
+.welcome-version-head p{color:var(--ink-1);font-size:12.5px;margin:0;}
+.welcome-changelog{max-height:46vh;overflow-y:auto;padding-right:4px;display:grid;gap:14px;margin-bottom:16px;}
+.welcome-changelog .upd-cols{grid-template-columns:1fr;gap:16px;border-top:none;padding-top:0;margin-top:0;}
+.welcome-changelog .upd-col{border-left:none;padding:0;}
+/* Dezente Update-Benachrichtigung oben rechts (waehrend einer Spielsitzung) */
+#updateHint{
+  position:fixed;top:86px;right:22px;z-index:4600;max-width:330px;
+  display:flex;align-items:flex-start;gap:11px;padding:13px 15px;border-radius:14px;
+  background:linear-gradient(165deg,var(--panel-hi),var(--panel));
+  border:1px solid color-mix(in srgb, var(--blue) 45%, var(--line));
+  box-shadow:var(--shadow-2), 0 0 30px -12px color-mix(in srgb, var(--blue) 60%, transparent);
+  animation:updhintin .45s var(--ease-premium) both;
+}
+#updateHint .uh-icon{
+  flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;
+  background:var(--blue-dim);border:1px solid color-mix(in srgb, var(--blue) 40%, transparent);
+}
+#updateHint .uh-text{flex:1;min-width:0;font-size:12px;line-height:1.5;color:var(--ink-1);}
+#updateHint .uh-text b{display:block;font-family:var(--font-d);font-size:12.5px;font-weight:800;color:var(--ink-0);margin-bottom:2px;}
+#updateHint .uh-close{
+  flex:0 0 auto;border:none;background:transparent;color:var(--ink-2);font-size:15px;cursor:pointer;
+  padding:2px 4px;border-radius:6px;line-height:1;
+}
+#updateHint .uh-close:hover{color:var(--ink-0);background:var(--surface);}
+#updateHint.leaving{animation:updhintout .3s var(--ease-premium) forwards;}
+@keyframes updhintin{from{opacity:0;transform:translateX(26px);}to{opacity:1;transform:translateX(0);}}
+@keyframes updhintout{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(26px);}}
+@media (prefers-reduced-motion: reduce){
+  .upd-card,.upd-hero,#updateHint{animation:none;}
+}
+@media (max-width:760px){
+  .upd-hero{padding:20px;}
+  #updateHint{top:70px;left:14px;right:14px;max-width:none;}
+}
+
 </style>
 </head>
 <body>
@@ -1882,8 +2110,125 @@ const APPS = [
   {id:'upgrades', name:'Upgrades', icon:'UP'},
   {id:'legacy', name:'Legacy-Historie', icon:'L'},
   {id:'design', name:'Design', icon:'DS'},
+  {id:'updates', name:'Updates & News', icon:'UN'},
   {id:'settings', name:'Einstellungen', icon:'SE'},
 ];
+
+/* ============================================================
+   VERSIONS- & CHANGELOG-SYSTEM  —  ANLEITUNG FÜR KI-ASSISTENTEN
+   ============================================================
+   Wenn du (eine KI) Änderungen an diesem Spiel vornimmst, pflege
+   den Changelog IMMER automatisch mit — der Spieler soll ihn nie
+   doppelt schreiben müssen:
+   1. Erhöhe GAME_VERSION (semantisch: major.minor.patch).
+   2. Setze "version" in package.json auf denselben Wert.
+   3. Füge GANZ OBEN im CHANGELOG-Array einen neuen Eintrag hinzu:
+      {
+        version:'x.x.x',
+        date:'JJJJ-MM-TT',
+        type:'major' | 'content' | 'feature' | 'balance' | 'bugfix' | 'hotfix' | 'normal',
+        title:'Kurzer prägnanter Titel',
+        headline:'Optional: 1 Satz Zusammenfassung',
+        sections:{ new:['...'], improved:['...'], fixed:['...'] }
+      }
+      Leere Abschnitte einfach weglassen. Einträge auf Deutsch,
+      aus Spielersicht formuliert, keine technischen Interna.
+   4. Fertig — Anzeige in "Updates & News", Sortierung (neueste
+      Version oben) und das einmalige "Willkommen bei Version
+      x.x.x"-Fenster nach dem Update erfolgen automatisch.
+   ============================================================ */
+const GAME_VERSION = '1.1.0';
+// Kartenbilder stammen aus der vorhandenen Hintergrund-Galerie (assets/backgrounds/).
+// Ein Changelog-Eintrag kann sie per image:'pfad.png' überschreiben.
+const UPDATE_ART = {
+  luxuryNight:'assets/backgrounds/luxury-night/0331148b-8456-4001-883a-fa5ee2a8e4f3.png',
+  premiumDark:'assets/backgrounds/premium-dark/4a385892-9645-427e-9280-8538b347a634.png',
+  showroomDay:'assets/backgrounds/showroom-day/1beb9818-adf4-4dcf-a6ee-9a114c13621f.png',
+  blueprint:'assets/backgrounds/blueprint/58494610-8689-41eb-b15d-140948c964af.png',
+};
+const UPDATE_TYPES = {
+  major:   {icon:'rocket', label:'Großes Inhaltsupdate', badge:'Major Update',   ribbon:'Großes Update',  accent:'var(--brass)',   art:UPDATE_ART.luxuryNight},
+  content: {icon:'box',    label:'Content Update',       badge:'Content Update', ribbon:'Content Update', accent:'var(--blue)',    art:UPDATE_ART.showroomDay},
+  feature: {icon:'spark',  label:'Feature Update',       badge:'Feature Update', ribbon:'Feature Update', accent:'var(--emerald)', art:UPDATE_ART.blueprint},
+  balance: {icon:'scales', label:'Balance Update',       badge:'Balance Update', ribbon:'Balance Update', accent:'var(--emerald)', art:UPDATE_ART.blueprint},
+  bugfix:  {icon:'wrench', label:'Bugfix Update',        badge:'Bugfix Update',  ribbon:'Bugfix',         accent:'var(--blue)',    art:UPDATE_ART.premiumDark},
+  hotfix:  {icon:'bolt',   label:'Hotfix',               badge:'Hotfix',         ribbon:'Hotfix',         accent:'var(--violet)',  art:UPDATE_ART.premiumDark},
+  normal:  {icon:'gear',   label:'Update',               badge:'Update',         ribbon:'Update',         accent:'var(--blue)',    art:UPDATE_ART.premiumDark},
+};
+const UPD_SVG = {
+  rocket:'<svg viewBox="0 0 24 24"><path d="M9.5 14.5 5 13c.6-2.2 1.8-3.6 4-4l1.6.4"/><path d="M9.5 14.5 11 19c2.2-.6 3.6-1.8 4-4l-.4-1.6"/><path d="M9.5 14.5c1.5-4.5 4.5-8 9.5-9.5.4 5-1.5 8.5-5.5 11z"/><circle cx="15" cy="9" r="1.3"/><path d="M4.5 19.5c.8-.2 1.6-.7 2-1.5"/></svg>',
+  box:'<svg viewBox="0 0 24 24"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7.3 12 12l8.7-4.7"/><path d="M12 22V12"/></svg>',
+  spark:'<svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.4L19.5 10l-5.6 1.6L12 17l-1.9-5.4L4.5 10l5.6-1.6z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg>',
+  scales:'<svg viewBox="0 0 24 24"><path d="M12 4v16"/><path d="M8 20h8"/><path d="M4 7h16"/><path d="M6.5 7l-2.5 5.5a3 3 0 0 0 5 0z"/><path d="M17.5 7 15 12.5a3 3 0 0 0 5 0z"/></svg>',
+  wrench:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3 17.5 3.5l3 3-2.8 2.8"/><path d="M13.8 7.2 5 16v3h3l8.8-8.8"/></svg>',
+  bolt:'<svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>',
+  gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 3.1a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 3.1h5l.3-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z"/></svg>',
+  plus:'<svg viewBox="0 0 24 24"><path d="M12 6v12"/><path d="M6 12h12"/></svg>',
+  arrowUp:'<svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>',
+  refresh:'<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg>',
+  chevron:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+};
+const CHANGELOG = [
+  {
+    version:'1.1.0', date:'2026-07-06', type:'major',
+    title:'Updates & News Center',
+    headline:'Autohaus Legends erhält ein eigenes, dauerhaftes Update-Center — alle Neuerungen ab sofort übersichtlich im Spiel.',
+    sections:{
+      new:[
+        'Neues Programm „Updates & News“ im Programme-Menü: alle Versionen, Neuerungen und Bugfixes als moderne Update-Karten.',
+        'Willkommensfenster nach jedem Update: Beim ersten Start einer neuen Version werden die Neuerungen einmalig vorgestellt.',
+        'Dezente Benachrichtigung oben rechts, falls während einer Spielsitzung ein neues Update erscheint — ohne Unterbrechung.',
+        'Update-Typen mit eigener Optik: Großes Inhaltsupdate, Content-, Feature-, Balance-, Bugfix-Update und Hotfix.',
+      ],
+      improved:[
+        'Updates werden nie mehr mitten im Spiel installiert — nur noch nach dem Login oder auf ausdrücklichen Wunsch.',
+        '„Nach Updates suchen“ meldet sich ruhiger: Ist alles aktuell, erscheint nur ein kurzer Hinweis mit der aktuellen Version.',
+        'Die aktuelle Version ist jetzt überall sichtbar: im Update-Center, in den Einstellungen und auf dem Anmeldebildschirm.',
+      ],
+      fixed:[
+        'Der Update-Dialog konnte bisher mitten in einer laufenden Spielsitzung erscheinen und das Spiel unterbrechen.',
+      ],
+    },
+  },
+  {
+    version:'1.0.5', date:'2026-07-06', type:'bugfix',
+    title:'Login-Fix & neues App-Logo',
+    sections:{
+      improved:['Neues App-Logo für Fenster, Taskleiste und Installer.'],
+      fixed:['Anmeldung am Profil funktioniert wieder zuverlässig.'],
+    },
+  },
+  {
+    version:'1.0.2', date:'2026-07-06', type:'feature',
+    title:'Natives Speichersystem',
+    sections:{
+      new:['Spielstände werden als echte Dateien im Benutzerordner gespeichert — inklusive automatischer Backups bei jedem Speichern.'],
+      improved:['Speichern ist dadurch robuster gegen Datenverlust und unabhängig vom Browser-Speicher.'],
+    },
+  },
+  {
+    version:'1.0.0', date:'2026-07-06', type:'major',
+    title:'Autohaus Legends als Desktop-App',
+    headline:'Aus dem Browser-Spiel wird eine vollwertige Windows-Anwendung.',
+    sections:{
+      new:[
+        'Autohaus Legends läuft jetzt als eigenständige Desktop-App mit Installer und portabler Version.',
+        'Automatische Update-Prüfung über GitHub Releases.',
+        'UI 3.0: komplett neu aufgebaute Oberfläche mit Dock, KPI-Leiste, Programm-Launcher und Glasoptik.',
+      ],
+    },
+  },
+];
+function cmpVersion(a, b){
+  const pa = String(a||'').split('.').map(n=>parseInt(n,10)||0);
+  const pb = String(b||'').split('.').map(n=>parseInt(n,10)||0);
+  for(let i=0;i<Math.max(pa.length,pb.length);i++){
+    const d = (pa[i]||0)-(pb[i]||0);
+    if(d) return d;
+  }
+  return 0;
+}
 const UPGRADE_DEFS = [
   {id:'wealthy_customers', icon:'WK', name:'Wohlhabende Kunden', desc:'Das Autohaus zieht häufiger Käufer mit höherem Budget und geringerer Preisempfindlichkeit an.', costs:[18000,52000,125000], reqLevel:3, effects:['+8% Chance auf Luxuskäufer, leicht weniger Rabattdruck','+16% Chance auf Luxuskäufer, bessere Budgets','+24% Chance auf Luxuskäufer, stärkere Abschlusschance bei teuren Fahrzeugen']},
   {id:'premium_presence', icon:'PA', name:'Premium-Auftritt', desc:'Ein professionellerer Auftritt erhöht Vertrauen, Zufriedenheit und Abschlussqualität.', costs:[14000,42000,98000], reqLevel:2, effects:['+2% Anfragechance, +1 Zufriedenheit bei neuen Kunden','+4% Anfragechance, bessere Bewertungsbasis','+6% Anfragechance, stärkeres Vertrauen bei Neukunden']},
@@ -4049,7 +4394,7 @@ async function renderProfileLogin(){
               <div class="login-feature"><b>Reputation & Legacy</b><span>Wachse vom kleinen Händler zur Premium-Adresse.</span></div>
             </div>
             <div class="login-version-row" style="margin-top:14px;">
-              <span class="chip">Autohaus Legends v3.0</span>
+              <span class="chip">Autohaus Legends v${GAME_VERSION}</span>
               <span class="chip">${profiles.length} Profil${profiles.length===1?'':'e'}</span>
               <span class="chip">${lastPlayed?'Letzter Speicherstand '+new Date(lastPlayed).toLocaleDateString('de-DE'):'Noch kein Speicherstand'}</span>
             </div>
@@ -4095,6 +4440,8 @@ async function renderProfileLogin(){
   `;
   enhancePremiumUi();
   initLoginBackground();
+  // Am Login-Bildschirm darf ein bereits heruntergeladenes Update angeboten werden.
+  maybeOfferPendingUpdateAtLogin();
 }
 // Schwebende Fahrzeuge im Login-Hintergrund (Helium-Ballon-Optik).
 // Nutzt die ECHTEN Fahrzeug-Illustrationen des Spiels (renderCarPhoto/.body-shape)
@@ -4649,6 +4996,8 @@ function startProfileGame(){
     startGameClock();
     gameClockStarted = true;
   }
+  // Nach dem Login einmalig die Neuerungen der frisch installierten Version zeigen.
+  maybeShowVersionWelcome();
 }
 async function switchProfile(){
   if(state && activeProfileId) await saveNow();
@@ -4748,54 +5097,107 @@ function setUpdateUi(status, label, progress){
   const el = document.getElementById('updateStatusText');
   if(el) el.textContent = label;
 }
+// Update-Regeln: Niemals mitten in einer Spielsitzung installieren oder unterbrechen.
+// Automatische Prüfungen laufen still; nur eine bewusste, manuelle Prüfung darf Dialoge zeigen.
+let updateManualCheck = false;        // Spieler hat gerade bewusst "Nach Updates suchen" geklickt
+let pendingUpdateVersion = null;      // Version eines fertig heruntergeladenen Updates
+let updateHintShownVersion = null;    // dezenter Hinweis pro Version nur einmal pro Sitzung
+let updateInstallOfferShown = false;  // Installations-Dialog am Login nur einmal anbieten
+function inGameSession(){
+  return !!(state && activeProfileId);
+}
+function showUpdateHint(version){
+  if(updateHintShownVersion === (version||'?')) return;
+  updateHintShownVersion = version || '?';
+  dismissUpdateHint(true);
+  const el = document.createElement('div');
+  el.id = 'updateHint';
+  el.innerHTML = `
+    <div class="uh-icon">⬇</div>
+    <div class="uh-text"><b>Neues Update verfügbar${version?` (${escapeHtml(version)})`:''}.</b>Bitte prüfe Updates nach deiner Spielsitzung — dein Spiel läuft ungestört weiter.</div>
+    <button class="uh-close" onclick="dismissUpdateHint()" title="Ausblenden">×</button>
+  `;
+  document.body.appendChild(el);
+  setTimeout(()=>dismissUpdateHint(), 12000);
+}
+function dismissUpdateHint(instant){
+  const el = document.getElementById('updateHint');
+  if(!el) return;
+  if(instant || window.matchMedia('(prefers-reduced-motion: reduce)').matches){ el.remove(); return; }
+  if(el.classList.contains('leaving')) return;
+  el.classList.add('leaving');
+  setTimeout(()=>{ if(el.parentNode) el.remove(); }, 320);
+}
+function offerUpdateInstall(version){
+  const label = version ? `Update ${version} ist bereit.` : 'Update ist bereit.';
+  showModal(`
+    <h2 class="section-title">Update bereit</h2>
+    <p class="subtle">${escapeHtml(label)} Jetzt neu starten und installieren?</p>
+    <div class="row-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Später</button>
+      <button class="btn btn-primary" onclick="installDownloadedUpdate()">Jetzt neu starten</button>
+    </div>
+  `);
+}
+function maybeOfferPendingUpdateAtLogin(){
+  // Wird am Login-Bildschirm aufgerufen: Hier darf ein fertiges Update angeboten werden.
+  if(inGameSession() || updateInstallOfferShown) return;
+  if(updateUiState.status !== 'ready' || !pendingUpdateVersion) return;
+  updateInstallOfferShown = true;
+  offerUpdateInstall(pendingUpdateVersion);
+}
 function handleUpdaterStatus(payload){
   if(!payload || !payload.type) return;
+  const manual = updateManualCheck || !!payload.manual;
   if(payload.type === 'update-disabled'){
     const label = payload.reason === 'not-configured'
       ? 'Update-Quelle ist noch nicht konfiguriert.'
       : 'Updates sind im Entwicklungsmodus deaktiviert.';
     setUpdateUi('disabled', label);
-    if(payload.manual) showToast('ℹ️', label);
+    if(manual) showToast('ℹ️', label);
+    updateManualCheck = false;
     return;
   }
   if(payload.type === 'update-checking'){
     setUpdateUi('checking', 'Suche nach Updates...');
-    showToast('🔍', 'Suche nach Updates...');
     return;
   }
   if(payload.type === 'update-available'){
-    const label = payload.version ? `Update ${payload.version} verfügbar. Download startet...` : 'Update verfügbar. Download startet...';
+    const label = payload.version ? `Update ${payload.version} verfügbar.` : 'Update verfügbar.';
     setUpdateUi('available', label);
-    showToast('⬇️', label);
+    if(manual) showToast('⬇️', `${label} Download startet...`);
+    else if(inGameSession()) showUpdateHint(payload.version);
     return;
   }
   if(payload.type === 'update-not-available'){
-    setUpdateUi('current', 'Du nutzt die aktuelle Version.');
-    showToast('✅', 'Du nutzt die aktuelle Version.');
+    setUpdateUi('current', `Autohaus Legends ist auf dem neuesten Stand. Aktuelle Version: ${GAME_VERSION}`);
+    if(manual) showToast('✅', `<b>Autohaus Legends ist auf dem neuesten Stand.</b><br>Aktuelle Version: ${GAME_VERSION}`);
+    updateManualCheck = false;
     return;
   }
   if(payload.type === 'update-download-progress'){
     const pct = Math.max(0, Math.min(100, Math.round(payload.percent || 0)));
     setUpdateUi('downloading', `Update wird heruntergeladen... ${pct}%`, pct);
-    if(pct === 0 || pct === 50 || pct === 100) showToast('⬇️', `Update wird heruntergeladen... ${pct}%`);
     return;
   }
   if(payload.type === 'update-downloaded'){
+    pendingUpdateVersion = payload.version || pendingUpdateVersion || null;
     const label = payload.version ? `Update ${payload.version} ist bereit.` : 'Update ist bereit.';
     setUpdateUi('ready', label);
-    showModal(`
-      <h2 class="section-title">Update bereit</h2>
-      <p class="subtle">${escapeHtml(label)} Jetzt neu starten und installieren?</p>
-      <div class="row-actions">
-        <button class="btn btn-ghost" onclick="closeModal()">Später</button>
-        <button class="btn btn-primary" onclick="installDownloadedUpdate()">Jetzt neu starten</button>
-      </div>
-    `);
+    if(manual || !inGameSession()){
+      // Bewusste Prüfung oder Login-Bildschirm: Installation darf angeboten werden.
+      offerUpdateInstall(payload.version);
+    } else {
+      // Laufende Spielsitzung: nur dezenter Hinweis oben rechts, keine Unterbrechung.
+      showUpdateHint(payload.version);
+    }
+    updateManualCheck = false;
     return;
   }
   if(payload.type === 'update-error'){
     setUpdateUi('error', 'Update-Prüfung fehlgeschlagen.');
-    showToast('⚠️', `Update-Prüfung fehlgeschlagen${payload.message?': '+payload.message:''}`);
+    if(manual) showToast('⚠️', `Update-Prüfung fehlgeschlagen${payload.message?': '+payload.message:''}`);
+    updateManualCheck = false;
   }
 }
 function initUpdaterBridge(){
@@ -4808,6 +5210,13 @@ async function checkForUpdatesManual(){
     showToast('ℹ️', 'Update-System ist nicht verfügbar.');
     return;
   }
+  if(pendingUpdateVersion){
+    // Update wurde bereits heruntergeladen: direkt anbieten statt erneut zu prüfen.
+    setUpdateUi('ready', `Update ${pendingUpdateVersion} ist bereit.`);
+    offerUpdateInstall(pendingUpdateVersion);
+    return;
+  }
+  updateManualCheck = true;
   setUpdateUi('checking', 'Suche nach Updates...');
   showToast('🔍', 'Suche nach Updates...');
   try{
@@ -4821,6 +5230,48 @@ async function checkForUpdatesManual(){
 async function installDownloadedUpdate(){
   if(!window.updater || typeof window.updater.installNow !== 'function') return;
   await window.updater.installNow();
+}
+/* --------- lastSeenVersion: Willkommensfenster nach Update (einmalig) --------- */
+const LAST_SEEN_VERSION_KEY = 'autodealer-last-seen-version';
+async function getLastSeenVersion(){
+  try{
+    if(window.storage && typeof window.storage.get === 'function'){
+      const res = await window.storage.get(LAST_SEEN_VERSION_KEY);
+      if(res && res.value) return String(res.value).trim();
+    }
+  }catch(e){ /* Fallback unten */ }
+  try{ return localStorage.getItem(LAST_SEEN_VERSION_KEY); }catch(e){ return null; }
+}
+async function setLastSeenVersion(version){
+  try{
+    if(window.storage && typeof window.storage.set === 'function'){
+      await window.storage.set(LAST_SEEN_VERSION_KEY, version);
+      return;
+    }
+  }catch(e){ /* Fallback unten */ }
+  try{ localStorage.setItem(LAST_SEEN_VERSION_KEY, version); }catch(e){}
+}
+async function maybeShowVersionWelcome(){
+  try{
+    const seen = await getLastSeenVersion();
+    if(seen === GAME_VERSION) return;
+    // Sofort merken, damit das Fenster garantiert nur einmal automatisch erscheint.
+    setLastSeenVersion(GAME_VERSION);
+    const entry = CHANGELOG.find(e=>cmpVersion(e.version, GAME_VERSION)===0);
+    const meta = updateTypeMeta(entry ? entry.type : 'normal');
+    showModal(`
+      <div class="welcome-version-head">
+        <div class="wv-icon">${meta.icon}</div>
+        <h2>Willkommen bei Version ${escapeHtml(GAME_VERSION)}</h2>
+        <p>${entry && entry.title ? escapeHtml(entry.title) + ' — ' : ''}Das ist neu in Autohaus Legends:</p>
+      </div>
+      <div class="welcome-changelog">${entry ? renderChangelogSections(entry) : '<div class="upd-empty">Details findest du unter „Updates &amp; News“.</div>'}</div>
+      <div class="row-actions">
+        <button class="btn btn-ghost" onclick="closeModal();navigateTo('updates')">Alle Updates ansehen</button>
+        <button class="btn btn-primary" onclick="closeModal()">Verstanden</button>
+      </div>
+    `, 'modal-welcome');
+  }catch(e){ console.error('[Updates] Willkommensfenster fehlgeschlagen:', e); }
 }
 function addTx(type, desc, amount){
   state.cash += amount;
@@ -5539,6 +5990,7 @@ function handleGlobalSearch(e){
     {id:'market', terms:['börse','markt','kaufen','ankauf']},
     {id:'design', terms:['design','hintergrund','theme','glas','transparenz','optik']},
     {id:'settings', terms:['setting','einstellung','profil']},
+    {id:'updates', terms:['update','news','changelog','version','patch','neuigkeit','neuerung']},
   ];
   const appMatch = APPS.find(a=>a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q));
   const ruleMatch = routeRules.find(r=>r.terms.some(t=>t.includes(q) || q.includes(t)));
@@ -5584,6 +6036,7 @@ const REF_ICON_PATHS = {
   design:'<path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3z"></path><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"></path><path d="M5 14l.9 2.1L8 17l-2.1.9L5 20l-.9-2.1L2 17l2.1-.9L5 14z"></path>',
   legacy:'<path d="M7 8c-2 0-3.5 1.7-3.5 4S5 16 7 16c3.5 0 6.5-8 10-8 2 0 3.5 1.7 3.5 4S19 16 17 16c-3.5 0-6.5-8-10-8z"></path>',
   settings:'<circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 3.1a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 3.1h5l.3-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z"></path>',
+  updates:'<path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z"></path><path d="M17 9h3v10a2 2 0 0 1-2 2"></path><path d="M7 9h7"></path><path d="M7 13h7"></path><path d="M7 17h4"></path>',
   search:'<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path>',
   bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path>',
   apps:'<path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path><path d="M4 14h6v6H4z"></path><path d="M14 14h6v6h-6z"></path>'
@@ -5600,6 +6053,7 @@ const REF_APP_META = {
   deliveries:['Lieferungen','Übergaben planen','#5a91e8'], bank:['Bank','Kredite und Kapital','#d6ad56'],
   acquisition:['Ankauf','Private Angebote prüfen','#db8736'], reviews:['Bewertungen','Ruf und Feedback','#d9b846'],
   marketstats:['Marktstatistik','Trends und Preise','#4da6d9'], calculator:['Kalkulator','Marge und Risiko','#d9822b'],
+  updates:['Updates & News','Changelog und Neuigkeiten','#4d8cff'],
   settings:['Einstellungen','Profil und Spielstand','#8290a2']
 };
 function refIcon(id){
@@ -5640,7 +6094,7 @@ function renderProgramsGrid(q){
   const query = (q||'').trim().toLowerCase();
   const groups = [
     ['Hauptbereiche',['market','acquisition','inventory','customers','workshop','listings','wishlist','mailbox']],
-    ['Management',['upgrades','employees','finance','insights','legacy','contracts','deliveries','bank','reviews','marketstats','calculator','design','settings']]
+    ['Management',['upgrades','employees','finance','insights','legacy','contracts','deliveries','bank','reviews','marketstats','calculator','design','updates','settings']]
   ];
   const card = id=>{
     const app = APPS.find(a=>a.id===id); if(!app) return '';
@@ -5687,7 +6141,7 @@ function renderBottomBar(){
     return `<div class="bottom-tab ${currentPage===id?'active':''} ${badge?'has-badge':''}" onclick="navigateTo('${id}')">${refIcon(id)}<span>${escapeHtml(app?.name||id)}</span>${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}</div>`;
   }).join('');
   const editBtn = `<button class="nav-edit-btn" onclick="openNavCustomize('bottom')" title="Leiste anpassen">${navEditIcon()}</button>`;
-  bar.innerHTML = `${editBtn}<div class="bottom-logo">AL</div><div class="bottom-title"><b>Autohaus Legends</b><small>v3.0</small></div>
+  bar.innerHTML = `${editBtn}<div class="bottom-logo">AL</div><div class="bottom-title"><b>Autohaus Legends</b><small>v${GAME_VERSION}</small></div>
     <span class="savebadge" id="savebadge"><span class="sdot"></span><span><b>Automatisch gespeichert</b><small>Spielstand wird nach jeder Aktion gesichert</small></span></span>
     <div class="bottom-tabs">${tabs}</div>
     <div class="bottom-tools">
@@ -5936,7 +6390,7 @@ function renderPageContent(){
   const fns = {
     dashboard: renderDashboard, market: renderMarket, acquisition: renderAcquisition, inventory: renderInventory,
     listings: renderListings, wishlist: renderWishlist, mailbox: renderMailbox, customers: renderCustomers, contracts: renderContracts, deliveries: renderDeliveries, workshop: renderWorkshop, bank: renderBank,
-    reviews: renderReviews, finance: renderFinance, marketstats: renderMarketStats, insights: renderBusinessInsights, calculator: renderCalculator, employees: renderEmployees, upgrades: renderUpgrades, legacy: renderLegacyHistory, design: renderDesign, settings: renderSettings,
+    reviews: renderReviews, finance: renderFinance, marketstats: renderMarketStats, insights: renderBusinessInsights, calculator: renderCalculator, employees: renderEmployees, upgrades: renderUpgrades, legacy: renderLegacyHistory, design: renderDesign, updates: renderUpdates, settings: renderSettings,
   };
   const el = document.getElementById('pagecontent');
   if(el && fns[currentPage]){
@@ -13407,6 +13861,112 @@ function renderDesign(){
     </div>
   `;
 }
+/* =============================== UPDATES & NEWS =============================== */
+function sortedChangelog(){
+  return CHANGELOG.slice().sort((a,b)=>cmpVersion(b.version, a.version));
+}
+function updateTypeMeta(type){
+  return UPDATE_TYPES[type] || UPDATE_TYPES.normal;
+}
+function fmtUpdateDate(iso){
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? escapeHtml(iso||'') : d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+function renderUpdateColumns(entry, showEmpty){
+  const s = entry.sections || {};
+  const cols = [
+    {kind:'new',      label:'Neu',        icon:UPD_SVG.plus,    items:s.new,      empty:'Keine neuen Inhalte'},
+    {kind:'improved', label:'Verbessert', icon:UPD_SVG.arrowUp, items:s.improved, empty:'Keine Verbesserungen'},
+    {kind:'fixed',    label:'Behoben',    icon:UPD_SVG.wrench,  items:s.fixed,    empty:'Keine Fehlerbehebungen'},
+  ];
+  const rendered = cols
+    .filter(c=>showEmpty || (c.items && c.items.length))
+    .map(c=>`<div class="upd-col ${c.kind}">
+      <div class="upd-col-head"><span class="cic">${c.icon}</span><b>${c.label}</b></div>
+      <div class="upd-col-line"></div>
+      <ul>${(c.items && c.items.length)
+        ? c.items.map(t=>`<li>${escapeHtml(t)}</li>`).join('')
+        : `<li class="none">${c.empty}</li>`}</ul>
+    </div>`).join('');
+  return rendered ? `<div class="upd-cols">${rendered}</div>` : '<div class="upd-empty">Keine Details zu dieser Version hinterlegt.</div>';
+}
+// Kompakte Variante für das Willkommensfenster (leere Spalten ausgeblendet).
+function renderChangelogSections(entry){
+  return renderUpdateColumns(entry, false);
+}
+function renderUpdateCard(entry, index){
+  const meta = updateTypeMeta(entry.type);
+  const isMajor = entry.type === 'major';
+  const art = entry.image || meta.art;
+  const sub = entry.headline || (!isMajor && entry.title ? entry.title : '');
+  return `<div class="upd-card ${isMajor?'upd-major':''}" style="--i:${Math.min(index,8)};--upd-accent:${meta.accent}">
+    <div class="upd-art" style="background-image:url('${art}')">
+      <span class="upd-ribbon">${escapeHtml(meta.ribbon)}</span>
+    </div>
+    <div class="upd-body">
+      <div class="upd-head">
+        <span class="upd-type-ic">${UPD_SVG[meta.icon] || UPD_SVG.gear}</span>
+        <div class="upd-head-title">
+          <b>Version ${escapeHtml(entry.version)}</b>
+          <small>${fmtUpdateDate(entry.date)}</small>
+        </div>
+        <span class="upd-badge">${escapeHtml(meta.badge)}</span>
+      </div>
+      ${isMajor?`<div class="upd-major-line"><span class="spark">✦</span>${escapeHtml(entry.title || meta.label)}</div>`:''}
+      ${sub?`<p class="upd-headline">${escapeHtml(sub)}</p>`:''}
+      ${renderUpdateColumns(entry, true)}
+    </div>
+  </div>`;
+}
+function renderUpdates(){
+  const entries = sortedChangelog();
+  const newest = entries.slice(0, 3);
+  const older = entries.slice(3);
+  const statusLabel = (!updateUiState || updateUiState.status==='idle' || updateUiState.status==='current')
+    ? 'Du nutzt die neueste Version'
+    : (updateUiState.label || 'Du nutzt die neueste Version');
+  return `
+    <div class="upd-hero">
+      <div class="upd-hero-main">
+        <span class="upd-hero-icon">${refIcon('updates')}</span>
+        <div>
+          <h1>Updates &amp; News</h1>
+          <p class="upd-hero-sub">Alle Neuigkeiten, Updates und Verbesserungen auf einen Blick.</p>
+        </div>
+      </div>
+      <div class="upd-hero-side">
+        <div class="upd-brand"><span class="b1">Autohaus</span><span class="b2">LEGENDS</span></div>
+        <div class="upd-version-panel">
+          <small>Deine Version</small>
+          <div class="vnum">${escapeHtml(GAME_VERSION)}</div>
+          <span class="vstatus" id="updateStatusText">${escapeHtml(statusLabel)}</span>
+          <span class="upd-version-check">${UPD_SVG.check}</span>
+        </div>
+      </div>
+    </div>
+    <div class="upd-section-row">
+      <h2 class="upd-section-label"><span class="star">★</span>Neueste Updates</h2>
+      <button class="upd-check-btn" onclick="checkForUpdatesManual()">${UPD_SVG.refresh} Nach Updates suchen</button>
+    </div>
+    ${newest.map((e,i)=>renderUpdateCard(e,i)).join('')}
+    ${older.length?`
+      <div class="upd-older" id="olderUpdates">${older.map((e,i)=>renderUpdateCard(e,i)).join('')}</div>
+      <button class="upd-older-toggle" id="olderUpdatesToggle" onclick="toggleOlderUpdates()">
+        <span class="chev">${UPD_SVG.chevron}</span><span id="olderUpdatesLbl">Ältere Updates anzeigen</span>
+      </button>
+    `:''}
+  `;
+}
+function toggleOlderUpdates(){
+  const box = document.getElementById('olderUpdates');
+  const btn = document.getElementById('olderUpdatesToggle');
+  const lbl = document.getElementById('olderUpdatesLbl');
+  if(!box || !btn || !lbl) return;
+  const open = box.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  lbl.textContent = open ? 'Ältere Updates ausblenden' : 'Ältere Updates anzeigen';
+}
+
 function renderSettings(){
   const fees = state.dunningFees || defaultState().dunningFees;
   return `
@@ -13415,9 +13975,10 @@ function renderSettings(){
     <div class="notice">Die Spielzeit läuft automatisch weiter (ein Spieltag alle paar Sekunden) und pausiert, solange ein Dialogfenster geöffnet ist.</div>
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">App-Updates</h3>
     <div class="offer-card">
-      <p class="subtle" style="margin:0 0 10px;">Autohaus Legends kann in installierten Versionen Updates über GitHub Releases prüfen, herunterladen und beim Neustart installieren.</p>
-      <div class="row-actions" style="max-width:460px;">
+      <p class="subtle" style="margin:0 0 6px;">Du nutzt Version <b style="font-family:var(--font-m);color:var(--brass);">${escapeHtml(GAME_VERSION)}</b>. Autohaus Legends prüft nach dem Login automatisch auf Updates — niemals während einer laufenden Spielsitzung.</p>
+      <div class="row-actions" style="max-width:520px;">
         <button class="btn btn-primary" onclick="checkForUpdatesManual()">Nach Updates suchen</button>
+        <button class="btn btn-ghost" onclick="navigateTo('updates')">📰 Updates &amp; News öffnen</button>
       </div>
       <p class="subtle" id="updateStatusText" style="margin:10px 0 0;">${escapeHtml(updateUiState.label || 'Noch nicht geprüft')}</p>
     </div>
