@@ -16,6 +16,26 @@ const storageDirs = ['Local Storage', 'Session Storage'];
 let updateCheckInProgress = false;
 let updateReadyToInstall = false;
 
+// ============================================================================
+// ⚠️ NUR FUER DIE ENTWICKLUNGSPHASE: Signaturpruefung des Auto-Updaters
+// ============================================================================
+// Die Builds sind aktuell nicht code-signiert. electron-updater prueft unter
+// Windows aber die Authenticode-Signatur des heruntergeladenen Installers
+// gegen den konfigurierten Publisher ("Autohaus Legends" in package.json,
+// build.win.signtoolOptions.publisherName) und bricht sonst ab mit:
+//   "New version ... is not signed by the application owner"
+//
+// Solange ALLOW_UNSIGNED_UPDATES = true ist, wird diese Pruefung uebersprungen
+// und unsignierte Updates werden akzeptiert.
+//
+// ⚠️⚠️ WICHTIG — VOR EINEM OEFFENTLICHEN RELEASE ZURUECKSTELLEN! ⚠️⚠️
+// Sobald die Builds mit einem echten Zertifikat signiert werden:
+//   ALLOW_UNSIGNED_UPDATES auf false setzen (oder den Block entfernen).
+// Damit greift automatisch wieder die Standard-Sicherheitspruefung von
+// electron-updater — es sind keine weiteren Aenderungen noetig.
+// ============================================================================
+const ALLOW_UNSIGNED_UPDATES = true;
+
 function isUpdateProviderConfigured() {
   try {
     const updateConfigPath = app.isPackaged
@@ -92,6 +112,16 @@ function setupAutoUpdater() {
   autoUpdater.autoDownload = false;
   autoUpdater.allowDowngrade = false;
   autoUpdater.allowPrerelease = false;
+
+  if (ALLOW_UNSIGNED_UPDATES) {
+    // Ersetzt die Windows-Signaturpruefung des Updaters. Rueckgabe null
+    // bedeutet fuer electron-updater "Signatur in Ordnung" — unsignierte
+    // Entwicklungs-Builds werden dadurch installiert.
+    // ⚠️ Vor einem oeffentlichen Release: ALLOW_UNSIGNED_UPDATES = false
+    // (siehe grossen Hinweisblock am Dateianfang).
+    autoUpdater.verifyUpdateCodeSignature = () => Promise.resolve(null);
+    console.log('[Updater] WARNUNG: Signaturpruefung deaktiviert (ALLOW_UNSIGNED_UPDATES=true, nur Entwicklungsphase).');
+  }
 
   autoUpdater.on('checking-for-update', () => {
     sendUpdateStatus('update-checking');

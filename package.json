@@ -1,7 +1,7 @@
 {
   "name": "autohaus-legends",
   "productName": "Autohaus Legends",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Autohaus Legends - AutoDealer Simulator als Desktop-App (Electron-Huelle um autodealer-simulator.html)",
   "main": "main.js",
   "author": "Autohaus Legends",
