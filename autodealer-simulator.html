@@ -2077,115 +2077,6 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
   #updateHint{top:70px;left:14px;right:14px;max-width:none;}
 }
 
-/* ---------- NOTIZBLOCK (frei schwebendes Spieler-Widget, oberster UI-Layer) ---------- */
-#notepadLayer{position:fixed;inset:0;z-index:4700;pointer-events:none;display:none;}
-body.np-visible #notepadLayer{display:block;}
-body.np-dragging,body.np-dragging *{user-select:none!important;-webkit-user-select:none!important;cursor:grabbing!important;}
-.notepad-fab{
-  position:absolute;width:54px;height:54px;border-radius:18px;pointer-events:auto;cursor:grab;
-  display:grid;place-items:center;color:#f5d88f;padding:0;
-  background:
-    linear-gradient(160deg, rgba(255,255,255,.12), rgba(255,255,255,.04) 36%, rgba(10,13,21,.86)),
-    radial-gradient(circle at 26% 18%, rgba(255,232,168,.20), transparent 36%);
-  backdrop-filter:blur(16px) saturate(1.25);-webkit-backdrop-filter:blur(16px) saturate(1.25);
-  border:1px solid color-mix(in srgb, var(--brass) 56%, var(--line-hi));
-  box-shadow:var(--shadow-1), inset 0 1px 0 rgba(255,255,255,.14), 0 0 30px -12px color-mix(in srgb, var(--brass) 70%, transparent);
-  transition:transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), filter var(--transition-fast);
-  touch-action:none;user-select:none;-webkit-user-select:none;
-  animation:npfabin .5s var(--ease-premium) both;
-}
-.notepad-fab:before{content:"";position:absolute;inset:8px 10px;border-radius:5px;background:linear-gradient(180deg,rgba(246,236,206,.95),rgba(222,209,178,.94));box-shadow:inset 0 0 0 1px rgba(92,70,36,.28);opacity:.22;pointer-events:none;}
-.notepad-fab:hover{transform:translateY(-2px) scale(1.05);border-color:var(--brass);filter:saturate(1.08);}
-.notepad-fab.dragging{cursor:grabbing;transform:scale(1.1);box-shadow:var(--shadow-2), 0 0 34px -8px color-mix(in srgb, var(--brass) 78%, transparent);}
-.notepad-fab.active{
-  border-color:var(--brass);color:var(--brass);
-  box-shadow:var(--shadow-1), inset 0 1px 0 rgba(255,255,255,.16), 0 0 30px -7px color-mix(in srgb, var(--brass) 80%, transparent);
-}
-.notepad-fab.focus-pop{animation:npfocuspop .72s var(--ease-premium) both;}
-.notepad-fab svg{position:relative;z-index:1;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;filter:drop-shadow(0 1px 5px rgba(0,0,0,.35));}
-@keyframes npfabin{from{opacity:0;transform:scale(.6);}60%{transform:scale(1.06);}to{opacity:1;transform:scale(1);}}
-@keyframes npfocuspop{0%{opacity:.2;transform:scale(.72);box-shadow:0 0 0 0 rgba(216,172,82,.34);}48%{opacity:1;transform:scale(1.12);box-shadow:0 0 0 10px rgba(216,172,82,.16),0 0 42px -8px rgba(216,172,82,.86);}100%{opacity:1;transform:scale(1);box-shadow:var(--shadow-1), inset 0 1px 0 rgba(255,255,255,.16), 0 0 30px -7px color-mix(in srgb, var(--brass) 80%, transparent);}}
-.notepad-pad{
-  position:absolute;width:380px;height:480px;pointer-events:auto;display:none;flex-direction:column;
-  border-radius:20px;overflow:hidden;
-  border:1px solid color-mix(in srgb, var(--brass) 42%, var(--line-hi));
-  background:
-    linear-gradient(165deg, rgba(255,255,255,.105), rgba(255,255,255,.045) 34%, rgba(8,10,16,.90)),
-    radial-gradient(circle at 16% 0%, rgba(216,172,82,.16), transparent 34%);
-  backdrop-filter:blur(18px) saturate(1.20);-webkit-backdrop-filter:blur(18px) saturate(1.20);
-  box-shadow:var(--shadow-2), inset 0 1px 0 rgba(255,255,255,.13), 0 0 48px -16px color-mix(in srgb, var(--brass) 58%, transparent);
-}
-.notepad-pad.open{display:flex;animation:npopen .36s var(--ease-premium) both;}
-.notepad-pad.closing{animation:npclose .22s var(--ease-premium) forwards;}
-.notepad-pad.focus-pop{animation:npopen .36s var(--ease-premium) both,npglow .9s var(--ease-premium);}
-@keyframes npopen{0%{opacity:0;transform:translateY(16px) scale(.9);}62%{opacity:1;transform:translateY(-4px) scale(1.012);}100%{opacity:1;transform:translateY(0) scale(1);}}
-@keyframes npclose{to{opacity:0;transform:translateY(12px) scale(.93);}}
-@keyframes npglow{0%{box-shadow:var(--shadow-2),0 0 0 0 rgba(216,172,82,.24);}45%{box-shadow:var(--shadow-2),0 0 0 8px rgba(216,172,82,.10),0 0 54px -8px rgba(216,172,82,.72);}100%{box-shadow:var(--shadow-2), inset 0 1px 0 rgba(255,255,255,.13), 0 0 48px -16px color-mix(in srgb, var(--brass) 58%, transparent);}}
-.notepad-head{
-  display:flex;align-items:center;gap:10px;padding:12px 12px 10px 15px;flex:0 0 auto;
-  cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--brass) 15%, transparent), rgba(255,255,255,.02));
-  border-bottom:1px solid color-mix(in srgb, var(--brass) 20%, var(--line));
-}
-.notepad-head.dragging{cursor:grabbing;}
-.notepad-head .np-ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:var(--brass);background:var(--brass-dim);border:1px solid color-mix(in srgb, var(--brass) 34%, transparent);}
-.notepad-head .np-ic svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-.notepad-head b{flex:1;font-family:var(--font-d);font-size:14px;font-weight:800;letter-spacing:-.1px;color:var(--ink-0);}
-.notepad-head small{display:block;margin-top:1px;font-size:10px;color:var(--ink-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
-.notepad-tools{display:flex;gap:6px;}
-.notepad-tools button{
-  width:32px;height:32px;border-radius:10px;cursor:pointer;padding:0;
-  border:1px solid var(--line);background:var(--surface);color:var(--ink-1);
-  display:grid;place-items:center;font-family:var(--font-m);font-size:14px;font-weight:800;line-height:1;
-  transition:color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
-  touch-action:manipulation;user-select:none;-webkit-user-select:none;
-}
-.notepad-tools button:hover{color:var(--ink-0);border-color:var(--line-hi);background:var(--surface-hi);transform:translateY(-1px);}
-.notepad-tools .danger:hover{color:var(--crimson);border-color:color-mix(in srgb,var(--crimson) 45%,transparent);background:var(--crimson-dim);}
-.notepad-tools button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-/* Ringbindung zwischen Kopf und Papier */
-.notepad-binding{
-  flex:0 0 auto;display:flex;justify-content:space-evenly;align-items:center;height:18px;
-  background:linear-gradient(180deg, rgba(255,255,255,.02) 45%, #f0e6cf 45%);
-  position:relative;z-index:1;
-}
-body.theme-light .notepad-binding{background:linear-gradient(180deg, transparent 45%, #f3eee1 45%);}
-.notepad-binding i{
-  width:8px;height:16px;border-radius:4px;margin-top:-4px;
-  background:linear-gradient(180deg,#5a6478,#1a1f2b 55%,#2e3547);
-  border:1px solid rgba(255,255,255,.16);
-  box-shadow:inset 0 -2px 3px rgba(0,0,0,.55), 0 2px 3px rgba(0,0,0,.35);
-}
-/* Papier mit Linien (Linien scrollen dank background-attachment:local mit) */
-.notepad-text{
-  flex:1;width:100%;border:none;outline:none;resize:none;min-height:0;
-  padding:12px 18px 16px 42px;
-  font-family:var(--font-b);font-size:14.5px;line-height:24px;color:#1f2430;caret-color:#735414;
-  font-weight:500;
-  background-color:#fbf5e8;
-  background-image:
-    linear-gradient(90deg, transparent 30px, rgba(154,71,71,.32) 30px, rgba(154,71,71,.32) 31.5px, transparent 31.5px),
-    repeating-linear-gradient(180deg, transparent, transparent 23px, rgba(70,90,135,.18) 23px, rgba(70,90,135,.18) 24px);
-  background-attachment:local, local;
-}
-.notepad-text::placeholder{color:#7d7668;}
-.notepad-text::selection{background:rgba(214,173,86,.35);}
-.notepad-foot{
-  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:9px 14px;border-top:1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
-  font-size:10.5px;color:var(--ink-2);background:rgba(255,255,255,.025);
-}
-#npSaveState{display:inline-flex;align-items:center;gap:5px;}
-#npSaveState::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--emerald);box-shadow:0 0 7px var(--emerald);}
-#npSaveState.pulse{animation:npsaved .5s var(--ease-premium);}
-@keyframes npsaved{0%{opacity:.35;}100%{opacity:1;}}
-@media (prefers-reduced-motion: reduce){
-  .notepad-fab,.notepad-fab.focus-pop,.notepad-pad.open,.notepad-pad.closing,.notepad-pad.focus-pop,#npSaveState.pulse{animation:none;}
-}
-@media (max-width:760px){
-  .notepad-pad{width:min(380px, calc(100vw - 24px));height:min(480px, calc(100vh - 120px));}
-}
-
 </style>
 </head>
 <body>
@@ -2284,32 +2175,15 @@ const UPD_SVG = {
 const CHANGELOG = [
   {
     version:'1.1.1', date:'2026-07-07', type:'hotfix',
-    title:'Notizblock-Feinschliff',
-    headline:'Der persönliche Notizblock ist jetzt leichter erreichbar, besser lesbar und lässt sich zuverlässig einklappen.',
+    title:'Oberfläche aufgeräumt',
+    headline:'Das experimentelle Notizblock-Widget wurde wieder entfernt, damit die Oberfläche schlank und störungsfrei bleibt.',
     sections:{
       improved:[
-        'Der Notizblock ist jetzt direkt über die untere Leiste erreichbar und erscheint beim Öffnen gut sichtbar in der Bildschirmmitte.',
-        'Das Design wurde hochwertiger gestaltet: klarere Bedienelemente, stärkerer Kontrast, bessere Lesbarkeit und ein ruhigeres Papierfeld.',
-        'Icon und geöffneter Notizblock bleiben weiterhin frei verschiebbar und merken sich ihre Position.',
+        'Die untere Leiste ist wieder auf die bewährten Spielbereiche fokussiert.',
+        'Der zusätzliche schwebende Notizblock-Layer wurde entfernt, damit keine Fläche über Dashboard, Programme oder anderen Seiten liegt.',
       ],
       fixed:[
-        'Ein Problem wurde behoben, bei dem sich der Notizblock nicht zuverlässig auf Icon-Größe minimieren ließ.',
-        'Beim Verschieben werden keine Texte oder Eingabefelder mehr versehentlich markiert.',
-      ],
-    },
-  },
-  {
-    version:'1.1.1', date:'2026-07-07', type:'feature',
-    title:'Neues Komfort-Widget',
-    headline:'Ein persönlicher Notizblock begleitet dich jetzt auf jeder Seite von Autohaus Legends.',
-    sections:{
-      new:[
-        'Ein frei schwebender Notizblock ist jederzeit verfügbar, egal ob du gerade Fahrzeuge prüfst, Kunden verwaltest oder deine Finanzen ansiehst.',
-        'Icon und geöffneter Notizblock lassen sich frei verschieben und merken sich ihre Position dauerhaft.',
-        'Eigene Notizen, Preisideen, To-dos, Kundenhinweise und Ziele werden automatisch gespeichert.',
-      ],
-      improved:[
-        'Der Notizblock startet eingeklappt als hochwertiges Glas-Icon und öffnet sich weich als Business-Notizblock mit Papierdesign und Ringbindung.',
+        'Das Notizblock-Icon und das zugehörige Widget erscheinen nicht mehr im Spiel.',
       ],
     },
   },
@@ -4437,255 +4311,6 @@ async function storageSet(key, value){
   throw new Error('window.storage ist nicht verfuegbar. Spielstaende werden nicht im Browser-Speicher gespeichert.');
 }
 function profileStateKey(profileId){ return 'autodealer-state-v3-'+profileId; }
-const PLAYER_NOTEPAD_KEY = 'autodealer-player-notepad-v1';
-let playerNotepad = null;
-let notepadSaveTimer = null;
-let notepadDrag = null;
-let notepadCloseTimer = null;
-function defaultNotepadData(){
-  const vw = Math.max(360, window.innerWidth || 1280);
-  const vh = Math.max(520, window.innerHeight || 800);
-  return {
-    text:'',
-    open:false,
-    fab:{x:Math.max(18, vw-92), y:Math.max(82, vh-112)},
-    pad:{x:Math.max(18, Math.round((vw-380)/2)), y:Math.max(82, Math.round((vh-480)/2))},
-  };
-}
-function clampNotepadPos(pos, w, h){
-  const margin = 12;
-  const vw = Math.max(320, window.innerWidth || 1280);
-  const vh = Math.max(420, window.innerHeight || 800);
-  return {
-    x:Math.round(clamp(Number(pos?.x)||margin, margin, Math.max(margin, vw-w-margin))),
-    y:Math.round(clamp(Number(pos?.y)||margin, margin, Math.max(margin, vh-h-margin))),
-  };
-}
-function normalizeNotepadData(data){
-  const d = defaultNotepadData();
-  if(data && typeof data === 'object'){
-    d.text = typeof data.text === 'string' ? data.text : '';
-    d.open = !!data.open;
-    d.fab = clampNotepadPos(data.fab || d.fab, 54, 54);
-    d.pad = clampNotepadPos(data.pad || d.pad, 380, 480);
-  }
-  return d;
-}
-async function loadPlayerNotepad(){
-  if(playerNotepad) return playerNotepad;
-  try{
-    const res = await storageGet(PLAYER_NOTEPAD_KEY);
-    playerNotepad = normalizeNotepadData(res && res.value ? JSON.parse(res.value) : null);
-  }catch(e){
-    playerNotepad = normalizeNotepadData(null);
-  }
-  return playerNotepad;
-}
-function savePlayerNotepadSoon(immediate){
-  if(!playerNotepad) return;
-  clearTimeout(notepadSaveTimer);
-  const run = async ()=>{
-    try{
-      await storageSet(PLAYER_NOTEPAD_KEY, JSON.stringify(playerNotepad));
-      pulseNotepadSaveState();
-    }catch(e){
-      const el = document.getElementById('npSaveState');
-      if(el) el.textContent = 'Speichern fehlgeschlagen';
-    }
-  };
-  if(immediate) run();
-  else notepadSaveTimer = setTimeout(run, 360);
-}
-function notepadIconSvg(){
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a3 3 0 0 1 3 3v13a2 2 0 0 1-2 2H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z"/><path d="M8 3v18"/><path d="M11 8h5"/><path d="M11 12h5"/><path d="M11 16h4"/><path d="M5 7H3"/><path d="M5 12H3"/><path d="M5 17H3"/></svg>`;
-}
-function notepadTrashSvg(){
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 14h10l1-14"/><path d="M9 7V4h6v3"/></svg>`;
-}
-function notepadMinimizeSvg(){
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18h12"/></svg>`;
-}
-function notepadCloseSvg(){
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10"/><path d="M17 7 7 17"/></svg>`;
-}
-async function ensureNotepadWidget(){
-  await loadPlayerNotepad();
-  let layer = document.getElementById('notepadLayer');
-  if(!layer){
-    layer = document.createElement('div');
-    layer.id = 'notepadLayer';
-    document.getElementById('app')?.appendChild(layer);
-  }
-  layer.innerHTML = `
-    <button class="notepad-fab ${playerNotepad.open?'active':''}" id="notepadFab" type="button" title="Notizblock" aria-label="Notizblock öffnen">${notepadIconSvg()}</button>
-    <section class="notepad-pad ${playerNotepad.open?'open':''}" id="notepadPad" aria-label="Persönlicher Notizblock">
-      <div class="notepad-head" id="notepadHead">
-        <span class="np-ic">${notepadIconSvg()}</span>
-        <div style="flex:1;min-width:0;"><b>Notizblock</b><small>Drag-Bereich</small></div>
-        <div class="notepad-tools">
-          <button type="button" onclick="clearNotepadText()" title="Notiz leeren" aria-label="Notiz leeren">${notepadTrashSvg()}</button>
-          <button type="button" onclick="toggleNotepad(false)" title="Minimieren" aria-label="Minimieren">${notepadMinimizeSvg()}</button>
-          <button class="danger" type="button" onclick="toggleNotepad(false)" title="Einklappen" aria-label="Einklappen">${notepadCloseSvg()}</button>
-        </div>
-      </div>
-      <div class="notepad-binding">${Array.from({length:9},()=>'<i></i>').join('')}</div>
-      <textarea class="notepad-text" id="notepadText" spellcheck="false" placeholder="Fahrzeuge, Preise, Ideen, To-dos, Kunden, Ziele...">${escapeHtml(playerNotepad.text)}</textarea>
-      <div class="notepad-foot"><span id="npSaveState">Automatisch gespeichert</span><span>Spieler-Notizen</span></div>
-    </section>
-  `;
-  document.body.classList.add('np-visible');
-  applyNotepadPositions();
-  bindNotepadWidget();
-}
-function applyNotepadPositions(){
-  if(!playerNotepad) return;
-  const fab = document.getElementById('notepadFab');
-  const pad = document.getElementById('notepadPad');
-  playerNotepad.fab = clampNotepadPos(playerNotepad.fab, 54, 54);
-  playerNotepad.pad = clampNotepadPos(playerNotepad.pad, 380, 480);
-  if(fab){ fab.style.left = playerNotepad.fab.x+'px'; fab.style.top = playerNotepad.fab.y+'px'; }
-  if(pad){ pad.style.left = playerNotepad.pad.x+'px'; pad.style.top = playerNotepad.pad.y+'px'; }
-}
-function bindNotepadWidget(){
-  const fab = document.getElementById('notepadFab');
-  const head = document.getElementById('notepadHead');
-  const text = document.getElementById('notepadText');
-  if(fab){
-    fab.onclick = ()=>{ if(fab.dataset.dragged === '1'){ fab.dataset.dragged = '0'; return; } toggleNotepad(); };
-    fab.onpointerdown = ev=>startNotepadDrag(ev, 'fab');
-  }
-  document.querySelectorAll('.notepad-tools button').forEach(btn=>{
-    btn.addEventListener('pointerdown', ev=>ev.stopPropagation());
-    btn.addEventListener('click', ev=>ev.stopPropagation());
-  });
-  if(head) head.onpointerdown = ev=>startNotepadDrag(ev, 'pad');
-  if(text){
-    text.oninput = ()=>{
-      playerNotepad.text = text.value;
-      const el = document.getElementById('npSaveState');
-      if(el) el.textContent = 'Speichert...';
-      savePlayerNotepadSoon(false);
-    };
-    text.onkeydown = handleNotepadListContinuation;
-  }
-}
-function toggleNotepad(forceOpen){
-  if(!playerNotepad) return;
-  const nextOpen = typeof forceOpen === 'boolean' ? forceOpen : !playerNotepad.open;
-  const pad = document.getElementById('notepadPad');
-  const fab = document.getElementById('notepadFab');
-  playerNotepad.open = nextOpen;
-  if(fab) fab.classList.toggle('active', nextOpen);
-  if(pad){
-    clearTimeout(notepadCloseTimer);
-    pad.classList.remove('focus-pop');
-    if(nextOpen){
-      pad.classList.remove('closing');
-      pad.classList.add('open');
-      requestAnimationFrame(()=>document.getElementById('notepadText')?.focus());
-    } else {
-      pad.classList.add('closing');
-      notepadCloseTimer = setTimeout(()=>{ pad.classList.remove('open','closing'); }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 230);
-    }
-  }
-  savePlayerNotepadSoon(true);
-}
-function centerNotepadWidget(){
-  if(!playerNotepad) return;
-  const vw = Math.max(360, window.innerWidth || 1280);
-  const vh = Math.max(520, window.innerHeight || 800);
-  playerNotepad.pad = clampNotepadPos({x:Math.round((vw-380)/2), y:Math.round((vh-480)/2)}, 380, 480);
-  playerNotepad.fab = clampNotepadPos({x:Math.round((vw-54)/2), y:Math.max(82, Math.round((vh-54)/2))}, 54, 54);
-  applyNotepadPositions();
-}
-async function openNotepadFromBar(){
-  await ensureNotepadWidget();
-  centerNotepadWidget();
-  toggleNotepad(true);
-  const pad = document.getElementById('notepadPad');
-  const fab = document.getElementById('notepadFab');
-  [pad,fab].forEach(el=>{
-    if(!el) return;
-    el.classList.remove('focus-pop');
-    void el.offsetWidth;
-    el.classList.add('focus-pop');
-  });
-  savePlayerNotepadSoon(true);
-}
-function clearNotepadText(){
-  const text = document.getElementById('notepadText');
-  if(!text || !playerNotepad) return;
-  if(text.value && !confirm('Notiz wirklich leeren?')) return;
-  text.value = '';
-  playerNotepad.text = '';
-  text.focus();
-  savePlayerNotepadSoon(true);
-}
-function startNotepadDrag(ev, target){
-  if(ev.button !== undefined && ev.button !== 0) return;
-  const el = target === 'fab' ? document.getElementById('notepadFab') : document.getElementById('notepadPad');
-  if(!el || !playerNotepad) return;
-  ev.preventDefault();
-  document.body.classList.add('np-dragging');
-  window.getSelection?.()?.removeAllRanges?.();
-  el.setPointerCapture?.(ev.pointerId);
-  const current = target === 'fab' ? playerNotepad.fab : playerNotepad.pad;
-  notepadDrag = {target, el, pointerId:ev.pointerId, startX:ev.clientX, startY:ev.clientY, x:current.x, y:current.y, moved:false};
-  el.classList.add('dragging');
-  document.getElementById('notepadHead')?.classList.toggle('dragging', target==='pad');
-  window.addEventListener('pointermove', moveNotepadDrag);
-  window.addEventListener('pointerup', endNotepadDrag, {once:true});
-}
-function moveNotepadDrag(ev){
-  if(!notepadDrag || ev.pointerId !== notepadDrag.pointerId) return;
-  ev.preventDefault();
-  window.getSelection?.()?.removeAllRanges?.();
-  const dx = ev.clientX - notepadDrag.startX;
-  const dy = ev.clientY - notepadDrag.startY;
-  if(Math.abs(dx)+Math.abs(dy)>4) notepadDrag.moved = true;
-  const size = notepadDrag.target === 'fab' ? [54,54] : [380,480];
-  const pos = clampNotepadPos({x:notepadDrag.x+dx, y:notepadDrag.y+dy}, size[0], size[1]);
-  notepadDrag.el.style.left = pos.x+'px';
-  notepadDrag.el.style.top = pos.y+'px';
-  if(notepadDrag.target === 'fab') playerNotepad.fab = pos;
-  else playerNotepad.pad = pos;
-}
-function endNotepadDrag(ev){
-  if(!notepadDrag) return;
-  window.removeEventListener('pointermove', moveNotepadDrag);
-  document.body.classList.remove('np-dragging');
-  notepadDrag.el.classList.remove('dragging');
-  document.getElementById('notepadHead')?.classList.remove('dragging');
-  if(notepadDrag.target === 'fab' && notepadDrag.moved) notepadDrag.el.dataset.dragged = '1';
-  notepadDrag = null;
-  savePlayerNotepadSoon(true);
-}
-function pulseNotepadSaveState(){
-  const el = document.getElementById('npSaveState');
-  if(!el) return;
-  el.textContent = 'Automatisch gespeichert';
-  el.classList.remove('pulse');
-  void el.offsetWidth;
-  el.classList.add('pulse');
-}
-function handleNotepadListContinuation(ev){
-  if(ev.key !== 'Enter' || ev.shiftKey || ev.ctrlKey || ev.altKey) return;
-  const ta = ev.target;
-  const before = ta.value.slice(0, ta.selectionStart);
-  const line = before.split('\n').pop() || '';
-  const bullet = line.match(/^(\s*)([-*•]\s+)$/) || line.match(/^(\s*)([-*•]\s+).+/);
-  const numbered = line.match(/^(\s*)(\d+)\.\s*$/) || line.match(/^(\s*)(\d+)\.\s+.+/);
-  let insert = '';
-  if(bullet) insert = '\n' + bullet[1] + (bullet[2] || '- ');
-  if(numbered) insert = '\n' + numbered[1] + (Number(numbered[2])+1) + '. ';
-  if(!insert) return;
-  ev.preventDefault();
-  const start = ta.selectionStart;
-  const end = ta.selectionEnd;
-  ta.value = ta.value.slice(0,start) + insert + ta.value.slice(end);
-  ta.selectionStart = ta.selectionEnd = start + insert.length;
-  ta.dispatchEvent(new Event('input'));
-}
 function cp1252ByteForChar(ch){
   const code = ch.codePointAt(0);
   if(code <= 0xff) return code;
@@ -4785,10 +4410,8 @@ function renderGameShell(){
   `;
   applyAppBackground(state?.backgroundId || 'standard', true);
   enhancePremiumUi();
-  ensureNotepadWidget();
 }
 async function renderProfileLogin(){
-  document.body.classList.remove('np-visible');
   document.body.classList.remove('theme-light');
   document.body.classList.remove('has-app-bg');
   const profiles = await loadProfiles();
@@ -6568,7 +6191,6 @@ function renderBottomBar(){
     <span class="savebadge" id="savebadge"><span class="sdot"></span><span><b>Automatisch gespeichert</b><small>Spielstand wird nach jeder Aktion gesichert</small></span></span>
     <div class="bottom-tabs">${tabs}</div>
     <div class="bottom-tools">
-      <div class="bottom-tool" onclick="openNotepadFromBar()" title="Notizblock">${notepadIconSvg()}</div>
       <div class="bottom-tool" onclick="openProgramsWindow()" title="Programme durchsuchen">${refIcon('search')}</div>
       <div class="bottom-tool" onclick="navigateTo('marketstats')" title="Marktstatistik">${refIcon('marketstats')}</div>
       <div class="bottom-tool" onclick="navigateTo('mailbox')" title="Postfach">${refIcon('mailbox')}</div>
@@ -14998,11 +14620,6 @@ function nextDay(){
 /* =============================== INIT =============================== */
 async function init(){
   initUpdaterBridge();
-  window.addEventListener('resize', ()=>{
-    if(!playerNotepad || !document.getElementById('notepadLayer')) return;
-    applyNotepadPositions();
-    savePlayerNotepadSoon(false);
-  });
   // Hintergruende aus assets/backgrounds/ erkennen; nach 2,5s weiterladen, Scan laeuft dann im Hintergrund fertig.
   await Promise.race([discoverAppBackgrounds(), new Promise(r=>setTimeout(r, 2500))]);
   await renderProfileLogin();
