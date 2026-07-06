@@ -1,7 +1,7 @@
 {
   "name": "autohaus-legends",
   "productName": "Autohaus Legends",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Autohaus Legends - AutoDealer Simulator als Desktop-App (Electron-Huelle um autodealer-simulator.html)",
   "main": "main.js",
   "author": "Autohaus Legends",
@@ -22,6 +22,14 @@
     "directories": {
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ericeb99-debug",
+        "repo": "autohaus-legends",
+        "releaseType": "release"
+      }
+    ],
     "files": [
       "main.js",
       "preload.js",
@@ -52,7 +60,7 @@
       "artifactName": "AutohausLegendsSetup.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "Autohaus Legends",
       "uninstallDisplayName": "Autohaus Legends",
@@ -63,5 +71,8 @@
     "portable": {
       "artifactName": "AutohausLegendsPortable.exe"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

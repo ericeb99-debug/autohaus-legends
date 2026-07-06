@@ -10,4 +10,15 @@ contextBridge.exposeInMainWorld('storage', {
         return ipcRenderer.invoke('storage-set', key, value);
     }
 });
+
+contextBridge.exposeInMainWorld('updater', {
+    onStatus: (callback) => {
+        if (typeof callback !== 'function') return () => {};
+        const handler = (_event, payload) => callback(payload);
+        ipcRenderer.on('updater-status', handler);
+        return () => ipcRenderer.removeListener('updater-status', handler);
+    },
+    checkManual: () => ipcRenderer.invoke('update-check-manual'),
+    installNow: () => ipcRenderer.invoke('update-install-now')
+});
 console.log('[Preload] window.storage registered successfully.');

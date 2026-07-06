@@ -2433,6 +2433,7 @@ let activeProfileName = '';
 let gameClockStarted = false;
 let dropoutModalQueue = [];
 let dropoutModalShowing = false;
+let updateUiState = {status:'idle', label:'Noch nicht geprüft', progress:null};
 const PROFILE_INDEX_KEY = 'autodealer-profiles-v1';
 const LEGACY_SAVE_KEY = 'autodealer-state-v2';
 
@@ -4458,18 +4459,42 @@ function initLoginBackground(){
   window._loginBgRAF = requestAnimationFrame(tick);
 }
 async function deleteProfileFromLogin(profileId){
-  const profiles = await loadProfiles();
-  const profile = profiles.find(p=>p.id===profileId);
-  if(!profile) return;
-  const pw = document.getElementById('pw_'+profileId)?.value || '';
-  if((profile.password||'') !== pw){
-    showLoginError(profile.password ? 'Falsches Passwort.' : 'Dieser alte Spielstand hat kein Passwort. Feld leer lassen.', profileId);
-    return;
+  let rendered = false;
+  try{
+    setProfileLoginBusy(profileId, true);
+    const errorEl = document.getElementById('loginError');
+    if(errorEl){ errorEl.textContent = ''; errorEl.style.display = 'none'; }
+    const profiles = await loadProfiles();
+    const profile = profiles.find(p=>p.id===profileId);
+    if(!profile){
+      await renderProfileLogin();
+      rendered = true;
+      return;
+    }
+    const pw = document.getElementById('pw_'+profileId)?.value || '';
+    if((profile.password||'') !== pw){
+      showLoginError(profile.password ? 'Falsches Passwort.' : 'Dieser alte Spielstand hat kein Passwort. Feld leer lassen.', profileId);
+      return;
+    }
+    setProfileLoginBusy(profileId, false);
+    if(!confirm(`Spielstand "${profile.name}" löschen? Der gespeicherte Spielstand wird entfernt.`)) return;
+    setProfileLoginBusy(profileId, true);
+    await storageSet(profileStateKey(profileId), '');
+    await saveProfiles(profiles.filter(p=>p.id!==profileId));
+    if(activeProfileId === profileId){
+      activeProfileId = null;
+      activeProfileName = '';
+      state = null;
+    }
+    closeModal();
+    await renderProfileLogin();
+    rendered = true;
+  }catch(e){
+    console.error('[ProfileLogin] Profil löschen fehlgeschlagen:', e);
+    showLoginError('Profil konnte nicht gelöscht werden. Bitte erneut versuchen.', profileId);
+  }finally{
+    if(!rendered && document.getElementById('loginError')) setProfileLoginBusy(profileId, false);
   }
-  if(!confirm(`Spielstand "${profile.name}" löschen? Der gespeicherte Spielstand wird entfernt.`)) return;
-  await storageSet(profileStateKey(profileId), '');
-  await saveProfiles(profiles.filter(p=>p.id!==profileId));
-  renderProfileLogin();
 }
 function setProfileLoginBusy(profileId, busy){
   document.querySelectorAll('[data-profile-login-control="1"]').forEach(el=>{
@@ -4717,6 +4742,85 @@ function dismissToast(el, instant){
   if(el.classList.contains('leaving')) return;
   el.classList.add('leaving');
   setTimeout(()=>{ if(el.parentNode) el.remove(); }, 240);
+}
+function setUpdateUi(status, label, progress){
+  updateUiState = {status, label, progress: progress ?? null};
+  const el = document.getElementById('updateStatusText');
+  if(el) el.textContent = label;
+}
+function handleUpdaterStatus(payload){
+  if(!payload || !payload.type) return;
+  if(payload.type === 'update-disabled'){
+    const label = payload.reason === 'not-configured'
+      ? 'Update-Quelle ist noch nicht konfiguriert.'
+      : 'Updates sind im Entwicklungsmodus deaktiviert.';
+    setUpdateUi('disabled', label);
+    if(payload.manual) showToast('ℹ️', label);
+    return;
+  }
+  if(payload.type === 'update-checking'){
+    setUpdateUi('checking', 'Suche nach Updates...');
+    showToast('🔍', 'Suche nach Updates...');
+    return;
+  }
+  if(payload.type === 'update-available'){
+    const label = payload.version ? `Update ${payload.version} verfügbar. Download startet...` : 'Update verfügbar. Download startet...';
+    setUpdateUi('available', label);
+    showToast('⬇️', label);
+    return;
+  }
+  if(payload.type === 'update-not-available'){
+    setUpdateUi('current', 'Du nutzt die aktuelle Version.');
+    showToast('✅', 'Du nutzt die aktuelle Version.');
+    return;
+  }
+  if(payload.type === 'update-download-progress'){
+    const pct = Math.max(0, Math.min(100, Math.round(payload.percent || 0)));
+    setUpdateUi('downloading', `Update wird heruntergeladen... ${pct}%`, pct);
+    if(pct === 0 || pct === 50 || pct === 100) showToast('⬇️', `Update wird heruntergeladen... ${pct}%`);
+    return;
+  }
+  if(payload.type === 'update-downloaded'){
+    const label = payload.version ? `Update ${payload.version} ist bereit.` : 'Update ist bereit.';
+    setUpdateUi('ready', label);
+    showModal(`
+      <h2 class="section-title">Update bereit</h2>
+      <p class="subtle">${escapeHtml(label)} Jetzt neu starten und installieren?</p>
+      <div class="row-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Später</button>
+        <button class="btn btn-primary" onclick="installDownloadedUpdate()">Jetzt neu starten</button>
+      </div>
+    `);
+    return;
+  }
+  if(payload.type === 'update-error'){
+    setUpdateUi('error', 'Update-Prüfung fehlgeschlagen.');
+    showToast('⚠️', `Update-Prüfung fehlgeschlagen${payload.message?': '+payload.message:''}`);
+  }
+}
+function initUpdaterBridge(){
+  if(!window.updater || typeof window.updater.onStatus !== 'function') return;
+  window.updater.onStatus(handleUpdaterStatus);
+}
+async function checkForUpdatesManual(){
+  if(!window.updater || typeof window.updater.checkManual !== 'function'){
+    setUpdateUi('unavailable', 'Update-System ist nicht verfügbar.');
+    showToast('ℹ️', 'Update-System ist nicht verfügbar.');
+    return;
+  }
+  setUpdateUi('checking', 'Suche nach Updates...');
+  showToast('🔍', 'Suche nach Updates...');
+  try{
+    const res = await window.updater.checkManual();
+    if(res && res.dev) handleUpdaterStatus({type:'update-disabled', manual:true});
+    else if(res && res.busy) showToast('ℹ️', 'Update-Prüfung läuft bereits.');
+  }catch(e){
+    handleUpdaterStatus({type:'update-error', message:e && e.message ? e.message : String(e)});
+  }
+}
+async function installDownloadedUpdate(){
+  if(!window.updater || typeof window.updater.installNow !== 'function') return;
+  await window.updater.installNow();
 }
 function addTx(type, desc, amount){
   state.cash += amount;
@@ -13309,6 +13413,14 @@ function renderSettings(){
     <h2 class="section-title">Einstellungen</h2>
     <div class="notice">Der Spielstand wird automatisch nach jeder Aktion gespeichert.</div>
     <div class="notice">Die Spielzeit läuft automatisch weiter (ein Spieltag alle paar Sekunden) und pausiert, solange ein Dialogfenster geöffnet ist.</div>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">App-Updates</h3>
+    <div class="offer-card">
+      <p class="subtle" style="margin:0 0 10px;">Autohaus Legends kann in installierten Versionen Updates über GitHub Releases prüfen, herunterladen und beim Neustart installieren.</p>
+      <div class="row-actions" style="max-width:460px;">
+        <button class="btn btn-primary" onclick="checkForUpdatesManual()">Nach Updates suchen</button>
+      </div>
+      <p class="subtle" id="updateStatusText" style="margin:10px 0 0;">${escapeHtml(updateUiState.label || 'Noch nicht geprüft')}</p>
+    </div>
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">Darstellung</h3>
     <div class="offer-card">
       <p class="subtle" style="margin:0 0 10px;">Die Oberfläche nutzt ein ruhiges Dark-Design mit klaren Akzentfarben für Gewinn, Verlust, Warnungen, Legacy und Erfolge. Alternativ steht ein helles Design zur Verfügung.</p>
@@ -13879,6 +13991,7 @@ function nextDay(){
 
 /* =============================== INIT =============================== */
 async function init(){
+  initUpdaterBridge();
   // Hintergruende aus assets/backgrounds/ erkennen; nach 2,5s weiterladen, Scan laeuft dann im Hintergrund fertig.
   await Promise.race([discoverAppBackgrounds(), new Promise(r=>setTimeout(r, 2500))]);
   await renderProfileLogin();

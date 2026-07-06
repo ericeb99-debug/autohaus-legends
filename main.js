@@ -2,7 +2,9 @@
 // Laedt das unveraenderte Spiel (autodealer-simulator.html) in einem nativen Fenster.
 // Das Spiel selbst wird hier NICHT veraendert.
 const { app, BrowserWindow, protocol, net, shell, nativeTheme, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const fsSync = require('fs');
 const fs = require('fs/promises');
 const { pathToFileURL } = require('url');
 
@@ -11,6 +13,27 @@ app.setName('Autohaus Legends');
 const ROOT = __dirname;
 const savesDir = path.join(app.getPath('userData'), 'Saves');
 const storageDirs = ['Local Storage', 'Session Storage'];
+let updateCheckInProgress = false;
+let updateReadyToInstall = false;
+
+function isUpdateProviderConfigured() {
+  try {
+    const updateConfigPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app-update.yml')
+      : path.join(ROOT, 'package.json');
+    const content = fsSync.readFileSync(updateConfigPath, 'utf8');
+    if (app.isPackaged) {
+      const owner = (content.match(/^owner:\s*(.+)$/m) || [])[1]?.trim();
+      const repo = (content.match(/^repo:\s*(.+)$/m) || [])[1]?.trim();
+      return !!(owner && repo && owner !== 'MEIN_GITHUB_NAME' && repo !== 'MEIN_REPO_NAME');
+    }
+    const config = JSON.parse(content);
+    const publish = Array.isArray(config.build?.publish) ? config.build.publish[0] : config.build?.publish;
+    return !!(publish?.owner && publish?.repo && publish.owner !== 'MEIN_GITHUB_NAME' && publish.repo !== 'MEIN_REPO_NAME');
+  } catch (e) {
+    return false;
+  }
+}
 
 function getFilenameForKey(key) {
   if (key === 'autodealer-profiles' || key === 'autodealer-profiles-v1') return 'profiles.json';
@@ -34,6 +57,91 @@ async function resetGameData() {
   await Promise.all(storageDirs.map(dir =>
     fs.rm(path.join(app.getPath('userData'), dir), { recursive: true, force: true }).catch(() => {})
   ));
+}
+
+function sendUpdateStatus(type, payload = {}) {
+  BrowserWindow.getAllWindows().forEach(win => {
+    if (!win.isDestroyed()) win.webContents.send('updater-status', { type, ...payload });
+  });
+}
+
+async function checkForUpdates(manual = false) {
+  if (!app.isPackaged) {
+    sendUpdateStatus('update-disabled', { manual, reason: 'development' });
+    return { ok: false, dev: true };
+  }
+  if (!isUpdateProviderConfigured()) {
+    sendUpdateStatus('update-disabled', { manual, reason: 'not-configured' });
+    return { ok: false, configured: false };
+  }
+  if (updateCheckInProgress) return { ok: false, busy: true };
+  updateCheckInProgress = true;
+  sendUpdateStatus('update-checking', { manual });
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (error) {
+    sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
+    return { ok: false, error: error && error.message ? error.message : String(error) };
+  } finally {
+    updateCheckInProgress = false;
+  }
+}
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.allowDowngrade = false;
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    sendUpdateStatus('update-checking');
+  });
+  autoUpdater.on('update-available', info => {
+    sendUpdateStatus('update-available', { version: info.version });
+    autoUpdater.downloadUpdate().catch(error => {
+      sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
+    });
+  });
+  autoUpdater.on('update-not-available', info => {
+    sendUpdateStatus('update-not-available', { version: info.version });
+  });
+  autoUpdater.on('download-progress', progress => {
+    sendUpdateStatus('update-download-progress', {
+      percent: Math.round(progress.percent || 0),
+      transferred: progress.transferred,
+      total: progress.total,
+      bytesPerSecond: progress.bytesPerSecond,
+    });
+  });
+  autoUpdater.on('update-downloaded', info => {
+    updateReadyToInstall = true;
+    sendUpdateStatus('update-downloaded', { version: info.version });
+  });
+  autoUpdater.on('error', error => {
+    sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
+  });
+
+  ipcMain.handle('update-check-manual', () => checkForUpdates(true));
+  ipcMain.handle('update-install-now', () => {
+    if (!app.isPackaged) return { ok: false, dev: true };
+    if (!updateReadyToInstall) return { ok: false, ready: false };
+    autoUpdater.quitAndInstall(false, true);
+    return { ok: true };
+  });
+
+  if (!app.isPackaged) {
+    console.log('[Updater] Auto-update disabled in development mode.');
+    return;
+  }
+  if (!isUpdateProviderConfigured()) {
+    console.log('[Updater] Auto-update disabled until GitHub owner/repo are configured.');
+    return;
+  }
+  setTimeout(() => {
+    checkForUpdates(false).catch(error => {
+      sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
+    });
+  }, 8000);
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -126,6 +234,7 @@ if (!gotLock) {
     });
 
     createWindow();
+    setupAutoUpdater();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
