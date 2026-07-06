@@ -2031,11 +2031,13 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
 .modal.modal-welcome{max-width:620px;}
 .welcome-version-head{text-align:center;padding:6px 0 16px;}
 .welcome-version-head .wv-icon{
-  width:62px;height:62px;margin:0 auto 12px;border-radius:18px;display:grid;place-items:center;font-size:30px;
+  width:62px;height:62px;margin:0 auto 12px;border-radius:18px;display:grid;place-items:center;
+  color:var(--brass);
   background:linear-gradient(150deg,var(--brass-dim),transparent 140%);
   border:1px solid color-mix(in srgb, var(--brass) 46%, transparent);
   box-shadow:0 0 36px -10px color-mix(in srgb, var(--brass) 60%, transparent);
 }
+.welcome-version-head .wv-icon svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
 .welcome-version-head h2{font-family:var(--font-d);font-size:23px;font-weight:800;letter-spacing:-.3px;margin:0 0 4px;}
 .welcome-version-head p{color:var(--ink-1);font-size:12.5px;margin:0;}
 .welcome-changelog{max-height:46vh;overflow-y:auto;padding-right:4px;display:grid;gap:14px;margin-bottom:16px;}
@@ -2137,7 +2139,7 @@ const APPS = [
       Version oben) und das einmalige "Willkommen bei Version
       x.x.x"-Fenster nach dem Update erfolgen automatisch.
    ============================================================ */
-const GAME_VERSION = '1.1.0';
+const GAME_VERSION = '1.1.1';
 // Kartenbilder stammen aus der vorhandenen Hintergrund-Galerie (assets/backgrounds/).
 // Ein Changelog-Eintrag kann sie per image:'pfad.png' überschreiben.
 const UPDATE_ART = {
@@ -2171,6 +2173,20 @@ const UPD_SVG = {
 };
 const CHANGELOG = [
   {
+    version:'1.1.1', date:'2026-07-06', type:'hotfix',
+    title:'Versions- & Icon-Fixes',
+    sections:{
+      improved:[
+        'Die Versionsnummer wird jetzt überall einheitlich angezeigt: Login, Update-Center, Einstellungen und Willkommensfenster.',
+      ],
+      fixed:[
+        'Die Update-Installation schlug bei Entwicklungs-Builds an der Signaturprüfung fehl („not signed by the application owner“).',
+        'Im Willkommensfenster nach einem Update erschien der Text „rocket“ statt des eigentlichen Icons.',
+        'Das Willkommensfenster begrüßte nach einem Update mit der falschen (alten) Versionsnummer.',
+      ],
+    },
+  },
+  {
     version:'1.1.0', date:'2026-07-06', type:'major',
     title:'Updates & News Center',
     headline:'Autohaus Legends erhält ein eigenes, dauerhaftes Update-Center — alle Neuerungen ab sofort übersichtlich im Spiel.',
@@ -2188,7 +2204,6 @@ const CHANGELOG = [
       ],
       fixed:[
         'Der Update-Dialog konnte bisher mitten in einer laufenden Spielsitzung erscheinen und das Spiel unterbrechen.',
-        'Die Update-Installation schlug bei Entwicklungs-Builds an der Signaturprüfung fehl („not signed by the application owner“).',
       ],
     },
   },
@@ -5262,7 +5277,7 @@ async function maybeShowVersionWelcome(){
     const meta = updateTypeMeta(entry ? entry.type : 'normal');
     showModal(`
       <div class="welcome-version-head">
-        <div class="wv-icon">${meta.icon}</div>
+        <div class="wv-icon">${UPD_SVG[meta.icon] || UPD_SVG.gear}</div>
         <h2>Willkommen bei Version ${escapeHtml(GAME_VERSION)}</h2>
         <p>${entry && entry.title ? escapeHtml(entry.title) + ' — ' : ''}Das ist neu in Autohaus Legends:</p>
       </div>
