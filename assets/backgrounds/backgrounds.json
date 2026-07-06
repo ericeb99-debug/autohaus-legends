@@ -1,0 +1,9 @@
+{
+  "_hinweis": "Hintergruende fuer den Design-Tab. Eintraege: entweder nur Dateipfad als String (relativ zu assets/backgrounds/) oder Objekt mit file (Pflicht) sowie optional id, name, desc, overlay (0-1). Ohne name wird der Anzeigename automatisch aus dem Dateinamen erzeugt. Zusaetzlich gefundene Bilder aus dem Ordner (Directory Listing, falls der Server das anbietet) werden automatisch ergaenzt.",
+  "backgrounds": [
+    { "id": "showroom-day", "name": "Showroom Day", "desc": "Heller Premium-Showroom fuer klare Arbeitsbereiche.", "file": "showroom-day/1beb9818-adf4-4dcf-a6ee-9a114c13621f.png", "overlay": 0.34 },
+    { "id": "premium-dark", "name": "Premium Dark", "desc": "Dunkler Studio-Look mit hoher Lesbarkeit.", "file": "premium-dark/4a385892-9645-427e-9280-8538b347a634.png", "overlay": 0.37 },
+    { "id": "luxury-night", "name": "Luxury Night", "desc": "Nacht-Atmosphaere fuer ein edles Autohaus-Gefuehl.", "file": "luxury-night/0331148b-8456-4001-883a-fa5ee2a8e4f3.png", "overlay": 0.38 },
+    { "id": "blueprint", "name": "Blueprint", "desc": "Technischer Hintergrund passend zu Analyse und Planung.", "file": "blueprint/58494610-8689-41eb-b15d-140948c964af.png", "overlay": 0.35 }
+  ]
+}
