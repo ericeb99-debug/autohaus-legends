@@ -1,0 +1,56 @@
+{
+  "appId": "de.eric.automotive-empire.dev",
+  "productName": "Automotive Empire DEV",
+  "extraMetadata": {
+    "name": "automotive-empire-dev",
+    "productName": "Automotive Empire DEV"
+  },
+  "directories": {
+    "output": "dist-dev"
+  },
+  "afterPack": "scripts/after-pack-dev.js",
+  "asar": false,
+  "publish": [],
+  "files": [
+    "main.js",
+    "preload.js",
+    "autodealer-simulator.html",
+    "css/**/*",
+    "js/**/*",
+    "data/**/*",
+    "assets/**/*"
+  ],
+  "win": {
+    "icon": "assets/logos/app-icon.ico",
+    "executableName": "AutomotiveEmpireDEV",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "x64"
+        ]
+      }
+    ]
+  },
+  "nsis": {
+    "artifactName": "AutomotiveEmpireDEVSetup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "shortcutName": "Automotive Empire DEV",
+    "uninstallDisplayName": "Automotive Empire DEV",
+    "installerIcon": "assets/logos/app-icon.ico",
+    "uninstallerIcon": "assets/logos/app-icon.ico",
+    "installerHeaderIcon": "assets/logos/app-icon.ico"
+  },
+  "portable": {
+    "artifactName": "AutomotiveEmpireDEVPortable.exe"
+  }
+}

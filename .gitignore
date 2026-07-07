@@ -1,2 +1,11 @@
 node_modules/
 dist/
+dist-dev/
+win-unpacked/
+.electron-cache/
+*.exe
+*.blockmap
+*.7z
+*.zip
+latest.yml
+builder-debug.yml

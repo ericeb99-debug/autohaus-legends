@@ -1,5 +1,5 @@
-// Electron-Huelle fuer Autohaus Legends.
-// Laedt das unveraenderte Spiel (autodealer-simulator.html) in einem nativen Fenster.
+// Electron-Huelle fuer Automotive Empire.
+// Laedt das unveraenderte Spiel in einem nativen Fenster.
 // Das Spiel selbst wird hier NICHT veraendert.
 const { app, BrowserWindow, protocol, net, shell, nativeTheme, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
@@ -8,11 +8,21 @@ const fsSync = require('fs');
 const fs = require('fs/promises');
 const { pathToFileURL } = require('url');
 
-app.setName('Autohaus Legends');
+const isDevVariant = process.env.AUTOMOTIVE_EMPIRE_DEV === '1' || process.argv.includes('--dev') || /\bdev\b/i.test(app.getName());
+const APP_DISPLAY_NAME = isDevVariant ? 'Automotive Empire DEV' : 'Automotive Empire';
+const APP_USER_MODEL_ID = isDevVariant ? 'de.eric.automotive-empire.dev' : 'de.eric.automotive-empire';
+const LEGACY_APP_DISPLAY_NAME = isDevVariant ? 'Autohaus Legends DEV' : 'Autohaus Legends';
+
+app.setName(APP_DISPLAY_NAME);
+if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+const userDataDir = path.join(app.getPath('appData'), APP_DISPLAY_NAME);
+const legacyUserDataDir = path.join(app.getPath('appData'), LEGACY_APP_DISPLAY_NAME);
+app.setPath('userData', userDataDir);
 
 const ROOT = __dirname;
-const savesDir = path.join(app.getPath('userData'), 'Saves');
+const savesDir = path.join(userDataDir, 'Saves');
 const storageDirs = ['Local Storage', 'Session Storage'];
+const backgroundImageExtensions = new Set(['.avif', '.gif', '.jpeg', '.jpg', '.png', '.webp']);
 let updateCheckInProgress = false;
 let updateReadyToInstall = false;
 
@@ -21,7 +31,7 @@ let updateReadyToInstall = false;
 // ============================================================================
 // Die Builds sind aktuell nicht code-signiert. electron-updater prueft unter
 // Windows aber die Authenticode-Signatur des heruntergeladenen Installers
-// gegen den konfigurierten Publisher ("Autohaus Legends" in package.json,
+// gegen den konfigurierten Publisher ("Automotive Empire" in package.json,
 // build.win.signtoolOptions.publisherName) und bricht sonst ab mit:
 //   "New version ... is not signed by the application owner"
 //
@@ -66,6 +76,69 @@ function getFilenameForKey(key) {
   return `${cleanKey}.json`;
 }
 
+async function pathExists(target) {
+  try {
+    await fs.access(target);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function directoryHasEntries(target) {
+  const entries = await fs.readdir(target).catch(() => []);
+  return entries.length > 0;
+}
+
+async function copyIfTargetMissing(source, target) {
+  if (!(await pathExists(source)) || (await pathExists(target))) return;
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.cp(source, target, { recursive: true, force: false, errorOnExist: false });
+}
+
+async function migrateLegacyUserDataIfNeeded() {
+  if (userDataDir === legacyUserDataDir || !(await pathExists(legacyUserDataDir))) return;
+
+  const legacySavesDir = path.join(legacyUserDataDir, 'Saves');
+  const newSavesDir = path.join(userDataDir, 'Saves');
+  if (await pathExists(legacySavesDir)) {
+    const newSavesAlreadyUsed = await directoryHasEntries(newSavesDir);
+    if (!newSavesAlreadyUsed) {
+      await fs.mkdir(userDataDir, { recursive: true });
+      await fs.cp(legacySavesDir, newSavesDir, { recursive: true, force: false, errorOnExist: false });
+    }
+  }
+
+  await Promise.all(storageDirs.map(dir =>
+    copyIfTargetMissing(path.join(legacyUserDataDir, dir), path.join(userDataDir, dir)).catch(() => {})
+  ));
+}
+
+async function listBackgroundImages() {
+  const root = path.join(ROOT, 'assets', 'backgrounds');
+  const results = [];
+
+  async function walk(dir, prefix = '') {
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      const fullPath = path.join(dir, entry.name);
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        await walk(fullPath, rel);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const ext = path.extname(entry.name).toLowerCase();
+      if (!backgroundImageExtensions.has(ext)) continue;
+      results.push(rel.replace(/\\/g, '/'));
+    }
+  }
+
+  await walk(root);
+  return results.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
 async function resetGameData() {
   await fs.mkdir(savesDir, { recursive: true });
   const entries = await fs.readdir(savesDir, { withFileTypes: true }).catch(() => []);
@@ -86,6 +159,10 @@ function sendUpdateStatus(type, payload = {}) {
 }
 
 async function checkForUpdates(manual = false) {
+  if (isDevVariant) {
+    sendUpdateStatus('update-disabled', { manual, reason: 'dev-build' });
+    return { ok: false, devBuild: true };
+  }
   if (!app.isPackaged) {
     sendUpdateStatus('update-disabled', { manual, reason: 'development' });
     return { ok: false, dev: true };
@@ -109,6 +186,20 @@ async function checkForUpdates(manual = false) {
 }
 
 function setupAutoUpdater() {
+  ipcMain.handle('update-check-manual', () => checkForUpdates(true));
+  ipcMain.handle('update-install-now', () => {
+    if (isDevVariant) return { ok: false, devBuild: true };
+    if (!app.isPackaged) return { ok: false, dev: true };
+    if (!updateReadyToInstall) return { ok: false, ready: false };
+    autoUpdater.quitAndInstall(false, true);
+    return { ok: true };
+  });
+
+  if (isDevVariant) {
+    console.log('[Updater] Auto-update disabled in DEV variant.');
+    return;
+  }
+
   autoUpdater.autoDownload = false;
   autoUpdater.allowDowngrade = false;
   autoUpdater.allowPrerelease = false;
@@ -149,14 +240,6 @@ function setupAutoUpdater() {
   });
   autoUpdater.on('error', error => {
     sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
-  });
-
-  ipcMain.handle('update-check-manual', () => checkForUpdates(true));
-  ipcMain.handle('update-install-now', () => {
-    if (!app.isPackaged) return { ok: false, dev: true };
-    if (!updateReadyToInstall) return { ok: false, ready: false };
-    autoUpdater.quitAndInstall(false, true);
-    return { ok: true };
   });
 
   if (!app.isPackaged) {
@@ -200,7 +283,17 @@ if (!gotLock) {
       return;
     }
     
+    await migrateLegacyUserDataIfNeeded();
     await fs.mkdir(savesDir, { recursive: true });
+
+    ipcMain.handle('app-info', () => ({
+      name: APP_DISPLAY_NAME,
+      isDev: isDevVariant,
+      updaterEnabled: !isDevVariant,
+      userDataPath: app.getPath('userData'),
+    }));
+
+    ipcMain.handle('backgrounds-list', () => listBackgroundImages());
 
     ipcMain.handle('storage-get', async (event, key) => {
       console.log(`[Main] storage-get called for key: ${key}`);
@@ -273,7 +366,7 @@ if (!gotLock) {
 
 function createWindow() {
   const win = new BrowserWindow({
-    title: 'Autohaus Legends',
+    title: APP_DISPLAY_NAME,
     width: 1600,
     height: 900,
     minWidth: 1280,
@@ -292,7 +385,7 @@ function createWindow() {
     },
   });
 
-  // Fenstertitel fest auf "Autohaus Legends" halten (Seitentitel des Spiels nicht durchreichen)
+  // Fenstertitel fest auf den App-Namen halten (Seitentitel des Spiels nicht durchreichen)
   win.on('page-title-updated', (e) => e.preventDefault());
 
   // Externe Links (falls je vorhanden) im Standardbrowser oeffnen, nie im App-Fenster

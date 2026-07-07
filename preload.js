@@ -21,4 +21,12 @@ contextBridge.exposeInMainWorld('updater', {
     checkManual: () => ipcRenderer.invoke('update-check-manual'),
     installNow: () => ipcRenderer.invoke('update-install-now')
 });
+
+contextBridge.exposeInMainWorld('appInfo', {
+    get: () => ipcRenderer.invoke('app-info')
+});
+
+contextBridge.exposeInMainWorld('backgrounds', {
+    list: () => ipcRenderer.invoke('backgrounds-list')
+});
 console.log('[Preload] window.storage registered successfully.');

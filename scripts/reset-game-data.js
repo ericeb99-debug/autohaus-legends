@@ -8,7 +8,7 @@ if (!appData) {
   process.exit(1);
 }
 
-const userDataDir = process.env.AUTOHAUS_LEGENDS_USER_DATA_DIR || path.join(appData, 'Autohaus Legends');
+const userDataDir = process.env.AUTOMOTIVE_EMPIRE_USER_DATA_DIR || path.join(appData, 'Automotive Empire');
 const savesDir = path.join(userDataDir, 'Saves');
 const storageDirs = ['Local Storage', 'Session Storage'];
 const saveFilePattern = /^(profiles(?:\.backup)?|save_[a-z0-9-]+(?:\.backup)?)\.json$/i;
@@ -32,7 +32,7 @@ async function resetGameData() {
     removed.push(fullPath);
   }
 
-  console.log('Autohaus Legends Spieldaten zurueckgesetzt.');
+  console.log('Automotive Empire Spieldaten zurueckgesetzt.');
   console.log(`UserData: ${userDataDir}`);
   for (const item of removed) console.log(`- ${item}`);
 }

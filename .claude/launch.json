@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8641"],
       "port": 8641
+    },
+    {
+      "name": "autodealer-test",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8899"],
+      "port": 8899
     }
   ]
 }

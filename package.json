@@ -1,15 +1,17 @@
 {
-  "name": "autohaus-legends",
-  "productName": "Autohaus Legends",
-  "version": "1.1.4",
-  "description": "Autohaus Legends - AutoDealer Simulator als Desktop-App (Electron-Huelle um autodealer-simulator.html)",
+  "name": "automotive-empire",
+  "productName": "Automotive Empire",
+  "version": "1.1.7",
+  "description": "Automotive Empire - Desktop-App (Electron-Huelle um autodealer-simulator.html)",
   "main": "main.js",
-  "author": "Autohaus Legends",
+  "author": "Automotive Empire",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "start": "electron .",
+    "start:dev": "set AUTOMOTIVE_EMPIRE_DEV=1&& electron . --dev",
     "build": "electron-builder --win",
+    "build:dev": "set AUTOMOTIVE_EMPIRE_DEV=1&& electron-builder --win --config electron-builder.dev.json --publish never",
     "reset:game-data": "node scripts/reset-game-data.js"
   },
   "devDependencies": {
@@ -17,8 +19,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "de.eric.autohaus-legends",
-    "productName": "Autohaus Legends",
+    "appId": "de.eric.automotive-empire",
+    "productName": "Automotive Empire",
     "directories": {
       "output": "dist"
     },
@@ -34,12 +36,15 @@
       "main.js",
       "preload.js",
       "autodealer-simulator.html",
+      "css/**/*",
+      "js/**/*",
+      "data/**/*",
       "assets/**/*"
     ],
     "win": {
       "icon": "assets/logos/app-icon.ico",
       "signtoolOptions": {
-        "publisherName": "Autohaus Legends"
+        "publisherName": "Automotive Empire"
       },
       "target": [
         {
@@ -57,19 +62,19 @@
       ]
     },
     "nsis": {
-      "artifactName": "AutohausLegendsSetup.exe",
+      "artifactName": "AutomotiveEmpireSetup.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Autohaus Legends",
-      "uninstallDisplayName": "Autohaus Legends",
+      "shortcutName": "Automotive Empire",
+      "uninstallDisplayName": "Automotive Empire",
       "installerIcon": "assets/logos/app-icon.ico",
       "uninstallerIcon": "assets/logos/app-icon.ico",
       "installerHeaderIcon": "assets/logos/app-icon.ico"
     },
     "portable": {
-      "artifactName": "AutohausLegendsPortable.exe"
+      "artifactName": "AutomotiveEmpirePortable.exe"
     }
   },
   "dependencies": {
