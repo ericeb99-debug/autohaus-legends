@@ -225,8 +225,24 @@ function calendarDaysInMonth(year, month){
   if(month === 2 && isCalendarLeapYear(year)) return 29;
   return normal[clamp(Math.round(month||1),1,12)-1];
 }
+// Übersetzt eine Spieltag-Nummer in "Kalendertage seit Spielstart".
+// Alte Spielstände (Spieltag-Dauer 4-12s vor dem Kalendersystem) haben stark aufgeblähte
+// Tageszähler. Die Migration speichert dafür in state.calendarMigration einen Ankerpunkt:
+// Tage bis zum Migrationszeitpunkt werden proportional in die real gespielte Zeit
+// eingeordnet, alle Tage danach laufen exakt 1:1 als Kalendertage weiter.
+// Das Mapping ist streng monoton – die Chronologie aller gespeicherten Tage bleibt erhalten.
+function calendarOffsetFromGameDay(gameDay){
+  gameDay = Math.max(1, Math.round(Number(gameDay)||1));
+  const mig = state && state.calendarMigration;
+  if(!mig || !Number.isFinite(Number(mig.day)) || !Number.isFinite(Number(mig.offset))) return gameDay - 1;
+  const migDay = Math.max(1, Math.round(Number(mig.day)));
+  const migOffset = Math.max(0, Math.round(Number(mig.offset)));
+  if(gameDay >= migDay) return migOffset + (gameDay - migDay);
+  if(migDay <= 1) return gameDay - 1;
+  return Math.round((gameDay - 1) * migOffset / (migDay - 1));
+}
 function calendarFromGameDay(gameDay){
-  let remaining = Math.max(0, Math.round(Number(gameDay)||1) - 1);
+  let remaining = calendarOffsetFromGameDay(gameDay);
   let year = CALENDAR_START.year;
   let month = CALENDAR_START.month;
   let day = CALENDAR_START.day;
@@ -286,6 +302,19 @@ function formatCalendarNumeric(cal){
 function formatGameDateFromDay(day){
   const cal = calendarFromGameDay(day || 1);
   return `${CALENDAR_WEEKDAYS[cal.weekday]||'Montag'}, ${formatCalendarNumeric(cal)}`;
+}
+// Ausgeschriebenes Kalenderdatum für eine Spieltag-Nummer, z.B. "20. November 2027".
+function gameDateLong(day){
+  return formatCalendarDate(calendarFromGameDay(day || 1));
+}
+// Kompaktes Kalenderdatum für Chips, Tabellen und Chat-Zeitstempel, z.B. "20.11.2027".
+function gameDateShort(day){
+  return formatCalendarNumeric(calendarFromGameDay(day || 1));
+}
+// Ersetzt alte "Tag 123"-Angaben in bereits GESPEICHERTEN Texten (Benachrichtigungen,
+// Forderungs-Historie, Chatnachrichten älterer Spielstände) beim Anzeigen durch echte Daten.
+function formatStoredDayText(text){
+  return String(text==null?'':text).replace(/\bTag\s+(\d{1,6})\b/g, (m, d)=>gameDateShort(Number(d)));
 }
 function calendarKey(cal){
   cal = cal || currentCalendar();
@@ -502,6 +531,7 @@ function defaultState(){
     calendarWeekday: 0,
     calendarWeek: 1,
     calendarHooks: {lastMonthKey:'2027-01', lastYear:2027},
+    calendarMigration: {day:1, offset:0},
     cash: 45000,
     loanPrincipal: 0,
     loanRate: 0.00025, // per day
@@ -718,12 +748,12 @@ function activeClaims(){
 function claimTotal(claim){ return (claim.baseAmount||0) + claimFeeTotal(claim); }
 function claimStatusLabel(claim){ return dunningStep(claim.dunningLevel||0).label; }
 function claimActionLabel(claim){
-  if(claim.legalResolved && claim.status==='Ratenvereinbarung nach Gericht') return `Ratenvereinbarung bis Tag ${claim.nextActionDay}`;
+  if(claim.legalResolved && claim.status==='Ratenvereinbarung nach Gericht') return `Ratenvereinbarung bis ${gameDateShort(claim.nextActionDay)}`;
   if((claim.dunningLevel||0)>=7 && claim.legalResolved) return 'Gericht entschieden';
-  if((claim.dunningLevel||0)>=7) return `Gerichtsergebnis ab Tag ${claim.nextActionDay}`;
+  if((claim.dunningLevel||0)>=7) return `Gerichtsergebnis ab ${gameDateShort(claim.nextActionDay)}`;
   const next = dunningStep((claim.dunningLevel||0)+1);
-  if((claim.dunningLevel||0)>0 && state.day < (claim.nextActionDay||0)) return `${next.label} ab Tag ${claim.nextActionDay}`;
-  return claim.actionRequired ? `${next.label} jetzt fällig` : `${next.label} ab Tag ${claim.nextActionDay}`;
+  if((claim.dunningLevel||0)>0 && state.day < (claim.nextActionDay||0)) return `${next.label} ab ${gameDateShort(claim.nextActionDay)}`;
+  return claim.actionRequired ? `${next.label} jetzt fällig` : `${next.label} ab ${gameDateShort(claim.nextActionDay)}`;
 }
 function claimNeedsAction(claim){
   if(!claim) return false;
@@ -3787,7 +3817,7 @@ function renderNotifPanel(){
     return;
   }
   p.innerHTML = head +
-    state.notifications.map(n=>`<div class="notif-item">${n.msg}<div class="t">${escapeHtml(formatGameDateFromDay(n.day||state.day))}</div></div>`).join('');
+    state.notifications.map(n=>`<div class="notif-item">${formatStoredDayText(n.msg)}<div class="t">${escapeHtml(formatGameDateFromDay(n.day||state.day))}</div></div>`).join('');
 }
 
 function navEditIcon(){
@@ -4089,8 +4119,8 @@ function dashVehicleCard(c){
   const reserved = c.reservedFor && c.reservedFor.expiresDay>state.day;
   const sold = c.location==='sold' || c.sold || c.soldDay;
   let status = {label:'Nicht inseriert', cls:'unlisted', meta:'Noch kein aktives Inserat'};
-  if(sold) status = {label:'Verkauft', cls:'sold', meta:c.soldDay?`Verkauft an Tag ${c.soldDay}`:'Nicht mehr im aktiven Bestand'};
-  else if(reserved) status = {label:'Reserviert', cls:'reserved', meta:`Bis Tag ${c.reservedFor.expiresDay}${c.reservedFor.customerName?' · '+c.reservedFor.customerName:''}`};
+  if(sold) status = {label:'Verkauft', cls:'sold', meta:c.soldDay?`Verkauft am ${gameDateShort(c.soldDay)}`:'Nicht mehr im aktiven Bestand'};
+  else if(reserved) status = {label:'Reserviert', cls:'reserved', meta:`Bis ${gameDateShort(c.reservedFor.expiresDay)}${c.reservedFor.customerName?' · '+c.reservedFor.customerName:''}`};
   else if(inWorkshop || c.repairStatus) status = {label:'In Vorbereitung', cls:'prep', meta:inWorkshop?`${inWorkshop.label||'Werkstatt'} · ${inWorkshop.daysLeft} Tag(e)`:'Noch nicht verkaufsbereit'};
   else if(listing) status = {label:'Inseriert', cls:'listed', meta:`${money(listing.price)} · ${listingAllowedPaymentMethods(listing).map(m=>paymentMethodMeta(m).label).join(', ')} · ${interested} Anfrage${interested===1?'':'n'} · seit ${Math.max(0,state.day-(listing.createdDay||state.day))} Tag(en)`};
   return `<div class="dash-car-card" onclick="navigateTo('inventory')">
@@ -4117,7 +4147,7 @@ function dashMessagesPanel(){
         const last = o.messages && o.messages.length ? o.messages[o.messages.length-1] : null;
         const initials = (o.name||'K').split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
         return `<div class="dash-message" onclick="navigateTo('mailbox');openConversation('${o.id}')">
-          <span class="avatar">${initials}</span><span><b>${escapeHtml(o.name||'Kunde')}</b><small>${escapeHtml(last?last.text:'Neue Anfrage')}</small></span><em>Tag ${last?last.day:state.day}</em>
+          <span class="avatar">${initials}</span><span><b>${escapeHtml(o.name||'Kunde')}</b><small>${escapeHtml(last?last.text:'Neue Anfrage')}</small></span><em>${gameDateShort(last?last.day:state.day)}</em>
         </div>`;
       }).join('') : '<p class="subtle">Keine offenen Nachrichten.</p>'}
     </div>
@@ -4160,13 +4190,19 @@ function dashRevenueChart(){
   const chartSales = dashRevenueSales();
   const maxDay = Math.max(1,state.day||1);
   const bucketCount = dashRevenueRange==='30d' ? 10 : 12;
-  const labels = dashRevenueRange==='30d'
-    ? Array.from({length:bucketCount},(_,i)=>`T-${(bucketCount-1-i)*3}`)
-    : ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
   const minDay = dashRevenueRange==='30d' ? Math.max(1,state.day-29) : (dashRevenueRange==='all' ? Math.max(1, Math.min(...chartSales.map(s=>s.day||1), 1)) : Math.max(1,maxDay-364));
   const spanDays = Math.max(1, maxDay-minDay+1);
   const bucketSize = Math.max(1, Math.ceil(spanDays/bucketCount));
-  const buckets = Array.from({length:bucketCount},(_,i)=>({label:labels[i],value:0,profit:0,count:0,from:minDay+i*bucketSize,to:Math.min(maxDay,minDay+(i+1)*bucketSize-1)}));
+  // Achsenbeschriftung mit echten Kalenderdaten: kurze Zeiträume als "TT.MM.", lange als Monatsname.
+  const buckets = Array.from({length:bucketCount},(_,i)=>{
+    const from = minDay+i*bucketSize;
+    const to = Math.min(maxDay,minDay+(i+1)*bucketSize-1);
+    const cal = calendarFromGameDay(dashRevenueRange==='30d' ? to : from);
+    const label = dashRevenueRange==='30d'
+      ? `${String(cal.day).padStart(2,'0')}.${String(cal.month).padStart(2,'0')}.`
+      : CALENDAR_MONTHS_PLAIN[cal.month-1].slice(0,3);
+    return {label, value:0, profit:0, count:0, from, to};
+  });
   chartSales.forEach(s=>{
     const idx = clamp(Math.floor(((s.day||1)-minDay)/bucketSize),0,bucketCount-1);
     buckets[idx].value += s.salePrice||0;
@@ -4199,7 +4235,7 @@ function dashRevenueChart(){
         const avgSale = b.count ? Math.round(b.value/b.count) : 0;
         return `<div class="line-col" tabindex="0">
           <small>${b.label}</small>
-          <em class="bar-tooltip"><b>${b.label}</b><br>Zeitraum: Tag ${b.from}-${b.to}<br>Umsatz: ${money(b.value)}<br>Gewinn: ${money(b.profit)}<br>Verkäufe: ${b.count}<br>Ø Verkauf: ${money(avgSale)}<br>Anteil: ${pct}%</em>
+          <em class="bar-tooltip"><b>${b.label}</b><br>Zeitraum: ${gameDateShort(b.from)} – ${gameDateShort(b.to)}<br>Umsatz: ${money(b.value)}<br>Gewinn: ${money(b.profit)}<br>Verkäufe: ${b.count}<br>Ø Verkauf: ${money(avgSale)}<br>Anteil: ${pct}%</em>
         </div>`;
       }).join('')}</div>
     </div>
@@ -4255,7 +4291,7 @@ function dashClaimsPanel(){
   const total = sumBy(claims, x=>claimTotal(x.claim));
   const rows = claims.slice(0,4).map(x=>{
     const due = claimNeedsAction(x.claim);
-    const label = due ? claimStatusLabel(x.claim) : `Tag ${x.claim.nextActionDay}`;
+    const label = due ? claimStatusLabel(x.claim) : gameDateShort(x.claim.nextActionDay);
     const fees = claimFeesByBucket(x.claim);
     return `<div class="claim-row" onclick="navigateTo('contracts')">
       <span>${escapeHtml(x.contract.customerName||'Kunde')}</span>
@@ -4277,8 +4313,8 @@ function dashActivityPanel(){
     const [cls, glyph] = icoFor(n.kind);
     return `<div class="activity-row">
       <span class="activity-ico ${cls}">${glyph}</span>
-      <small>${n.msg}</small>
-      <em>Tag ${n.day}</em>
+      <small>${formatStoredDayText(n.msg)}</small>
+      <em>${gameDateShort(n.day)}</em>
     </div>`;
   }).join('');
   return `<div class="dash-panel dash-side-panel">
@@ -4394,7 +4430,7 @@ function renderDashboard(){
       ${legacyReady?`<button class="btn btn-primary" onclick="openLegacyReview()">Legacy starten</button>`:`<button class="btn btn-ghost" onclick="navigateTo('legacy')">Historie öffnen</button>`}
     </div>
     <h2 class="section-title">Übersicht</h2>
-    <p class="subtle">Tag ${state.day} · Willkommen zurück, Geschäftsführer/in.</p>
+    <p class="subtle">${formatGameDateFromDay(state.day)} · Willkommen zurück, Geschäftsführer/in.</p>
     ${lowCash?`<div class="notice warn">⚠️ Ihre Liquidität ist knapp (${money(state.cash)}). Verkaufen Sie Fahrzeuge oder nehmen Sie einen Kredit auf, um zahlungsfähig zu bleiben.</div>`:''}
     ${claims.length?`<div class="notice warn" style="border-color:rgba(224,85,92,.38);background:rgba(224,85,92,.12);">⚠ Offene Forderungen: <b>${claims.length}</b> Vertrag(e), Gesamtforderung <b>${money(claimSum)}</b>. ${dueClaims.length?`Bei <b>${dueClaims.length}</b> Vertrag(en) ist jetzt eine Mahnung fällig.`:'Nächste Mahnschritte sind terminiert.'} <span style="margin-left:10px;color:var(--brass);cursor:pointer;font-weight:700;" onclick="navigateTo('contracts')">Verträge prüfen →</span></div>`:''}
     <div class="stat-grid">
@@ -4413,7 +4449,7 @@ function renderDashboard(){
     </div>
     ${renderAchievementsPanel()}
     <h2 class="section-title" style="font-size:14px;margin-bottom:10px;">Neuigkeiten</h2>
-    ${state.notifications.slice(0,6).map(n=>`<div class="notice">📰 ${n.msg} <span style="color:var(--txt-2);margin-left:auto;white-space:nowrap;">Tag ${n.day}</span></div>`).join('') || '<p class="subtle">Noch keine Ereignisse.</p>'}
+    ${state.notifications.slice(0,6).map(n=>`<div class="notice">📰 ${formatStoredDayText(n.msg)} <span style="color:var(--txt-2);margin-left:auto;white-space:nowrap;">${gameDateShort(n.day)}</span></div>`).join('') || '<p class="subtle">Noch keine Ereignisse.</p>'}
   `;
 }
 
@@ -5089,7 +5125,7 @@ function showAcquisitionHistory(id){
             <span class="chip">${c.acquisitionHistory.length} Einträge</span>
           </div>
           <div class="chat-messages vehicle-history-scroll">
-            ${c.acquisitionHistory.map(m=>`<div class="bubble ${m.from==='player'?'player':'customer'}">${escapeHtml(m.text)}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">Tag ${m.day}</div></div>`).join('')}
+            ${c.acquisitionHistory.map(m=>`<div class="bubble ${m.from==='player'?'player':'customer'}">${escapeHtml(formatStoredDayText(m.text))}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">${gameDateShort(m.day)}</div></div>`).join('')}
           </div>
         </div>
       </div>
@@ -5112,7 +5148,7 @@ function isReservedForOther(car, offerId){
 function extendReservation(carId){
   const c = findCar(carId); if(!c || !c.reservedFor) return;
   c.reservedFor.expiresDay += 3;
-  notify(`Reservierung für ${c.brand} ${c.model} verlängert bis Tag ${c.reservedFor.expiresDay}.`,'info');
+  notify(`Reservierung für ${c.brand} ${c.model} verlängert bis ${gameDateLong(c.reservedFor.expiresDay)}.`,'info');
   renderAllOpen(); scheduleSave();
 }
 function cancelReservation(carId){
@@ -5123,7 +5159,7 @@ function cancelReservation(carId){
 }
 function reservationChip(c){
   if(!c.reservedFor || c.reservedFor.expiresDay<=state.day) return '';
-  return `<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">🔒 Reserviert bis Tag ${c.reservedFor.expiresDay} (${c.reservedFor.customerName})</span>`;
+  return `<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">🔒 Reserviert bis ${gameDateShort(c.reservedFor.expiresDay)} (${c.reservedFor.customerName})</span>`;
 }
 function quickTrade(id){
   const c = findCar(id); if(!c) return;
@@ -6004,7 +6040,7 @@ function contractListItem(row){
     : (row.category==='default'?'border-color:rgba(224,85,92,.28);background:rgba(224,85,92,.055);':'');
   return `<div class="convo-item ${selectedContractId===row.id?'active':''}" onclick="openContract('${row.id}')" style="${style}">
     <div class="top"><span>${escapeHtml(row.customer)}${row.actionRequired?'<span class="badge">!</span>':''}</span><span style="color:${color};font-weight:700;">${escapeHtml(row.type)}</span></div>
-    <div class="snippet">${escapeHtml(row.vehicle)} · ${escapeHtml(row.status)}${row.openAmount?` · offen ${money(row.openAmount)}`:''}<br>Nächste Rate: ${row.nextDue>=999999?'–':'Tag '+row.nextDue} · Restlaufzeit: ${row.remaining} Monate · erhalten ${money(row.paid)}${row.archived?' · Archiv':''}</div>
+    <div class="snippet">${escapeHtml(row.vehicle)} · ${escapeHtml(row.status)}${row.openAmount?` · offen ${money(row.openAmount)}`:''}<br>Nächste Rate: ${row.nextDue>=999999?'–':gameDateShort(row.nextDue)} · Restlaufzeit: ${row.remaining} Monate · erhalten ${money(row.paid)}${row.archived?' · Archiv':''}</div>
   </div>`;
 }
 function archiveContractPrompt(kind, id){
@@ -6052,7 +6088,7 @@ function renderClaimBox(kind, contract){
   if(!claim && (contract.closed || String(contract.status||'').toLowerCase().includes('abgeschlossen'))){
     return `<div class="notice good">✅ Vertragsstatus: <b>Abgeschlossen</b>. Der Vertrag bleibt in der Historie sichtbar.</div>`;
   }
-  if(!claim) return `<div class="notice good">Alle Raten sind aktuell. Nächste Rate: Tag ${contract.nextDueDay}.</div>`;
+  if(!claim) return `<div class="notice good">Alle Raten sind aktuell. Nächste Rate: ${gameDateLong(contract.nextDueDay)}.</div>`;
   normalizeClaimFees(claim);
   const fees = claimFeesByBucket(claim);
   const nextLevel = Math.min((claim.dunningLevel||0)+1, DUNNING_STEPS.length-1);
@@ -6066,7 +6102,7 @@ function renderClaimBox(kind, contract){
       Status: ${claimStatusLabel(claim)} · ${daysLate} Tag(e) überfällig · ${claimActionLabel(claim)}<br>
       Offene Raten: <b>${claim.openRates||1}</b> · offene Rate(n): ${money(claim.baseAmount||0)} · Mahngebühren: ${money(fees.dunning)} · Inkasso: ${money(fees.collection)} · Gericht: ${money(fees.court)} · <b>aktuell zu zahlen: ${money(claimTotal(claim))}</b>
       ${state.greedyDunningMode?`<br><span style="color:var(--crimson);font-weight:700;">GEIZIG-Modus aktiv: höhere Zahlungswahrscheinlichkeit, aber stärkerer Zufriedenheits- und Rufverlust.</span>`:''}
-      ${dunningLocked?`<br><span style="color:var(--ink-1);">Nächste Mahnstufe ist gesperrt bis Tag ${claim.nextActionDay}.</span>`:''}
+      ${dunningLocked?`<br><span style="color:var(--ink-1);">Nächste Mahnstufe ist gesperrt bis ${gameDateLong(claim.nextActionDay)}.</span>`:''}
     </div>
     <div class="row-actions" style="margin:10px 0 14px;">
       <button class="btn btn-primary btn-sm" onclick="sendDunning('${kind}','${contract.id}')" ${(dunningLocked || (!claim.actionRequired && claim.nextActionDay>state.day))?'disabled':''}>${primaryActionLabel}</button>
@@ -6074,7 +6110,7 @@ function renderClaimBox(kind, contract){
       <button class="btn btn-danger btn-sm" onclick="forceContractEscalation('${kind}','${contract.id}')" ${dunningLocked?'disabled':''}>Konsequent eskalieren</button>
     </div>
     <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Forderungsverlauf</h3>
-    <table class="tbl"><thead><tr><th>Tag</th><th>Ereignis</th></tr></thead><tbody>${(claim.history||[]).map(h=>`<tr><td>${h.day}</td><td>${h.text}</td></tr>`).join('')}</tbody></table>
+    <table class="tbl"><thead><tr><th>Datum</th><th>Ereignis</th></tr></thead><tbody>${(claim.history||[]).map(h=>`<tr><td>${gameDateShort(h.day)}</td><td>${formatStoredDayText(h.text)}</td></tr>`).join('')}</tbody></table>
   `;
 }
 function contractPaymentBreakdown(contract){
@@ -6102,9 +6138,9 @@ function renderContractPaymentSummary(contract){
 function renderPaymentHistory(contract){
   const hist = contract.paymentHistory || [];
   if(!hist.length) return '<p class="subtle">Noch keine Zahlungen erhalten.</p>';
-  return `<table class="tbl"><thead><tr><th>Tag</th><th>Ereignis</th><th>Rate</th><th>Gebühr</th><th>Gesamt</th></tr></thead><tbody>${hist.map(p=>{
+  return `<table class="tbl"><thead><tr><th>Datum</th><th>Ereignis</th><th>Rate</th><th>Gebühr</th><th>Gesamt</th></tr></thead><tbody>${hist.map(p=>{
     const total = (p.amount||0)+(p.fee||0);
-    return `<tr><td>${p.day}</td><td>${p.label||'Zahlung'}</td><td style="color:var(--teal);font-family:var(--font-m);">+${money(p.amount||0)}</td><td style="color:${(p.fee||0)>0?'var(--brass)':'var(--ink-2)'};font-family:var(--font-m);">${money(p.fee||0)}</td><td style="color:var(--teal);font-family:var(--font-m);font-weight:800;">+${money(total)}</td></tr>`;
+    return `<tr><td>${gameDateShort(p.day)}</td><td>${p.label||'Zahlung'}</td><td style="color:var(--teal);font-family:var(--font-m);">+${money(p.amount||0)}</td><td style="color:${(p.fee||0)>0?'var(--brass)':'var(--ink-2)'};font-family:var(--font-m);">${money(p.fee||0)}</td><td style="color:var(--teal);font-family:var(--font-m);font-weight:800;">+${money(total)}</td></tr>`;
   }).join('')}</tbody></table>`;
 }
 function lastPaymentAmount(contract){
@@ -6151,7 +6187,7 @@ function showContractCompletionModal(kind, contract){
     ['Gezahlte Gesamtsumme', money(contractPaymentBreakdown(contract).total)],
     ['Erhaltene Zinsen', money(financingInterestReceived(contract))],
     ['Letzte Rate', money(lastPaymentAmount(contract))],
-    ['Abschlussdatum', `Tag ${contract.completedDay||state.day}`],
+    ['Abschlussdatum', gameDateLong(contract.completedDay||state.day)],
     ['Vertragsstatus', 'Abgeschlossen'],
   ] : [
     ['Kunde', escapeHtml(contract.customerName)],
@@ -6159,7 +6195,7 @@ function showContractCompletionModal(kind, contract){
     ['Leasingdauer', `${contract.months||0} Monate`],
     ['Gezahlte Gesamtsumme', money(contractPaymentBreakdown(contract).total)],
     ['Letzte Leasingrate', money(lastPaymentAmount(contract))],
-    ['Vertragsende', `Tag ${contract.completedDay||state.day}`],
+    ['Vertragsende', gameDateLong(contract.completedDay||state.day)],
     ['Vertragsstatus', 'Abgeschlossen'],
   ];
   showModal(`<div class="contract-complete-shell">
@@ -6206,7 +6242,7 @@ function renderContractDetail(id){
       <div class="stat-card"><div class="lbl">Restlaufzeit</div><div class="num">${f.monthsRemaining} Monate</div></div>
       <div class="stat-card"><div class="lbl">Bereits erhalten</div><div class="num">${money(f.totalPaid||0)}</div></div>
     </div>
-    <p class="subtle">Vertragsbeginn: Tag ${f.startDay} · ${f.closed?`Abschluss: Tag ${f.completedDay||state.day}`:`Nächste Rate fällig: Tag ${f.nextDueDay}`} · Mahnstufe: ${f.dunningLevel||0}/${DUNNING_STEPS.length-1}</p>
+    <p class="subtle">Vertragsbeginn: ${gameDateShort(f.startDay)} · ${f.closed?`Abschluss: ${gameDateShort(f.completedDay||state.day)}`:`Nächste Rate fällig: ${gameDateShort(f.nextDueDay)}`} · Mahnstufe: ${f.dunningLevel||0}/${DUNNING_STEPS.length-1}</p>
     ${renderContractPaymentSummary(f)}
     <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Mahnungen / Forderungen</h3>
     ${renderClaimBox('fin', f)}
@@ -6232,7 +6268,7 @@ function renderContractDetail(id){
       <div class="stat-card"><div class="lbl">Mehrkilometer</div><div class="num">${l.mileageOverageKm.toLocaleString('de-DE')} km</div></div>
       <div class="stat-card"><div class="lbl">Schäden</div><div class="num">${l.damageEvents}</div></div>
     </div>
-    <p class="subtle">Vertragsbeginn: Tag ${l.createdDay} · ${l.closed?`Vertragsende: Tag ${l.completedDay||state.day}`:`Nächste Rate fällig: Tag ${l.nextDueDay}`}</p>
+    <p class="subtle">Vertragsbeginn: ${gameDateShort(l.createdDay)} · ${l.closed?`Vertragsende: ${gameDateShort(l.completedDay||state.day)}`:`Nächste Rate fällig: ${gameDateShort(l.nextDueDay)}`}</p>
     ${renderContractPaymentSummary(l)}
     <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Mahnungen / Forderungen</h3>
     ${renderClaimBox('lea', l)}
@@ -6352,12 +6388,12 @@ function renderCustomerDetail(custId){
     ${activeOffer?`<div class="notice good">💬 Aktive Unterhaltung läuft – <a style="color:var(--brass);cursor:pointer;" onclick="navigateTo('mailbox');openConversation('${activeOffer.id}')">im Postfach öffnen</a></div>`:''}
     ${activeWish?`<div class="notice">🔍 Offener Suchauftrag: ${activeWish.desc}</div>`:''}
     <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Kaufhistorie</h3>
-    ${cust.purchases.length? `<table class="tbl"><thead><tr><th>Tag</th><th>Fahrzeug</th><th>Preis</th><th>Marge</th></tr></thead><tbody>
-      ${cust.purchases.slice().reverse().map(p=>`<tr><td>${p.day}</td><td>${p.brand} ${p.model} (${p.year})</td><td>${money(p.price)}</td><td style="color:${p.profit>=0?'var(--teal)':'var(--red)'};">${p.profit>=0?'+':''}${money(p.profit)}</td></tr>`).join('')}
+    ${cust.purchases.length? `<table class="tbl"><thead><tr><th>Datum</th><th>Fahrzeug</th><th>Preis</th><th>Marge</th></tr></thead><tbody>
+      ${cust.purchases.slice().reverse().map(p=>`<tr><td>${gameDateShort(p.day)}</td><td>${p.brand} ${p.model} (${p.year})</td><td>${money(p.price)}</td><td style="color:${p.profit>=0?'var(--teal)':'var(--red)'};">${p.profit>=0?'+':''}${money(p.profit)}</td></tr>`).join('')}
     </tbody></table>${totalProfit?`<p class="subtle" style="margin-top:8px;">Gesamtmarge mit diesem Kunden: <b style="color:${totalProfit>=0?'var(--teal)':'var(--red)'};">${totalProfit>=0?'+':''}${money(totalProfit)}</b></p>`:''}` : '<p class="subtle">Noch keine abgeschlossenen Käufe.</p>'}
     <h3 style="font-family:var(--font-d);font-size:13px;margin:16px 0 8px;">Gesprächsverlauf</h3>
     <div class="chat-messages" style="max-height:26vh;">
-      ${allMessages.length? allMessages.map(m=>`<div class="bubble ${m.from}">${m.text}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">Tag ${m.day}</div></div>`).join('') : '<p class="subtle">Noch keine Nachrichten.</p>'}
+      ${allMessages.length? allMessages.map(m=>`<div class="bubble ${m.from}">${formatStoredDayText(m.text)}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">${gameDateShort(m.day)}</div></div>`).join('') : '<p class="subtle">Noch keine Nachrichten.</p>'}
     </div>
   `;
 }
@@ -6412,7 +6448,7 @@ function renderPurchaseRequestDetail(id){
     const counterButton = activeCounter && activeCounter.index===idx && m.from==='seller' && !bought
       ? `<button class="btn btn-primary btn-sm" style="margin-top:9px;width:100%;justify-content:center;" onclick="acceptPurchaseCounterOffer('${r.id}', ${activeCounter.amount})">${money(activeCounter.amount)} akzeptieren</button>`
       : '';
-    return `<div class="bubble ${m.from==='player'?'player':'customer'}">${escapeHtml(m.text)}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">Tag ${m.day}</div>${counterButton}</div>`;
+    return `<div class="bubble ${m.from==='player'?'player':'customer'}">${escapeHtml(formatStoredDayText(m.text))}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">${gameDateShort(m.day)}</div>${counterButton}</div>`;
   }).join('');
   const debug = state.chatDebug && r.lastPurchaseChatDebug ? `<div class="notice" style="display:block;margin-top:8px;border-color:rgba(92,134,255,.32);">
     <b>Ankaufschat-Debug</b><br>
@@ -6422,7 +6458,7 @@ function renderPurchaseRequestDetail(id){
     Empfehlung: ${escapeHtml(r.lastPurchaseChatDebug.nextRecommendedReaction)}
   </div>` : '';
   return `
-    ${bought?`<div class="notice good" style="justify-content:center;text-align:center;font-family:var(--font-d);font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--emerald);border-color:rgba(47,184,124,.5);">Gekauft · ${money(r.purchasedPrice||c.purchasePrice||0)} · Tag ${r.purchasedDay||state.day}</div>`:''}
+    ${bought?`<div class="notice good" style="justify-content:center;text-align:center;font-family:var(--font-d);font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--emerald);border-color:rgba(47,184,124,.5);">Gekauft · ${money(r.purchasedPrice||c.purchasePrice||0)} · ${gameDateShort(r.purchasedDay||state.day)}</div>`:''}
     <div class="chat-head">
       <div>
         <div style="font-family:var(--font-d);font-weight:800;font-size:15px;">${r.sellerName}</div>
@@ -6610,7 +6646,7 @@ function renderReviewCard(r){
   const cat = Object.entries(r.categories||{}).map(([k,v])=>`<span class="chip">${k}: ${starsText(v)}</span>`).join('');
   return `<div class="offer-card">
     <div class="offer-head">
-      <span><b>${r.customerName}</b> · ${r.car} · Tag ${r.day}</span>
+      <span><b>${r.customerName}</b> · ${r.car} · ${gameDateShort(r.day)}</span>
       <span style="font-family:var(--font-m);color:${r.stars>=4?'var(--brass)':(r.stars<=2?'var(--crimson)':'var(--ink-1)')};font-weight:800;">${starsText(r.stars)}</span>
     </div>
     <div class="spec-row">${cat}</div>
@@ -6743,7 +6779,7 @@ function renderSearchOrderCard(so){
       <span class="chip">${so.persona}</span>
       <span class="chip">💼 ${so.job}</span>
       <span class="chip">Bonität ${so.creditScore}/100</span>
-      <span class="chip">Seit Tag ${so.createdDay}</span>
+      <span class="chip">Seit ${gameDateShort(so.createdDay)}</span>
     </div>
     ${matches.length ? `
       <div class="notice good">✅ ${matches.length} passende${matches.length>1?'':'s'} Fahrzeug${matches.length>1?'e':''} in Ihrem Bestand!</div>
@@ -6805,7 +6841,7 @@ function chatMessageHash(m){
 }
 function renderChatBubble(m, idx){
   const sig = chatMessageHash(m);
-  return `<div class="bubble ${m.from}" data-msg-index="${idx}" data-msg-sig="${sig}">${escapeHtml(compactRepeatedCommaText(m.text))}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">Tag ${m.day}</div></div>`;
+  return `<div class="bubble ${m.from}" data-msg-index="${idx}" data-msg-sig="${sig}">${escapeHtml(formatStoredDayText(compactRepeatedCommaText(m.text)))}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">${gameDateShort(m.day)}</div></div>`;
 }
 function renderChatStatus(o){
   return o.chatStatus ? `<div class="chat-ai-status">${escapeHtml(o.chatStatus)} <span class="dots"><i></i><i></i><i></i></span></div>` : '';
@@ -6820,7 +6856,7 @@ function renderMailboxListHtml(offers){
     const c = findCar(o.carId);
     const last = o.messages && o.messages.length? o.messages[o.messages.length-1] : null;
     return `<div class="convo-item ${selectedOfferId===o.id?'active':''}" onclick="openConversation('${o.id}')">
-      <div class="top"><span>${o.name}${o.unread?'<span class="unread-dot"></span>':''}</span><span style="color:var(--ink-2);font-weight:500;">Tag ${last?last.day:state.day}</span></div>
+      <div class="top"><span>${o.name}${o.unread?'<span class="unread-dot"></span>':''}</span><span style="color:var(--ink-2);font-weight:500;">${gameDateShort(last?last.day:state.day)}</span></div>
       <div class="snippet">${c?c.brand+' '+c.model+' · ':''}${last?compactRepeatedCommaText(last.text):''}</div>
     </div>`;
   }).join('');
@@ -6927,9 +6963,9 @@ function chatVehicleHints(o, c, saleConditions){
   if(saleConditions && saleConditions.length) hints.push({tone:'warn', text:`Offener Kundenwunsch: ${saleConditionText(saleConditions[0])}${saleConditions.length>1?` +${saleConditions.length-1}`:''}`});
   if(c.inspected && openIssues.length) hints.push({tone:'warn', text:`${openIssues.length} bekannte Mängel`});
   if(o.chatMemory?.testDrivePlanned) hints.push({tone:'', text:'Probefahrt geplant'});
-  if(o.applicationPending && o.financingApp) hints.push({tone:'', text:`Bank: Rückmeldung Tag ${o.financingApp.resolveDay}`});
+  if(o.applicationPending && o.financingApp) hints.push({tone:'', text:`Bank: Rückmeldung am ${gameDateShort(o.financingApp.resolveDay)}`});
   if(o.bankDecision) hints.push({tone:o.bankDecision.bankResult?.approved?'good':'warn', text:`Bank: ${o.bankDecision.bankResult?o.bankDecision.bankResult.label:o.bankDecision.risk?.label||'Entscheidung'}`});
-  if(c.reservedFor && c.reservedFor.expiresDay>state.day) hints.push({tone:'', text:`Reserviert bis Tag ${c.reservedFor.expiresDay}`});
+  if(c.reservedFor && c.reservedFor.expiresDay>state.day) hints.push({tone:'', text:`Reserviert bis ${gameDateShort(c.reservedFor.expiresDay)}`});
   if(workshopJob) hints.push({tone:'', text:`Werkstatt: ${workshopJob.label||'Auftrag'} (${workshopJob.daysLeft} T)`});
   return hints.slice(0,4);
 }
@@ -6990,8 +7026,8 @@ function renderConversationThread(offerId){
   const bubbles = (o.messages||[]).map((m,idx)=>renderChatBubble(m, idx)).join('');
   const liveStatus = renderChatStatus(o);
   const waitingText = o.pendingReply && o.pendingReply.kind==='ai'
-    ? `${o.chatStatus || 'Kunde meldet sich später ...'} voraussichtlich Tag ${o.pendingReply.dueDay}`
-    : `${o.name} antwortet voraussichtlich Tag ${o.pendingReply?.dueDay}`;
+    ? `${o.chatStatus || 'Kunde meldet sich später ...'} voraussichtlich am ${gameDateShort(o.pendingReply.dueDay)}`
+    : `${o.name} antwortet voraussichtlich am ${gameDateShort(o.pendingReply?.dueDay)}`;
   const waiting = o.pendingReply ? `<div class="notice" style="margin-top:8px;">⏳ ${escapeHtml(waitingText)}</div>` : '';
   const debug = state.chatDebug && o.lastChatDebug ? `<div class="notice" style="display:block;margin-top:8px;border-color:rgba(92,134,255,.32);">
     <b>Chat-Debug</b><br>
@@ -7003,7 +7039,7 @@ function renderConversationThread(offerId){
   const selectedFinancing = o.financingOffer ? `<div class="notice" style="margin-top:8px;display:block;">🏦 <b>Ausgewähltes Finanzierungsangebot</b><br>${financingOfferLabel(o.financingOffer)} · Gesamtzahlung ${money(o.financingOffer.totalCost)} · Zinsen ${money(o.financingOffer.totalInterest)}</div>` : '';
   const saleConditions = openSaleConditions(o, c);
   const conditionNotice = `<div id="chatConditionNotice" data-offer-id="${escapeAttr(o.id)}">${renderChatConditionNotice(o, c, saleConditions)}</div>`;
-  const appPending = o.applicationPending && o.financingApp ? `<div class="notice" style="margin-top:8px;border-color:rgba(139,127,240,.4);">🏦 Antrag bei der Bank – Rückmeldung voraussichtlich Tag ${o.financingApp.resolveDay}. Fahrzeug ist bis dahin reserviert.${o.financingApp.financingOffer?`<br>${financingOfferLabel(o.financingApp.financingOffer)}`:''}</div>` : '';
+  const appPending = o.applicationPending && o.financingApp ? `<div class="notice" style="margin-top:8px;border-color:rgba(139,127,240,.4);">🏦 Antrag bei der Bank – Rückmeldung voraussichtlich am ${gameDateLong(o.financingApp.resolveDay)}. Fahrzeug ist bis dahin reserviert.${o.financingApp.financingOffer?`<br>${financingOfferLabel(o.financingApp.financingOffer)}`:''}</div>` : '';
   const bankDecision = o.bankDecision ? `<div class="notice warn" style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">🏦 Bankprüfung liegt vor: Zahlungsausfall-Risiko <b style="color:${riskColor(o.bankDecision.risk.delayRiskPct)};">${o.bankDecision.risk.delayRiskPct}%</b> · ${o.bankDecision.bankResult?o.bankDecision.bankResult.label:o.bankDecision.risk.label}<button class="btn btn-primary btn-sm" onclick="showBankDecisionModal('${o.id}')">Entscheidung öffnen</button></div>` : '';
   const reserved = c.reservedFor && c.reservedFor.expiresDay>state.day;
   const vehicleCard = renderChatVehicleCard(o, c, profile, l, saleConditions);
@@ -7025,7 +7061,7 @@ function renderConversationThread(offerId){
         <span class="chip">✔ Wunsch: ${saleMethodLabel(desiredSaleMethod)}</span>
         <span class="chip">💼 ${o.job||'—'}</span>
         <span class="chip">Bonität ${o.creditScore!=null?o.creditScore:'–'}/100</span>
-        ${reserved?`<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">🔒 Reserviert bis Tag ${c.reservedFor.expiresDay}</span>`:''}
+        ${reserved?`<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">🔒 Reserviert bis ${gameDateShort(c.reservedFor.expiresDay)}</span>`:''}
       </div>
     </div>
     ${vehicleCard}
@@ -7690,7 +7726,7 @@ function renderListings(){
       return `<div class="card">
         ${renderCarPhoto(c)}
         <div class="car-name">${c.brand} ${c.model}</div>
-        <div class="car-sub">Seit Tag ${l.createdDay} · ${l.views} Aufrufe</div>
+        <div class="car-sub">Seit ${gameDateShort(l.createdDay)} · ${l.views} Aufrufe</div>
         <div class="spec-row">${paymentMethodBadges(l.allowedPaymentMethods)}${reservationChip(c)}</div>
         <div class="price-row"><span class="price">${money(l.price)}</span><span class="mval">Marktwert ${money(c.marketValue)}</span></div>
         <div class="row-actions">
@@ -9640,7 +9676,7 @@ function confirmDeliveryPlan(id){
   d.satisfactionDelta = share.sat + method.quality + Math.round(coordBonus*2) + deliveryUpgrade; d.reviewStarsDelta = share.review + (method.quality>=2 ? 1 : 0) + (coordBonus>0.45 ? 1 : 0) + (deliveryUpgrade>=2 ? 1 : 0);
   if(d.customerCharge>0) addTx('income', 'Lieferkosten '+d.car.brand+' '+d.car.model+' an '+d.customerName, d.customerCharge);
   if(d.transportCost>0) addTx('expense', method.label+' '+d.car.brand+' '+d.car.model, -d.transportCost);
-  notify(`Lieferung für ${d.car.brand} ${d.car.model} beauftragt. Ankunft voraussichtlich Tag ${d.plannedArrivalDay}.`, 'info');
+  notify(`Lieferung für ${d.car.brand} ${d.car.model} beauftragt. Ankunft voraussichtlich am ${gameDateLong(d.plannedArrivalDay)}.`, 'info');
   closeModal(); renderAllOpen(); scheduleSave();
 }
 function processDeliveries(){
@@ -9706,7 +9742,7 @@ function renderDeliveryCard(d){
   const done = ['completed','pickup_completed'].includes(d.status);
   return `<div class="offer-card">
     <div class="offer-head"><span><b>${d.car.brand} ${d.car.model}</b> — ${d.customerName}</span><span class="persona">${status}</span></div>
-    <p class="subtle" style="margin:0 0 8px;">${type.label} · ${d.distanceKm} km · Kundenkosten ${money(d.customerCharge||0)} · Autohausanteil ${money(Math.max(0,d.dealerCost||0))}${d.plannedArrivalDay?` · geplant Tag ${d.plannedArrivalDay}`:''}</p>
+    <p class="subtle" style="margin:0 0 8px;">${type.label} · ${d.distanceKm} km · Kundenkosten ${money(d.customerCharge||0)} · Autohausanteil ${money(Math.max(0,d.dealerCost||0))}${d.plannedArrivalDay?` · geplant für ${gameDateShort(d.plannedArrivalDay)}`:''}</p>
     <div class="spec-row">
       <span class="chip">${method?method.label:'Noch nicht beauftragt'}</span>
       <span class="chip">${DELIVERY_SHARES[d.share]?.label || 'Kunde zahlt vollständig'}</span>
@@ -9804,7 +9840,7 @@ function sendDunning(kind, id){
   if(!contract || !contract.openClaim) return;
   const claim = contract.openClaim;
   if((claim.dunningLevel||0)>0 && state.day < (claim.nextActionDay||0)){
-    notify(`${claimStatusLabel(claim)} wurde bereits versendet. Nächste Mahnstufe erst ab Tag ${claim.nextActionDay}.`,'warn');
+    notify(`${claimStatusLabel(claim)} wurde bereits versendet. Nächste Mahnstufe erst ab ${gameDateLong(claim.nextActionDay)}.`,'warn');
     renderAllOpen();
     return;
   }
@@ -9829,7 +9865,7 @@ function sendDunning(kind, id){
   state.reputation = clamp(state.reputation - (claim.dunningLevel>=5?1:0) - (state.greedyDunningMode && feeTotal>0 ? 1 : 0), 0, 100);
   state.dunningsSent = (state.dunningsSent||0)+1;
   showAchievementUnlocks(checkAchievements());
-  notify(`${claimStatusLabel(claim)} an ${contract.customerName} versendet. Nächster Schritt ab Tag ${claim.nextActionDay}.${state.greedyDunningMode?' Geizig-Modus belastet Zufriedenheit und Ruf.':''}`,'warn');
+  notify(`${claimStatusLabel(claim)} an ${contract.customerName} versendet. Nächster Schritt ab ${gameDateLong(claim.nextActionDay)}.${state.greedyDunningMode?' Geizig-Modus belastet Zufriedenheit und Ruf.':''}`,'warn');
   renderAllOpen(); scheduleSave();
 }
 function grantPaymentDeferral(kind, id){
@@ -9838,12 +9874,12 @@ function grantPaymentDeferral(kind, id){
   const claim = contract.openClaim;
   claim.actionRequired = false;
   claim.nextActionDay = state.day + 7;
-  claim.history.unshift({day:state.day, type:'deferral', text:'Zahlungsaufschub bis Tag '+claim.nextActionDay+' gewährt.'});
+  claim.history.unshift({day:state.day, type:'deferral', text:'Zahlungsaufschub bis '+gameDateLong(claim.nextActionDay)+' gewährt.'});
   contract.leniency = (contract.leniency||0)+1;
   contract.status = 'Stundung';
   const cust = state.customers && state.customers[contract.customerId];
   if(cust) cust.satisfaction = clamp(cust.satisfaction + 4, 0, 100);
-  notify(`${contract.customerName} erhält Zahlungsaufschub bis Tag ${claim.nextActionDay}.`,'info');
+  notify(`${contract.customerName} erhält Zahlungsaufschub bis ${gameDateLong(claim.nextActionDay)}.`,'info');
   renderAllOpen(); scheduleSave();
 }
 function resolveLegalClaimOutcome(kind, contract){
@@ -9869,7 +9905,7 @@ function resolveLegalClaimOutcome(kind, contract){
   } else if(roll < 0.65){
     claim.nextActionDay = state.day + 14;
     claim.status = 'Ratenvereinbarung nach Gericht';
-    claim.history.unshift({day:state.day, type:'legal-result', text:`Gerichtsergebnis: verbindliche Ratenvereinbarung über ${money(total)}. Nächste Prüfung Tag ${claim.nextActionDay}.`});
+    claim.history.unshift({day:state.day, type:'legal-result', text:`Gerichtsergebnis: verbindliche Ratenvereinbarung über ${money(total)}. Nächste Prüfung am ${gameDateLong(claim.nextActionDay)}.`});
     contract.status = 'Ratenvereinbarung nach Gericht';
     contract.leniency = (contract.leniency||0)+1;
     notify(`${contract.customerName} erhält nach Gericht eine verbindliche Ratenvereinbarung über ${money(total)}.`,'info');
@@ -10030,7 +10066,7 @@ function forceContractEscalation(kind, id){
   const contract = findContractByKind(kind, id);
   if(!contract || !contract.openClaim) return;
   if((contract.openClaim.dunningLevel||0)>0 && state.day < (contract.openClaim.nextActionDay||0)){
-    notify(`Konsequente Eskalation erst ab Tag ${contract.openClaim.nextActionDay} möglich.`,'warn');
+    notify(`Konsequente Eskalation erst ab ${gameDateLong(contract.openClaim.nextActionDay)} möglich.`,'warn');
     renderAllOpen();
     return;
   }
@@ -10366,7 +10402,7 @@ function confirmReservation(offerId){
   if(c.reservedFor && c.reservedFor.offerId===o.id){ return; }
   if(isReservedForOther(c, o.id)){ notify('Fahrzeug ist bereits anderweitig reserviert.','warn'); renderPageContent(); return; }
   reserveCar(c, o, 5, 'manual');
-  addMsg(o, 'player', `Ich reserviere das Fahrzeug für Sie bis Tag ${c.reservedFor.expiresDay}.`);
+  addMsg(o, 'player', `Ich reserviere das Fahrzeug für Sie bis ${gameDateLong(c.reservedFor.expiresDay)}.`);
   addMsg(o, 'customer', profile.riskAwareness>68
     ? `Vielen Dank, das gibt mir Sicherheit. Dann prüfe ich die letzten Details und melde mich verbindlich.`
     : `Vielen Dank, das hilft mir sehr. Dann bleiben wir dran!`);
@@ -10455,8 +10491,8 @@ function renderFinance(){
     <tbody>${leases.map(l=>`<tr><td>${l.customerName}</td><td>${l.carSnapshot.brand} ${l.carSnapshot.model}</td><td style="font-family:var(--font-m);">${money(l.monthlyPayment)}</td><td>${l.monthsElapsed}/${l.months} Monate</td><td>${l.mileageOverageKm>0?l.mileageOverageKm.toLocaleString('de-DE')+' km':'–'}</td><td>${l.damageEvents||'–'}</td></tr>`).join('')}</tbody></table>
     ` : ''}
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">Letzte Transaktionen</h3>
-    <table class="tbl finance-table"><thead><tr><th>Tag</th><th>Beschreibung</th><th>Betrag</th></tr></thead>
-    <tbody>${state.transactions.slice(0,40).map(t=>`<tr><td>${t.day}</td><td>${t.desc}</td><td style="color:${t.amount>=0?'var(--teal)':'var(--red)'};font-family:var(--font-m);">${fmtDelta(t.amount)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--txt-2);">Keine Transaktionen</td></tr>'}</tbody></table>
+    <table class="tbl finance-table"><thead><tr><th>Datum</th><th>Beschreibung</th><th>Betrag</th></tr></thead>
+    <tbody>${state.transactions.slice(0,40).map(t=>`<tr><td>${gameDateShort(t.day)}</td><td>${formatStoredDayText(t.desc)}</td><td style="color:${t.amount>=0?'var(--teal)':'var(--red)'};font-family:var(--font-m);">${fmtDelta(t.amount)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--txt-2);">Keine Transaktionen</td></tr>'}</tbody></table>
   `;
 }
 
@@ -11237,7 +11273,12 @@ function passiveXpForDay(){
   const reputationXp = (state.reputation||0) >= 75 ? 7 : (state.reputation||0) >= 65 ? 4 : 0;
   const earlyBoost = level < 10 ? 18 : level < 20 ? 10 : level < 30 ? 5 : 0;
   const base = Math.round(8 + earlyBoost + inventoryXp + listingXp + contractXp + employeeXp + reputationXp);
-  return clamp(base, 0, Math.max(10, 18 + Math.floor(Math.sqrt(activity))*6));
+  const perDay = clamp(base, 0, Math.max(10, 18 + Math.floor(Math.sqrt(activity))*6));
+  // Auf Echtzeit normalisieren: Kürzere Kalendertage erzeugen mehr Tage pro Spielminute,
+  // dürfen aber nicht automatisch mehr Level-/Legacy-Fortschritt bringen. Bei der
+  // Standard-Dauer (60s) bleibt der Wert unverändert.
+  const speedFactor = clamp((state.dayDurationMs||DEFAULT_DAY_DURATION_MS)/DEFAULT_DAY_DURATION_MS, MIN_DAY_DURATION_MS/DEFAULT_DAY_DURATION_MS, MAX_DAY_DURATION_MS/DEFAULT_DAY_DURATION_MS);
+  return Math.round(perDay * speedFactor);
 }
 function achievementColor(rarity){
   return ({common:'#d4af6a', rare:'#2fb87c', epic:'#8b7ff0', legendary:'#ef5da8'})[rarity||'common'] || '#d4af6a';
@@ -12519,11 +12560,45 @@ function clearBranchFields(obj){
   delete obj.sourceBranchId;
   return obj;
 }
+// Spieltag-Dauer vor Einführung des Kalendersystems (Standard der alten Versionen: 6 Sekunden).
+const PRE_CALENDAR_DAY_DURATION_MS = 6000;
+// Einmalige Kalender-Migration: alte Spielstände zählten Tage im 4-12-Sekunden-Takt.
+// Deren Tageszähler 1:1 als Kalendertage zu übernehmen, würde kaum gespielte Spielstände
+// Monate oder Jahre in die Zukunft springen lassen. Stattdessen wird der bisherige
+// Fortschritt anhand der damals eingestellten Spieltag-Dauer in real gespielte Zeit
+// umgerechnet und als Ankerpunkt gespeichert. state.day selbst bleibt unverändert,
+// damit alle relativen Tagesrechnungen (Raten, Reservierungen, Werkstatt) intakt bleiben.
+function ensureCalendarMigration(){
+  const mig = state.calendarMigration;
+  if(mig && Number.isFinite(Number(mig.day)) && Number.isFinite(Number(mig.offset))){
+    mig.day = Math.max(1, Math.round(Number(mig.day)));
+    mig.offset = Math.max(0, Math.round(Number(mig.offset)));
+    return;
+  }
+  const day = Math.max(1, Math.round(Number(state.day)||1));
+  const rawDuration = Number(state.dayDurationMs);
+  let previousDuration;
+  if(Number.isFinite(rawDuration) && rawDuration >= 1000 && rawDuration < MIN_DAY_DURATION_MS){
+    // Eindeutig ein Spielstand aus der Zeit vor dem Kalendersystem (4-12s pro Tag).
+    previousDuration = rawDuration;
+  } else if(!Number.isFinite(rawDuration) || rawDuration <= 0){
+    // Sehr alter Spielstand ohne gespeicherte Spieltag-Dauer: alten Standard annehmen.
+    previousDuration = day > 1 ? PRE_CALENDAR_DAY_DURATION_MS : DEFAULT_DAY_DURATION_MS;
+  } else {
+    // Spielstand lief bereits mit dem Kalendersystem: Tage zählen unverändert 1:1.
+    previousDuration = DEFAULT_DAY_DURATION_MS;
+  }
+  const scale = clamp(previousDuration / DEFAULT_DAY_DURATION_MS, 0, 1);
+  state.calendarMigration = {day, offset: Math.max(0, Math.round((day - 1) * scale))};
+}
 // Ergänzt fehlende Felder in älteren Spielständen, damit neu hinzugefügte Systeme nicht abstürzen.
 function migrateState(){
   repairMojibakeDeep(state);
   activeProfileName = repairMojibakeText(activeProfileName||'');
   const salaryBalanceVersion = state.salaryBalanceVersion || 1;
+  // Kalender-Migration muss laufen, BEVOR Default-Felder aufgefüllt werden und bevor
+  // state.dayDurationMs auf den neuen Bereich (30-300s) geklemmt wird.
+  ensureCalendarMigration();
   const d = defaultState();
   Object.keys(d).forEach(key=>{
     if(state[key] === undefined) state[key] = d[key];

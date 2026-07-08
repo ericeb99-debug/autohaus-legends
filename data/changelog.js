@@ -45,7 +45,17 @@ const CHANGELOG = [
         'Die obere Spielanzeige zeigt jetzt Wochentag und echtes Datum statt nur einer endlosen Tagesnummer.',
         'Die Spieltag-Dauer steuert nun klar, wie lange ein Kalendertag in Echtzeit dauert.',
         'Tageslimits für neue Kaufanfragen orientieren sich weiterhin sauber am aktuellen Kalendertag.',
-        'Legacy-Fortschritt hängt stärker an Unternehmenswert, Gewinn, Reputation, Verkäufen und abgeschlossenen Aufträgen statt an schnell vergangenen Tagen.'
+        'Legacy-Fortschritt hängt stärker an Unternehmenswert, Gewinn, Reputation, Verkäufen und abgeschlossenen Aufträgen statt an schnell vergangenen Tagen.',
+        'Das komplette Spiel zeigt jetzt echte Kalenderdaten statt Tagesnummern: Finanzen, Verträge, Finanzierung, Leasing, Mahnwesen, Fahrzeugbörse, Kundenchats, Bewertungen, Lieferungen, Reservierungen, Suchaufträge und die letzten Transaktionen.',
+        'Alle zukünftigen Termine wie Ratenfälligkeiten, Bank-Rückmeldungen, Lieferankünfte und Mahnfristen werden mit dem echten Kalender berechnet und berücksichtigen Monatslängen, Schaltjahre und Jahreswechsel.',
+        'Umsatz- und Gewinnverläufe im Dashboard beschriften ihre Zeiträume jetzt mit echten Kalenderdaten und Monatsnamen.',
+        'Der Levelaufstieg durch passive Erfahrung ist jetzt unabhängig von der eingestellten Kalendertag-Dauer: Kürzere Kalendertage beschleunigen den Legacy-Fortschritt nicht mehr.'
+      ],
+      fixed:[
+        'Die Übernahme bestehender Spielstände wurde korrigiert: Der bisherige Spielfortschritt wird jetzt anhand der früher deutlich schnelleren Spieltag-Dauer plausibel in den Kalender eingeordnet, statt Monate oder Jahre zu weit in die Zukunft zu springen.',
+        'Wenig gespielte Spielstände starten dadurch nicht mehr später im Kalender als deutlich weiter aufgebaute Unternehmen.',
+        'Auch ältere gespeicherte Einträge wie Benachrichtigungen, Mahnverläufe und Kundennachrichten zeigen ihre Zeitangaben jetzt als echtes Kalenderdatum.',
+        'Alle Verläufe und Historien bleiben streng chronologisch: Neueste Ereignisse stehen oben, ältere darunter, ohne Datumsrücksprünge.'
       ],
       prepared:[
         'Monatsabschlüsse und monatliche Kosten.',
