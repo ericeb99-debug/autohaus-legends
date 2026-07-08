@@ -31,6 +31,31 @@ const CHANGELOG = [
     }
   },
   {
+    version:'1.1.1', date:'2026-07-08', type:'major',
+    title:'Realistisches Kalendersystem',
+    headline:'Automotive Empire nutzt jetzt ein vollwertiges Kalender- und Zeitsystem mit festen Startdaten, echten Monaten, Jahreswechseln und einer stabilen Grundlage für langfristige Unternehmenssimulation.',
+    sections:{
+      new:[
+        'Neue Spielstände beginnen immer am 01. Januar 2027 mit einem festen Kalenderstart.',
+        'Bestehende Spielstände werden automatisch anhand ihres bisherigen Tagesfortschritts auf das neue Kalendersystem umgestellt.',
+        'Monate, Monatslängen, Schaltjahre, Wochentage und Jahreswechsel werden jetzt zentral berechnet.',
+        'Neue Legacy-Durchläufe starten wieder mit einem frischen Kalender am festen Startdatum.'
+      ],
+      improved:[
+        'Die obere Spielanzeige zeigt jetzt Wochentag und echtes Datum statt nur einer endlosen Tagesnummer.',
+        'Die Spieltag-Dauer steuert nun klar, wie lange ein Kalendertag in Echtzeit dauert.',
+        'Tageslimits für neue Kaufanfragen orientieren sich weiterhin sauber am aktuellen Kalendertag.',
+        'Legacy-Fortschritt hängt stärker an Unternehmenswert, Gewinn, Reputation, Verkäufen und abgeschlossenen Aufträgen statt an schnell vergangenen Tagen.'
+      ],
+      prepared:[
+        'Monatsabschlüsse und monatliche Kosten.',
+        'Jahresstatistiken und langfristige Unternehmensberichte.',
+        'Saisonale Nachfrage, Events und wirtschaftliche Entwicklungen.',
+        'Zeitabhängige Systeme wie Leasing, Versicherungen, Termine und Kampagnen.'
+      ]
+    }
+  },
+  {
     version:'1.1.1', date:'2026-07-07', type:'normal',
     title:'Design-Auswahl verfeinert',
     headline:'Die Hintergrundauswahl zeigt jetzt nur noch die Bildvorschau und keine Dateinamen mehr.',
@@ -95,7 +120,11 @@ const CHANGELOG = [
     sections:{
       improved:[
         'Die Windows-App nutzt nun die neue Automotive-Empire-Identität, damit Desktop-, Taskleisten- und Fenster-Icon korrekt zum neuen Branding passen.',
-        'Beim Ziehen mit gedrückter linker Maustaste werden UI-Texte und Felder nicht mehr versehentlich markiert.'
+        'Beim Ziehen mit gedrückter linker Maustaste werden UI-Texte und Felder nicht mehr versehentlich markiert.',
+        'Logos erscheinen jetzt ruhiger ohne gelben Glow-Effekt, und die farbigen Fensterpunkte in der oberen Leiste wurden entfernt.',
+        'Neue Updates werden jetzt als klare Info-Karte angezeigt, damit wichtige Hinweise besser auffallen.',
+        'Die Logo-Flächen wurden weiter bereinigt, damit kein gelber Rand mehr an den Logos erscheint.',
+        'Das Logo oberhalb der seitlichen Tableiste wurde entfernt, damit die Tabs höher und direkter erreichbar sind.'
       ]
     }
   },

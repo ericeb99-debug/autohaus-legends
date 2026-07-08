@@ -74,6 +74,7 @@ const UPD_SVG = {
   plus:'<svg viewBox="0 0 24 24"><path d="M12 6v12"/><path d="M6 12h12"/></svg>',
   arrowUp:'<svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>',
   check:'<svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>',
+  download:'<svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>',
   refresh:'<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg>',
   chevron:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
 };
@@ -211,6 +212,85 @@ const DEFAULT_DESIGN_SETTINGS = {
   backgroundOverlay: 35,
   backgroundBlur: 0,
 };
+const CALENDAR_START = {day:1, month:1, year:2027, weekday:0};
+const CALENDAR_WEEKDAYS = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+const CALENDAR_MONTHS = ['Januar','Februar','M&auml;rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const CALENDAR_MONTHS_PLAIN = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+function isCalendarLeapYear(year){
+  year = Math.round(Number(year)||CALENDAR_START.year);
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+function calendarDaysInMonth(year, month){
+  const normal = [31,28,31,30,31,30,31,31,30,31,30,31];
+  if(month === 2 && isCalendarLeapYear(year)) return 29;
+  return normal[clamp(Math.round(month||1),1,12)-1];
+}
+function calendarFromGameDay(gameDay){
+  let remaining = Math.max(0, Math.round(Number(gameDay)||1) - 1);
+  let year = CALENDAR_START.year;
+  let month = CALENDAR_START.month;
+  let day = CALENDAR_START.day;
+  const totalOffset = remaining;
+  while(remaining > 0){
+    const leftInMonth = calendarDaysInMonth(year, month) - day;
+    if(remaining <= leftInMonth){
+      day += remaining;
+      remaining = 0;
+    } else {
+      remaining -= leftInMonth + 1;
+      day = 1;
+      month++;
+      if(month > 12){
+        month = 1;
+        year++;
+      }
+    }
+  }
+  const weekday = (CALENDAR_START.weekday + totalOffset) % 7;
+  return {
+    day, month, year, weekday,
+    monthName: CALENDAR_MONTHS_PLAIN[month-1],
+    dayOfYear: calendarDayOfYear(year, month, day),
+    week: Math.floor(totalOffset / 7) + 1,
+  };
+}
+function calendarDayOfYear(year, month, day){
+  let total = day;
+  for(let m=1;m<month;m++) total += calendarDaysInMonth(year, m);
+  return total;
+}
+function syncCalendarFromDay(){
+  if(!state) return calendarFromGameDay(1);
+  state.day = Math.max(1, Math.round(Number(state.day)||1));
+  const cal = calendarFromGameDay(state.day);
+  state.calendar = cal;
+  state.calendarDay = cal.day;
+  state.calendarMonth = cal.month;
+  state.calendarYear = cal.year;
+  state.calendarWeekday = cal.weekday;
+  state.calendarWeek = cal.week;
+  return cal;
+}
+function currentCalendar(){
+  return state ? (state.calendar || syncCalendarFromDay()) : calendarFromGameDay(1);
+}
+function formatCalendarDate(cal, html=false){
+  cal = cal || currentCalendar();
+  const month = html ? CALENDAR_MONTHS[cal.month-1] : CALENDAR_MONTHS_PLAIN[cal.month-1];
+  return `${String(cal.day).padStart(2,'0')}. ${month} ${cal.year}`;
+}
+function formatCalendarNumeric(cal){
+  cal = cal || currentCalendar();
+  return `${String(cal.day).padStart(2,'0')}.${String(cal.month).padStart(2,'0')}.${cal.year}`;
+}
+function formatGameDateFromDay(day){
+  const cal = calendarFromGameDay(day || 1);
+  return `${CALENDAR_WEEKDAYS[cal.weekday]||'Montag'}, ${formatCalendarNumeric(cal)}`;
+}
+function calendarKey(cal){
+  cal = cal || currentCalendar();
+  return `${cal.year}-${String(cal.month).padStart(2,'0')}`;
+}
 const LEGACY_BACKGROUND_IDS = {
   'showroom-day':'1',
   'premium-dark':'2',
@@ -415,6 +495,13 @@ function defaultState(){
     backgroundId: DEFAULT_APP_BACKGROUND_ID,
     designSettings: {...DEFAULT_DESIGN_SETTINGS},
     day: 1,
+    calendar: calendarFromGameDay(1),
+    calendarDay: 1,
+    calendarMonth: 1,
+    calendarYear: 2027,
+    calendarWeekday: 0,
+    calendarWeek: 1,
+    calendarHooks: {lastMonthKey:'2027-01', lastYear:2027},
     cash: 45000,
     loanPrincipal: 0,
     loanRate: 0.00025, // per day
@@ -486,7 +573,7 @@ function defaultState(){
     chatDebug: false,
     receivables: [],
     leaseContracts: [],
-    dayDurationMs: 6000,
+    dayDurationMs: 60000,
     maxNewOffersPerDay: 1,
     dunningFees: {reminder:0, level1:10, level2:35, level3:100, collection:180, legal:350},
     greedyDunningMode: false,
@@ -1693,7 +1780,7 @@ async function renderProfileLogin(){
               </div>
             </div>
             <div class="login-copy">
-              <p>Steuere Bestand, Kunden, Finanzierung, Werkstatt, Verträge und Reputation in einer Oberfläche, die wie echte Autohaus-Software wirkt.</p>
+              <p>Steuere Bestand, Kunden, Finanzierung, Werkstatt, Verträge und Reputation in einer Oberfläche.</p>
             </div>
           </div>
           <div>
@@ -2419,15 +2506,25 @@ function showUpdateHint(version){
   if(updateHintShownVersion === (version||'?')) return;
   updateHintShownVersion = version || '?';
   dismissUpdateHint(true);
+  const canOpenUpdates = inGameSession();
   const el = document.createElement('div');
   el.id = 'updateHint';
+  el.className = 'update-card-notice';
   el.innerHTML = `
-    <div class="uh-icon">⬇</div>
-    <div class="uh-text"><b>Neues Update verfügbar.</b>Bitte prüfe Updates nach deiner Spielsitzung — dein Spiel läuft ungestört weiter.</div>
-    <button class="uh-close" onclick="dismissUpdateHint()" title="Ausblenden">×</button>
+    <div class="uh-card">
+      <div class="uh-icon">${UPD_SVG.download || '↓'}</div>
+      <div class="uh-text">
+        <b>Neues Update verfügbar</b>
+        <span>Ein neues Update steht bereit. Du kannst die Details in Updates & News ansehen; dein Spiel läuft dabei weiter.</span>
+      </div>
+      <div class="uh-actions">
+        <button class="btn btn-ghost" onclick="dismissUpdateHint()">Später</button>
+        ${canOpenUpdates ? `<button class="btn btn-primary" onclick="dismissUpdateHint(); navigateTo('updates')">Ansehen</button>` : ''}
+      </div>
+      <button class="uh-close" onclick="dismissUpdateHint()" title="Ausblenden">×</button>
+    </div>
   `;
   document.body.appendChild(el);
-  setTimeout(()=>dismissUpdateHint(), 12000);
 }
 function dismissUpdateHint(instant){
   const el = document.getElementById('updateHint');
@@ -2477,7 +2574,7 @@ function handleUpdaterStatus(payload){
     const label = 'Ein Update ist verfügbar.';
     setUpdateUi('available', label);
     if(manual) showToast('⬇️', `${label} Download startet...`);
-    else if(inGameSession()) showUpdateHint(payload.version);
+    showUpdateHint(payload.version);
     return;
   }
   if(payload.type === 'update-not-available'){
@@ -2650,7 +2747,14 @@ function hasLegacyRun(){
   return (l.current||0)>0 || (l.completed||[]).length>0 || !!l.masterUnlocked;
 }
 function isLegacySaleAvailable(){
-  return (state.level||1) >= 30 && !legacyState().masterUnlocked;
+  if((state.level||1) < 30 || legacyState().masterUnlocked) return false;
+  const v = companyValuation();
+  const businessReady =
+    (state.salesCount||0) >= 12 ||
+    (state.totalProfit||0) >= 65000 ||
+    (v.value||0) >= 140000 ||
+    ((state.workshopCompleted||0) + ((state.ecuStats&&state.ecuStats.completed)||0)) >= 18;
+  return businessReady && (v.index.successRate||0) >= 35;
 }
 function ensureUpgrades(){
   state.upgrades = state.upgrades || {};
@@ -2803,7 +2907,10 @@ function legacyIndex(){
   const economy = clamp(grossProfit/120000*13,0,13) + clamp(Math.max(0,equity)/300000*10,0,10) + clamp((avgMargin||0)/32*8,0,8) + clamp(fairCash/90000*5,0,5) + clamp(companyAssetsValue()/450000*4,0,4);
   const salesPerf = clamp(sold/55*8,0,8) + clamp(closeRate*5,0,5) + clamp((30-Math.min(30,avgStand||30))/30*4,0,4) + clamp((state.fastSales||0)/10*3,0,3);
   const satisfaction = clamp((state.reputation||0)/100*5,0,5) + clamp(reviewStars/5*4,0,4) + clamp(recommendations/Math.max(1,reviews.length)*3,0,3) + clamp(customerRetentionCount()/8*2,0,2) - clamp(complaints*1.4,0,4);
-  const management = clamp(Math.min(1,activeContracts/8)*3,0,3) + clamp(recurringMonthlyValue()/9000*3,0,3) + clamp(recovered/Math.max(1,dunnings)*3,0,3) + clamp((state.workshopCompleted||0)/18*3,0,3) + clamp((state.purchaseCount||0)/Math.max(1,sold+listed)*3,0,3) - clamp(openClaims*0.8,0,3);
+  const ecuCompleted = (state.ecuStats && state.ecuStats.completed) || 0;
+  const employeeCount = (state.employees||[]).length;
+  const upgradeInvestment = (state.upgradeStats && state.upgradeStats.totalInvestment) || 0;
+  const management = clamp(Math.min(1,activeContracts/8)*2.5,0,2.5) + clamp(recurringMonthlyValue()/9000*2.5,0,2.5) + clamp(recovered/Math.max(1,dunnings)*2.5,0,2.5) + clamp((state.workshopCompleted||0)/18*2.5,0,2.5) + clamp(ecuCompleted/12*1.5,0,1.5) + clamp(employeeCount/6*1.2,0,1.2) + clamp(upgradeInvestment/180000*1.3,0,1.3) + clamp((state.purchaseCount||0)/Math.max(1,sold+listed)*2,0,2) - clamp(openClaims*0.8,0,3);
   const risk = clamp(Math.max(0,equity)/180000*3,0,3) + clamp((1-(state.loanPrincipal||0)/Math.max(1,companyAssetsValue()+state.cash||1))*3,0,3) + clamp((1-lossSales/Math.max(1,sold))*2,0,2) + clamp((1-badStock/Math.max(1,(state.inventory||[]).length))*2,0,2);
   const categories = [
     {key:'economy', label:'Wirtschaftlichkeit', max:40, points:clamp(economy,0,40)},
@@ -3625,6 +3732,7 @@ function navDrop(e, targetId){
 function renderTopbar(){
 
   const currentIndex = legacyIndex();
+  const cal = currentCalendar();
   const initials = (activeProfileName||'AE').split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
   const successRate = Math.round(currentIndex.successRate||0);
   const legacyReady = isLegacySaleAvailable();
@@ -3635,7 +3743,8 @@ function renderTopbar(){
       <span class="ref-brand-copy"><b>Automotive Empire</b><small>&Uuml;bersicht deines Autohauses</small></span>
     </div>
     <div class="top-day">
-      <b>Tag ${state.day}</b>
+      <b id="calendarWeekday">${escapeHtml(CALENDAR_WEEKDAYS[cal.weekday]||'Montag')}</b>
+      <small id="calendarDate">${formatCalendarDate(cal, true)}</small>
       <span class="day-clock-track"><span class="day-clock-fill" id="dayProgress"></span></span>
     </div>
     <div class="top-metrics">
@@ -3647,7 +3756,6 @@ function renderTopbar(){
     <div class="top-actions">
       <button class="top-icon-btn ${state.unreadNotif>0?'has-unread':''}" onclick="toggleNotifPanel(event)" title="Benachrichtigungen">${refIcon('bell')}${state.unreadNotif>0?`<span class="bell-badge">${Math.min(99,state.unreadNotif)}</span>`:''}</button>
       <button class="top-profile" onclick="switchProfile()" title="Profil wechseln"><span class="avatar">${initials}</span><span><b>${escapeHtml(activeProfileName||'Autohaus')}</b><small>Gesch&auml;ftsf&uuml;hrer</small></span></button>
-      <span class="window-controls"><span></span><span></span><span></span></span>
     </div>
   `;
 }
@@ -3679,7 +3787,7 @@ function renderNotifPanel(){
     return;
   }
   p.innerHTML = head +
-    state.notifications.map(n=>`<div class="notif-item">${n.msg}<div class="t">Tag ${n.day}</div></div>`).join('');
+    state.notifications.map(n=>`<div class="notif-item">${n.msg}<div class="t">${escapeHtml(formatGameDateFromDay(n.day||state.day))}</div></div>`).join('');
 }
 
 function navEditIcon(){
@@ -3712,7 +3820,6 @@ function renderSidebar(){
   const rep = clamp(Math.round(legacyIndex().successRate||0),0,100);
   const editDockBtn = `<div class="dock-edit-btn" onclick="openNavCustomize('dock')" title="Navigation anpassen">${navEditIcon()}<span>Anpassen</span></div>`;
   document.getElementById('sidebar').innerHTML = `
-    <div class="dock-logo" onclick="navigateTo('dashboard')"><img src="assets/logos/app-logo.png" alt=""></div>
     <div class="dock-list">${dock}<div class="dock-item ${document.getElementById('programOverlay')?'active':''}" onclick="openProgramsWindow()" title="Programme">${refIcon('apps')}<span class="lbl">Programme</span></div>${editDockBtn}</div>
     <div class="dock-spacer"></div>
     <div class="dock-ring" onclick="navigateTo('legacy')" title="Reputation &amp; Legacy"><span class="ring" style="--p:${rep}"><span>${rep}%</span></span><small>Reputation</small></div>
@@ -3849,7 +3956,7 @@ function refreshClockChrome(){
   renderSidebar();
   const bar = document.getElementById('dayProgress');
   if(bar){
-    const dayDuration = state.dayDurationMs || DEFAULT_DAY_DURATION_MS;
+    const dayDuration = clamp(state.dayDurationMs || DEFAULT_DAY_DURATION_MS, MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
     bar.style.width = Math.round((dayElapsedMs/dayDuration)*100)+'%';
   }
   if(document.getElementById('notifOverlay')) renderNotifPanel();
@@ -11116,13 +11223,21 @@ function computeXpGain(profit){
 }
 function passiveXpForDay(){
   const level = state.level||1;
+  const activity =
+    (state.salesCount||0) +
+    (state.purchaseCount||0) +
+    (state.workshopCompleted||0) +
+    ((state.ecuStats&&state.ecuStats.completed)||0) +
+    activeContractCount();
+  if(activity <= 0) return 0;
   const inventoryXp = Math.min(18, (state.inventory||[]).length*3);
   const listingXp = Math.min(14, Object.keys(state.listings||{}).length*3);
   const contractXp = Math.min(14, activeContractCount()*3);
   const employeeXp = Math.min(10, (state.employees||[]).length*2);
   const reputationXp = (state.reputation||0) >= 75 ? 7 : (state.reputation||0) >= 65 ? 4 : 0;
   const earlyBoost = level < 10 ? 18 : level < 20 ? 10 : level < 30 ? 5 : 0;
-  return Math.max(18, Math.round(18 + earlyBoost + inventoryXp + listingXp + contractXp + employeeXp + reputationXp));
+  const base = Math.round(8 + earlyBoost + inventoryXp + listingXp + contractXp + employeeXp + reputationXp);
+  return clamp(base, 0, Math.max(10, 18 + Math.floor(Math.sqrt(activity))*6));
 }
 function achievementColor(rarity){
   return ({common:'#d4af6a', rare:'#2fb87c', epic:'#8b7ff0', legendary:'#ef5da8'})[rarity||'common'] || '#d4af6a';
@@ -11380,14 +11495,14 @@ function renderLegacyPreview(valuation, legacyReady){
   const levelPct = clamp(Math.round(level/30*100),0,100);
   return `
     <h2 class="section-title">Legacy-Historie</h2>
-    <p class="subtle">Erste Gr&uuml;ndung &middot; Level ${level} / 30 &middot; Legacy wird ab Level 30 freigeschaltet.</p>
+    <p class="subtle">Erste Gr&uuml;ndung &middot; Level ${level} / 30 &middot; Legacy wird ab Level 30 und mit belastbaren Unternehmenskennzahlen freigeschaltet.</p>
     <div class="offer-card" style="margin:14px 0 16px;padding:18px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;">
         <div style="flex:1;min-width:240px;">
           <h3 style="margin:0;font-family:var(--font-d);font-size:16px;">Du hast deine erste Legacy noch nicht erreicht.</h3>
-          <p class="subtle" style="margin:8px 0 0;">Baue dein Autohaus bis Level 30 auf. Danach kannst du freiwillig einen Legacy-Neustart starten und mit einem Teil deines Unternehmenswerts in die n&auml;chste Generation gehen.</p>
+          <p class="subtle" style="margin:8px 0 0;">Baue dein Autohaus bis Level 30 auf und st&auml;rke Unternehmenswert, Gewinn, Verk&auml;ufe, Reputation und operative Leistung. Danach kannst du freiwillig einen Legacy-Neustart starten und mit einem Teil deines Unternehmenswerts in die n&auml;chste Generation gehen.</p>
         </div>
-        ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">Legacy starten</button>` : `<span class="chip">Freischaltung ab Level 30</span>`}
+        ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">Legacy starten</button>` : `<span class="chip">Level 30 + Unternehmenserfolg</span>`}
       </div>
       <div style="margin-top:18px;">
         <div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--ink-1);font-weight:700;">
@@ -11401,7 +11516,7 @@ function renderLegacyPreview(valuation, legacyReady){
       <div class="stat-card"><div class="lbl">Aktueller Unternehmenswert</div><div class="num">${money(valuation.value)}</div></div>
       <div class="stat-card"><div class="lbl">Aktuelle Erfolgsquote</div><div class="num">${valuation.index.successRate}%</div></div>
       <div class="stat-card"><div class="lbl">M&ouml;gliches Startkapital</div><div class="num">${money(valuation.nextCapital)}</div></div>
-      <div class="stat-card"><div class="lbl">Freischaltung</div><div class="num">${legacyReady ? 'Bereit' : 'Level 30'}</div></div>
+      <div class="stat-card"><div class="lbl">Freischaltung</div><div class="num">${legacyReady ? 'Bereit' : 'Leistung'}</div></div>
     </div>
     <div class="offer-card" style="margin:14px 0;">
       <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Aktueller Unternehmensindex</h3>
@@ -11417,7 +11532,7 @@ function renderLegacyHistory(){
   const done = l.completed || [];
   const projectedScore = done.length ? currentLegacyScore() : 0;
   const legacyStarted = hasLegacyRun();
-  const legacyReady = (state.level||1) >= 30 && !l.masterUnlocked;
+  const legacyReady = isLegacySaleAvailable();
   if(!legacyStarted) return renderLegacyPreview(valuation, legacyReady);
   const pageTitle = 'Legacy-Historie';
   const scoreLabel = legacyStarted ? 'Legacy-Score' : 'Gr&uuml;ndungsindex';
@@ -11453,6 +11568,7 @@ function renderLegacyHistory(){
   `;
 }
 function openLegacyReview(){
+  if((state.level||1) >= 30 && !isLegacySaleAvailable()){ notify('Legacy braucht neben Level 30 auch belastbare Unternehmenskennzahlen: Wert, Gewinn, Verkäufe, Reputation oder abgeschlossene Aufträge.', 'warn'); return; }
   if((state.level||1) < 30){ notify('Legacy ist ab Level 30 verfügbar.', 'warn'); return; }
   const l = legacyState();
   const v = companyValuation();
@@ -11646,6 +11762,7 @@ function renderUpdateColumns(entry, showEmpty){
   const cols = [
     {kind:'new',      label:'Neu',        icon:UPD_SVG.plus,    items:s.new,      empty:'Keine neuen Inhalte'},
     {kind:'improved', label:'Verbessert', icon:UPD_SVG.arrowUp, items:s.improved, empty:'Keine Verbesserungen'},
+    {kind:'prepared', label:'Vorbereitet', icon:UPD_SVG.gear,    items:s.prepared, empty:'Keine vorbereiteten Systeme'},
     {kind:'fixed',    label:'Behoben',    icon:UPD_SVG.wrench,  items:s.fixed,    empty:'Keine Fehlerbehebungen'},
   ];
   const rendered = cols
@@ -11747,12 +11864,20 @@ function toggleOlderUpdates(){
   lbl.textContent = open ? 'Ältere Updates ausblenden' : 'Ältere Updates anzeigen';
 }
 
+function formatDayDuration(ms){
+  ms = clamp(Math.round(Number(ms)||DEFAULT_DAY_DURATION_MS), MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
+  const seconds = Math.round(ms/1000);
+  if(seconds < 60) return `${seconds} Sekunden`;
+  const minutes = seconds / 60;
+  return Number.isInteger(minutes) ? `${minutes} ${minutes===1?'Minute':'Minuten'}` : `${minutes.toFixed(1)} Minuten`;
+}
+
 function renderSettings(){
   const fees = state.dunningFees || defaultState().dunningFees;
   return `
     <h2 class="section-title">Einstellungen</h2>
     <div class="notice">Der Spielstand wird automatisch nach jeder Aktion gespeichert.</div>
-    <div class="notice">Die Spielzeit läuft automatisch weiter (ein Spieltag alle paar Sekunden) und pausiert, solange ein Dialogfenster geöffnet ist.</div>
+    <div class="notice">Die Spielzeit läuft automatisch weiter. Ein Kalendertag dauert so lange, wie du es unten einstellst, und pausiert, solange ein Dialogfenster geöffnet ist.</div>
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">App-Updates</h3>
     <div class="offer-card">
       <p class="subtle" style="margin:0 0 6px;">Automotive Empire prüft nach dem Login automatisch auf Updates — niemals während einer laufenden Spielsitzung.</p>
@@ -11780,8 +11905,8 @@ function renderSettings(){
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">Zeit & Spielfluss</h3>
     <div class="offer-card">
       <div class="field">
-        <label>Spieltag-Dauer: <span id="dayDurationLbl" style="color:var(--brass);font-family:var(--font-m);">${((state.dayDurationMs||DEFAULT_DAY_DURATION_MS)/1000).toFixed(1)} Sekunden</span></label>
-        <input type="range" min="4000" max="12000" step="1000" value="${state.dayDurationMs||DEFAULT_DAY_DURATION_MS}" oninput="setDayDuration(+this.value)">
+        <label>Kalendertag-Dauer: <span id="dayDurationLbl" style="color:var(--brass);font-family:var(--font-m);">${formatDayDuration(state.dayDurationMs||DEFAULT_DAY_DURATION_MS)}</span></label>
+        <input type="range" min="${MIN_DAY_DURATION_MS}" max="${MAX_DAY_DURATION_MS}" step="30000" value="${state.dayDurationMs||DEFAULT_DAY_DURATION_MS}" oninput="setDayDuration(+this.value)">
       </div>
       <div class="field">
         <label>Max. neue Kaufanfragen pro Tag</label>
@@ -11828,9 +11953,9 @@ function renderSettings(){
   `;
 }
 function setDayDuration(v){
-  state.dayDurationMs = clamp(Math.round(v||DEFAULT_DAY_DURATION_MS), 4000, 12000);
+  state.dayDurationMs = clamp(Math.round(v||DEFAULT_DAY_DURATION_MS), MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
   const lbl = document.getElementById('dayDurationLbl');
-  if(lbl) lbl.textContent = (state.dayDurationMs/1000).toFixed(1)+' Sekunden';
+  if(lbl) lbl.textContent = formatDayDuration(state.dayDurationMs);
   scheduleSave();
 }
 function setMaxNewOffers(v){
@@ -11927,7 +12052,9 @@ function seedInitialInventory(){
 /* =============================== ZEITSTEUERUNG (Echtzeit, automatisch) =============================== */
 // Kein manueller "Tag"-Button mehr: Die Spielzeit läuft von selbst weiter.
 // Ein Spieltag dauert DAY_DURATION_MS Echtzeit – kurz genug, dass z.B. Werkstattaufträge (1-3 Tage) nicht lange warten lassen.
-const DEFAULT_DAY_DURATION_MS = 6000;
+const DEFAULT_DAY_DURATION_MS = 60000;
+const MIN_DAY_DURATION_MS = 30000;
+const MAX_DAY_DURATION_MS = 300000;
 let dayElapsedMs = 0;
 
 const PRICE_UPDATE_MS = 180000; // 3 Minuten Echtzeit zwischen Marktpreis-Aktualisierungen
@@ -11940,7 +12067,7 @@ function startGameClock(){
     if(dialogOpen){ return; } // Zeit pausiert, solange der Spieler in einem Dialog entscheidet
     dayElapsedMs += 200;
     priceElapsedMs += 200;
-    const dayDuration = state.dayDurationMs || DEFAULT_DAY_DURATION_MS;
+    const dayDuration = clamp(state.dayDurationMs || DEFAULT_DAY_DURATION_MS, MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
     if(dayElapsedMs >= dayDuration){
       dayElapsedMs = 0;
       nextDay();
@@ -11985,8 +12112,26 @@ function updateMarketPrices(){
   scheduleSave();
 }
 
+function processCalendarBoundaries(previousCalendar, nextCalendar){
+  state.calendarHooks = state.calendarHooks || {};
+  const nextMonthKey = calendarKey(nextCalendar);
+  if(state.calendarHooks.lastMonthKey === undefined) state.calendarHooks.lastMonthKey = calendarKey(previousCalendar || nextCalendar);
+  if(state.calendarHooks.lastYear === undefined) state.calendarHooks.lastYear = previousCalendar ? previousCalendar.year : nextCalendar.year;
+  if(previousCalendar && nextMonthKey !== calendarKey(previousCalendar)){
+    state.calendarHooks.lastMonthKey = nextMonthKey;
+    state.calendarHooks.lastMonthStartedDay = state.day;
+  }
+  if(previousCalendar && nextCalendar.year !== previousCalendar.year){
+    state.calendarHooks.lastYear = nextCalendar.year;
+    state.calendarHooks.lastYearStartedDay = state.day;
+  }
+}
+
 function nextDay(){
+  const previousCalendar = currentCalendar();
   state.day++;
+  const nextCalendar = syncCalendarFromDay();
+  processCalendarBoundaries(previousCalendar, nextCalendar);
   const passiveXp = passiveXpForDay();
   if(passiveXp>0){
     state.passiveXpEarned = (state.passiveXpEarned||0) + passiveXp;
@@ -12383,6 +12528,12 @@ function migrateState(){
   Object.keys(d).forEach(key=>{
     if(state[key] === undefined) state[key] = d[key];
   });
+  state.day = Math.max(1, Math.round(Number(state.day)||1));
+  state.dayDurationMs = clamp(Math.round(Number(state.dayDurationMs)||DEFAULT_DAY_DURATION_MS), MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
+  syncCalendarFromDay();
+  state.calendarHooks = state.calendarHooks || {};
+  if(state.calendarHooks.lastMonthKey===undefined) state.calendarHooks.lastMonthKey = calendarKey(state.calendar);
+  if(state.calendarHooks.lastYear===undefined) state.calendarHooks.lastYear = state.calendar.year;
   legacyState();
   ensureUpgrades();
   ensureBranches();
