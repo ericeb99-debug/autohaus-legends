@@ -1946,6 +1946,61 @@ body.premium-click .btn-primary,
   --upd-accent:var(--brass);
   box-shadow:var(--shadow-1), 0 0 46px -14px color-mix(in srgb, var(--brass) 60%, transparent);
 }
+.upd-card.upd-pinned{
+  --upd-accent:var(--brass);
+  grid-template-columns:minmax(320px,.92fr) minmax(0,1.55fr);
+  border-color:color-mix(in srgb, var(--brass) 72%, var(--line-hi));
+  background:
+    radial-gradient(760px 260px at 8% 0%, color-mix(in srgb, var(--brass) 18%, transparent), transparent 72%),
+    linear-gradient(168deg,var(--panel-hi),var(--panel) 70%);
+  box-shadow:var(--shadow-2),0 0 58px -14px color-mix(in srgb, var(--brass) 72%, transparent);
+}
+.upd-card.upd-pinned::before{
+  content:'';
+  position:absolute;inset:0;pointer-events:none;
+  border-radius:inherit;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.055),transparent);
+  transform:translateX(-120%);
+  animation:updsweep 6s ease-in-out infinite;
+}
+.upd-card.upd-pinned .upd-art{
+  min-height:260px;
+}
+.upd-card.upd-pinned .upd-ribbon{
+  background:linear-gradient(180deg,#f6d88b,var(--brass) 58%,#9b6d24);
+  color:#161006;
+  text-shadow:none;
+}
+.upd-card.upd-pinned .upd-body{
+  padding:24px 28px 24px;
+}
+.upd-card.upd-pinned .upd-type-ic{
+  width:58px;height:58px;
+  box-shadow:0 0 28px -5px color-mix(in srgb, var(--brass) 80%, transparent);
+}
+.upd-card.upd-pinned .upd-type-ic svg{
+  width:27px;height:27px;
+}
+.upd-card.upd-pinned .upd-head-title b{
+  font-size:30px;
+  line-height:1.04;
+}
+.upd-card.upd-pinned .upd-badge{
+  color:#161006;
+  background:linear-gradient(180deg,#f6d88b,var(--brass));
+  border-color:color-mix(in srgb, var(--brass) 80%, transparent);
+  box-shadow:0 0 22px -8px color-mix(in srgb, var(--brass) 80%, transparent);
+}
+.upd-card.upd-pinned .upd-headline{
+  max-width:760px;
+  font-size:13.5px;
+}
+.upd-card.upd-pinned .upd-cols{
+  gap:0;
+}
+.upd-subsection{
+  margin-top:6px;
+}
 .upd-art{
   position:relative;min-height:200px;overflow:hidden;
   background-size:cover;background-position:center;
@@ -2031,13 +2086,16 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
 .upd-older-toggle svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
 @keyframes updcardin{from{opacity:0;transform:translateY(16px) scale(.985);}to{opacity:1;transform:translateY(0) scale(1);}}
 @keyframes updfade{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes updsweep{0%,50%{transform:translateX(-120%);}72%,100%{transform:translateX(120%);}}
 @media (max-width:1150px){
   .upd-cols{grid-template-columns:1fr;gap:14px;}
   .upd-col{padding:0;border-left:none;}
 }
 @media (max-width:900px){
-  .upd-card{grid-template-columns:1fr;}
+  .upd-card,.upd-card.upd-pinned{grid-template-columns:1fr;}
   .upd-art{min-height:130px;}
+  .upd-card.upd-pinned .upd-art{min-height:170px;}
+  .upd-card.upd-pinned .upd-head-title b{font-size:24px;}
   .upd-art::after{background:linear-gradient(180deg, rgba(0,0,0,.1) 30%, var(--panel) 100%);}
   .upd-hero-side{align-items:flex-start;}
 }
@@ -2400,7 +2458,7 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
   .ecu-center-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 @media (prefers-reduced-motion: reduce){
-  .upd-card,.upd-hero,#updateHint,.ecu-scan-ring,.ecu-progress div,.ecu-dyno .curve,.ecu-mini-car,.ecu-center:before,.ecu-center-car,.ecu-cable,.ecu-shop-floor.has-car .ecu-rollers,.ecu-tip{animation:none;transition:none;}
+  .upd-card,.upd-card.upd-pinned::before,.upd-hero,#updateHint,.ecu-scan-ring,.ecu-progress div,.ecu-dyno .curve,.ecu-mini-car,.ecu-center:before,.ecu-center-car,.ecu-cable,.ecu-shop-floor.has-car .ecu-rollers,.ecu-tip{animation:none;transition:none;}
 }
 @media (max-width:760px){
   .upd-hero{padding:20px;}

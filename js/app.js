@@ -33,10 +33,16 @@ const APPS = [
    den Changelog IMMER automatisch mit — der Spieler soll ihn nie
    doppelt schreiben müssen:
    1. GAME_VERSION und package.json NICHT automatisch ändern.
-   2. Füge GANZ OBEN im CHANGELOG-Array einen neuen Eintrag hinzu:
+   2. Prüfe zuerst, ob die Änderung zu einem bestehenden großen Thema
+      gehört. Wenn ja, erweitere diesen Eintrag und erstelle KEINE
+      zusätzliche Karte. Nur komplett neue Systeme erhalten einen neuen
+      Eintrag.
+   3. Neue Einträge können bei Bedarf mit pinned:true als Highlight
+      oben gehalten werden:
       {
         version:'x.x.x',
         date:'JJJJ-MM-TT',
+        pinned:true,
         type:'major' | 'content' | 'feature' | 'balance' | 'bugfix' | 'hotfix' | 'normal',
         title:'Kurzer prägnanter Titel',
         headline:'Optional: 1 Satz Zusammenfassung',
@@ -11621,7 +11627,12 @@ function renderDesign(){
 }
 /* =============================== UPDATES & NEWS =============================== */
 function sortedChangelog(){
-  return CHANGELOG.slice().sort((a,b)=>cmpVersion(b.version, a.version));
+  return CHANGELOG.slice().sort((a,b)=>{
+    if(!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+    const vd = cmpVersion(b.version, a.version);
+    if(vd) return vd;
+    return String(b.date||'').localeCompare(String(a.date||''));
+  });
 }
 function updateTypeMeta(type){
   return UPDATE_TYPES[type] || UPDATE_TYPES.normal;
@@ -11660,12 +11671,13 @@ function updateCardArt(index){
 function renderUpdateCard(entry, index){
   const meta = updateTypeMeta(entry.type);
   const isMajor = entry.type === 'major';
+  const isPinned = !!entry.pinned;
   const art = entry.image || updateCardArt(index);
   const sub = entry.headline || (!isMajor && entry.title ? entry.title : '');
   const artStyle = art ? ` style="background-image:url('${escapeAttr(art)}')"` : '';
-  return `<div class="upd-card ${isMajor?'upd-major':''}" style="--i:${Math.min(index,8)};--upd-accent:${meta.accent}">
+  return `<div class="upd-card ${isMajor?'upd-major':''} ${isPinned?'upd-pinned':''}" style="--i:${Math.min(index,8)};--upd-accent:${meta.accent}">
     <div class="upd-art"${artStyle}>
-      <span class="upd-ribbon">${escapeHtml(meta.ribbon)}</span>
+      <span class="upd-ribbon">${escapeHtml(isPinned ? 'Highlight' : meta.ribbon)}</span>
     </div>
     <div class="upd-body">
       <div class="upd-head">
@@ -11674,7 +11686,7 @@ function renderUpdateCard(entry, index){
           <b>${escapeHtml(entry.title || meta.label)}</b>
           <small>${fmtUpdateDate(entry.date)}</small>
         </div>
-        <span class="upd-badge">${escapeHtml(meta.badge)}</span>
+        <span class="upd-badge">${escapeHtml(isPinned ? 'Highlight' : meta.badge)}</span>
       </div>
       ${isMajor && entry.headline?`<div class="upd-major-line"><span class="spark">✦</span>${escapeHtml(meta.label)}</div>`:''}
       ${sub?`<p class="upd-headline">${escapeHtml(sub)}</p>`:''}
@@ -11684,11 +11696,13 @@ function renderUpdateCard(entry, index){
 }
 function renderUpdates(){
   const entries = sortedChangelog();
-  const newest = entries.slice(0, 3);
-  const older = entries.slice(3);
+  const pinned = entries.filter(e=>e.pinned);
+  const regular = entries.filter(e=>!e.pinned);
+  const newest = regular.slice(0, 3);
+  const older = regular.slice(3);
   const statusLabel = (!updateUiState || updateUiState.status==='idle' || updateUiState.status==='current')
-    ? 'Du nutzt die neueste Version'
-    : (updateUiState.label || 'Du nutzt die neueste Version');
+    ? 'Alles ist aktuell'
+    : (updateUiState.label || 'Alles ist aktuell');
   return `
     <div class="upd-hero">
       <div class="upd-hero-main">
@@ -11709,12 +11723,14 @@ function renderUpdates(){
       </div>
     </div>
     <div class="upd-section-row">
-      <h2 class="upd-section-label"><span class="star">★</span>Neueste Updates</h2>
+      <h2 class="upd-section-label"><span class="star">★</span>Highlight &amp; aktuelle Updates</h2>
       <button class="upd-check-btn" onclick="checkForUpdatesManual()">${UPD_SVG.refresh} Nach Updates suchen</button>
     </div>
-    ${newest.map((e,i)=>renderUpdateCard(e,i)).join('')}
+    ${pinned.map((e,i)=>renderUpdateCard(e,i)).join('')}
+    ${newest.length?`<div class="upd-section-row upd-subsection"><h2 class="upd-section-label"><span class="star">•</span>Weitere Updates</h2></div>`:''}
+    ${newest.map((e,i)=>renderUpdateCard(e,i+pinned.length)).join('')}
     ${older.length?`
-      <div class="upd-older" id="olderUpdates">${older.map((e,i)=>renderUpdateCard(e,i)).join('')}</div>
+      <div class="upd-older" id="olderUpdates">${older.map((e,i)=>renderUpdateCard(e,i+newest.length+pinned.length)).join('')}</div>
       <button class="upd-older-toggle" id="olderUpdatesToggle" onclick="toggleOlderUpdates()">
         <span class="chev">${UPD_SVG.chevron}</span><span id="olderUpdatesLbl">Ältere Updates anzeigen</span>
       </button>

@@ -1,41 +1,32 @@
 const CHANGELOG = [
   {
-    version:'1.1.1', date:'2026-07-07', type:'feature',
-    title:'ECU-Performance-Center verbessert',
-    headline:'Der komplette ECU-Ablauf führt jetzt deutlich klarer durch Analyse, Kundenfreigabe und Programmierung.',
-    sections:{
-      improved:[
-        'Angenommene ECU-Anfragen zeigen jetzt eine große Fahrzeugkarte, die direkt ins Performance Center gezogen werden kann.',
-        'Das Performance Center wurde optisch überarbeitet und besitzt nun eine klar markierte Drop-Zone, Prüfstand-Atmosphäre und bessere Schritt-Hinweise.',
-        'Nach dem Ablegen fährt das Fahrzeug sichtbar ein, die Analyse startet automatisch und der Spieler sieht jederzeit, was als Nächstes passiert.',
-        'Tuningoptionen erscheinen erst nach der Analyse und werden mit nachvollziehbaren Gründen als möglich oder blockiert angezeigt.',
-        'Der Kunde entscheidet nach der Analyse automatisch, welche freigegebenen Optionen umgesetzt werden sollen.',
-        'Die Fahrzeugkarte lässt sich jetzt zuverlässig greifen und in den Prüfstand ziehen, während der Schutz gegen versehentliches Markieren von Text aktiv bleibt.',
-        'Der ECU-Bereich ist jetzt als kompakte Arbeitsfläche aufgebaut, damit Aufträge und Performance Center ohne Scrollen sichtbar bleiben.',
-        'Analyse, Diagnose, Kundenentscheidung und Programmierung finden jetzt sichtbar im Performance Center statt, während die Auftragskarten links nur noch informieren.',
-        'Wenn nach der Analyse keine Optimierung sinnvoll möglich ist, kann der Kunde direkt informiert und der Auftrag sauber abgeschlossen werden.',
-        'Neue ECU-Anfragen erscheinen jetzt zuverlässiger: Der Einstieg ins Performance Center erzeugt bei leeren Aufträgen eine erste Anfrage, danach bleibt das System selten, aber spürbarer aktiv.',
-        'Mehrere ECU-Aufträge werden jetzt kompakt als auswählbare Liste angezeigt, damit Performance Center, Fahrzeugkarte, Ergebnisse und Aktionsbuttons ohne Scrollen erreichbar bleiben.',
-        'Das Performance Center arbeitet jetzt breiter statt höher: Prüfstand und Analyse stehen nebeneinander, nichts wirkt mehr gequetscht und alle Buttons bleiben ohne Scrollen sichtbar.',
-        'Der komplette Kundenwunsch ist jetzt überall per elegantem Hover-Overlay lesbar, das Analyseergebnis zeigt klar an, ob eine Optimierung möglich ist, und der virtuelle Prüfstand lässt sich platzsparend ein- und ausklappen.',
-        'Offene ECU-Aufträge werden jetzt als Zahl direkt am ECU-Tab in der Navigation angezeigt, damit neue Anfragen sofort auffallen.',
-        'Das Fahrzeug steht jetzt frei und vollständig sichtbar auf dem Prüfstand, und die Center-Bühne wurde optisch aufgeräumt.'
-      ]
-    }
-  },
-  {
-    version:'1.1.1', date:'2026-07-07', type:'major',
-    title:'Neues Performance Center',
-    headline:'ECU-Tuning ist jetzt als eigener realistischer Kundenauftrag im Spiel verfügbar.',
+    version:'1.1.1', date:'2026-07-07', type:'major', pinned:true,
+    title:'Performance Center Update',
+    headline:'Das neue Performance Center erweitert Automotive Empire um einen interaktiven ECU- und Softwareoptimierungsbereich mit Fahrzeuganalyse, Drag & Drop, Kompatibilitätsprüfung und realistischem Kundenablauf.',
     sections:{
       new:[
-        'Kunden können jetzt seltene Softwareoptimierungen wie Stage 1, Stage 2, Stage 3, ECO-Optimierung, Vmax-Aufhebung, Launch Control, Getriebeoptimierung und weitere ECU-Wünsche anfragen.',
-        'Das neue Performance Center führt Aufträge Schritt für Schritt durch: Anfrage annehmen, Fahrzeug in den ECU-Bereich ziehen, Steuergerät analysieren, Prüfstandswerte vergleichen und den Kundenwunsch programmieren.',
-        'Fahrzeuge merken sich ihre Softwarehistorie, damit bereits installierte Optimierungen nicht erneut als derselbe Auftrag auftauchen.'
+        'Neuer Performance-Center-Bereich für ECU- und Softwareoptimierung.',
+        'Kunden können Stage 1, Stage 2, Stage 3, ECO, Pops & Bangs, Vmax-Aufhebung, Launch Control und weitere Optimierungen anfragen.',
+        'Fahrzeuge können per Drag & Drop ins Performance Center gebracht werden.',
+        'Analyse- und Kompatibilitätsprüfung prüfen Fahrzeug, Antrieb, Leistung, Getriebe, Vorstufen und nötige Hardware.',
+        'Kunden entscheiden nach der Analyse automatisch, welche möglichen Optimierungen durchgeführt werden sollen.'
       ],
       improved:[
-        'ECU-Aufträge prüfen realistisch, ob Fahrzeug, Antrieb, Leistung, Getriebe, Vorstufen und nötige Hardware zum gewünschten Tuning passen.',
+        'Performance-Center-Layout übersichtlicher gestaltet und stärker auf den Prüfstand fokussiert.',
+        'Fahrzeugkarten, Kundenwünsche und Analysehinweise sind besser lesbar.',
+        'Mehrere ECU-Aufträge werden kompakter als auswählbare Liste dargestellt.',
+        'Benachrichtigungen zeigen offene ECU-Aufträge direkt am ECU-Tab.',
+        'Analyse, Diagnose, Kundenentscheidung und Programmierung finden sichtbar im Performance Center statt.',
+        'Der komplette Kundenwunsch ist per elegantem Hover-Overlay lesbar.',
+        'Der virtuelle Prüfstand lässt sich platzsparend ein- und ausklappen.',
         'Abgeschlossene Softwareoptimierungen werden sauber abgerechnet, wirken sich auf Bewertungen und Reputation aus und erscheinen in einer eigenen Auftragshistorie.'
+      ],
+      fixed:[
+        'Falsche oder abgeschnittene Kundenwunsch-Texte wurden korrigiert.',
+        'Umlaute und fehlerhafte Textdarstellungen im ECU-Bereich wurden bereinigt.',
+        'Probleme mit nicht sichtbaren oder schwer greifbaren Fahrzeugen beim Drag & Drop wurden behoben.',
+        'Fälle ohne mögliche Optimierung können jetzt sauber über Kunde informieren abgeschlossen werden.',
+        'Das Layout bleibt ohne Scrollen bedienbar, ohne wichtige Aktionsbuttons zu verstecken.'
       ]
     }
   },
