@@ -95,6 +95,60 @@ function escapeHtml(value){
 function escapeAttr(value){
   return escapeHtml(value).replace(/`/g, '&#96;');
 }
+/* ============================================================
+   LOKALISIERUNG (i18n) — siehe locales/en.js und locales/de.js.
+   Neue Sprache ergänzen: locales/xx.js mit derselben Schlüsselstruktur
+   anlegen, in autodealer-simulator.html einbinden und hier in
+   LOCALE_REGISTRY eintragen. Sonst muss nichts angepasst werden.
+   ============================================================ */
+const DEFAULT_LANGUAGE = 'en';
+const LOCALE_REGISTRY = {
+  en: () => window.I18N_EN,
+  de: () => window.I18N_DE,
+};
+function currentLanguage(){
+  const lang = state && state.language;
+  return (lang && LOCALE_REGISTRY[lang]) ? lang : DEFAULT_LANGUAGE;
+}
+function localeData(lang){
+  const loader = LOCALE_REGISTRY[lang];
+  return (loader && loader()) || null;
+}
+function localeMeta(lang){
+  const data = localeData(lang || currentLanguage());
+  return (data && data.meta) || {code:'en', label:'English', flag:'🇺🇸', numberLocale:'en-US', currencySymbol:'$', currencyBefore:true};
+}
+function resolveLocaleKey(data, key){
+  if(!data) return undefined;
+  return key.split('.').reduce((node, part)=> (node==null ? undefined : node[part]), data);
+}
+// t('a.b.c', {var:1}) - liest a.b.c aus der aktiven Sprache, faellt auf Englisch und dann auf den
+// Schluessel selbst zurueck. {name} Platzhalter im Text werden aus vars ersetzt. Arrays/Objekte
+// (z.B. Kalendernamen) werden unveraendert zurueckgegeben.
+function t(key, vars){
+  const lang = currentLanguage();
+  let value = resolveLocaleKey(localeData(lang), key);
+  if(value === undefined && lang !== DEFAULT_LANGUAGE) value = resolveLocaleKey(localeData(DEFAULT_LANGUAGE), key);
+  if(value === undefined) return key;
+  if(typeof value === 'string' && vars){
+    return value.replace(/\{(\w+)\}/g, (m, name)=> (vars[name] !== undefined ? vars[name] : m));
+  }
+  return value;
+}
+// Übersetzter App-Name/-Beschreibung mit Farbe aus REF_APP_META (Farben sind sprachunabhängig).
+function appMeta(id){
+  const fallback = REF_APP_META[id] || [id, '', '#4d8cff'];
+  return [t(`app.${id}.name`, null) !== `app.${id}.name` ? t(`app.${id}.name`) : fallback[0],
+          t(`app.${id}.desc`, null) !== `app.${id}.desc` ? t(`app.${id}.desc`) : fallback[1],
+          fallback[2]];
+}
+function appDisplayName(id){ return appMeta(id)[0]; }
+function setLanguage(code){
+  if(!LOCALE_REGISTRY[code] || !localeData(code)) return;
+  state.language = code;
+  scheduleSave();
+  renderAllOpen();
+}
 const BUILTIN_APP_BACKGROUNDS = [
   {id:'standard', name:'Standard', desc:'Ruhiger Automotive Empire-Verlauf ohne Bild.', url:'', overlay:.36},
 ];
@@ -290,18 +344,28 @@ function syncCalendarFromDay(){
 function currentCalendar(){
   return state ? (state.calendar || syncCalendarFromDay()) : calendarFromGameDay(1);
 }
+// Sprachabhängige Monats-/Wochentagsnamen aus dem aktiven Locale (locales/en.js, locales/de.js),
+// mit den deutschen Konstanten oben als Ausfallebene, falls eine Sprache diese Liste nicht liefert.
+function localeMonths(){ return t('calendar.months') || CALENDAR_MONTHS_PLAIN; }
+function localeWeekdays(){ return t('calendar.weekdays') || CALENDAR_WEEKDAYS; }
 function formatCalendarDate(cal, html=false){
   cal = cal || currentCalendar();
-  const month = html ? CALENDAR_MONTHS[cal.month-1] : CALENDAR_MONTHS_PLAIN[cal.month-1];
-  return `${String(cal.day).padStart(2,'0')}. ${month} ${cal.year}`;
+  const lang = currentLanguage();
+  const month = (lang==='de' && html) ? CALENDAR_MONTHS[cal.month-1] : (localeMonths()[cal.month-1] || CALENDAR_MONTHS_PLAIN[cal.month-1]);
+  return lang==='de'
+    ? `${String(cal.day).padStart(2,'0')}. ${month} ${cal.year}`
+    : `${month} ${cal.day}, ${cal.year}`;
 }
 function formatCalendarNumeric(cal){
   cal = cal || currentCalendar();
-  return `${String(cal.day).padStart(2,'0')}.${String(cal.month).padStart(2,'0')}.${cal.year}`;
+  return currentLanguage()==='de'
+    ? `${String(cal.day).padStart(2,'0')}.${String(cal.month).padStart(2,'0')}.${cal.year}`
+    : `${String(cal.month).padStart(2,'0')}/${String(cal.day).padStart(2,'0')}/${cal.year}`;
 }
 function formatGameDateFromDay(day){
   const cal = calendarFromGameDay(day || 1);
-  return `${CALENDAR_WEEKDAYS[cal.weekday]||'Montag'}, ${formatCalendarNumeric(cal)}`;
+  const weekdays = localeWeekdays();
+  return `${weekdays[cal.weekday]||weekdays[0]}, ${formatCalendarNumeric(cal)}`;
 }
 // Ausgeschriebenes Kalenderdatum für eine Spieltag-Nummer, z.B. "20. November 2027".
 function gameDateLong(day){
@@ -466,8 +530,10 @@ function setAppBackground(id){
 }
 function money(n){
   const neg = n<0; n=Math.abs(Math.round(n));
-  const s = n.toLocaleString('de-DE');
-  return (neg?'-':'')+s+' €';
+  const meta = localeMeta();
+  const s = n.toLocaleString(meta.numberLocale || 'en-US');
+  const sign = neg?'-':'';
+  return meta.currencyBefore ? `${sign}${meta.currencySymbol}${s}` : `${sign}${s} ${meta.currencySymbol}`;
 }
 function negativeMoney(n){
   n = Math.max(0, Math.round(n||0));
@@ -520,6 +586,7 @@ function toggleThemeMode(){
 
 function defaultState(){
   return {
+    language: DEFAULT_LANGUAGE,
     themeMode: 'dark',
     backgroundId: DEFAULT_APP_BACKGROUND_ID,
     designSettings: {...DEFAULT_DESIGN_SETTINGS},
@@ -628,7 +695,10 @@ const DUNNING_STEPS = [
   {level:6, key:'repossession', label:'Fahrzeugrücknahme', feeKey:'collection', nextDays:8},
   {level:7, key:'legal', label:'Gerichtsverfahren', feeKey:'legal', nextDays:10},
 ];
-function dunningStep(level){ return DUNNING_STEPS[Math.min(level, DUNNING_STEPS.length-1)]; }
+function dunningStep(level){
+  const step = DUNNING_STEPS[Math.min(level, DUNNING_STEPS.length-1)];
+  return {...step, label: t('contracts.dunning_'+step.key)};
+}
 function dunningFee(level){
   const step = dunningStep(level);
   if(!step.feeKey) return 0;
@@ -748,12 +818,12 @@ function activeClaims(){
 function claimTotal(claim){ return (claim.baseAmount||0) + claimFeeTotal(claim); }
 function claimStatusLabel(claim){ return dunningStep(claim.dunningLevel||0).label; }
 function claimActionLabel(claim){
-  if(claim.legalResolved && claim.status==='Ratenvereinbarung nach Gericht') return `Ratenvereinbarung bis ${gameDateShort(claim.nextActionDay)}`;
-  if((claim.dunningLevel||0)>=7 && claim.legalResolved) return 'Gericht entschieden';
-  if((claim.dunningLevel||0)>=7) return `Gerichtsergebnis ab ${gameDateShort(claim.nextActionDay)}`;
+  if(claim.legalResolved && claim.status==='Ratenvereinbarung nach Gericht') return t('contracts.installment_agreement_until',{date:gameDateShort(claim.nextActionDay)});
+  if((claim.dunningLevel||0)>=7 && claim.legalResolved) return t('contracts.court_decided');
+  if((claim.dunningLevel||0)>=7) return t('contracts.court_result_from',{date:gameDateShort(claim.nextActionDay)});
   const next = dunningStep((claim.dunningLevel||0)+1);
-  if((claim.dunningLevel||0)>0 && state.day < (claim.nextActionDay||0)) return `${next.label} ab ${gameDateShort(claim.nextActionDay)}`;
-  return claim.actionRequired ? `${next.label} jetzt fällig` : `${next.label} ab ${gameDateShort(claim.nextActionDay)}`;
+  if((claim.dunningLevel||0)>0 && state.day < (claim.nextActionDay||0)) return t('contracts.step_from',{label:next.label, date:gameDateShort(claim.nextActionDay)});
+  return claim.actionRequired ? t('contracts.step_due_now',{label:next.label}) : t('contracts.step_from',{label:next.label, date:gameDateShort(claim.nextActionDay)});
 }
 function claimNeedsAction(claim){
   if(!claim) return false;
@@ -765,10 +835,10 @@ function activeClaimActionCount(){
   return activeClaims().filter(x=>claimNeedsAction(x.claim)).length;
 }
 function claimVisualState(claim){
-  if(!claim) return {tone:'good', label:'Bezahlt / abgeschlossen', color:'var(--teal)', border:'rgba(62,207,127,.28)', background:'rgba(62,207,127,.055)'};
-  if(claimNeedsAction(claim)) return {tone:'action', label:'Aktion erforderlich', color:'var(--crimson)', border:'rgba(224,85,92,.42)', background:'rgba(224,85,92,.12)'};
-  if((claim.dunningLevel||0)>=7 || String(claim.status||'').toLowerCase().includes('gericht')) return {tone:'running', label:'Verfahren läuft', color:'var(--blue)', border:'rgba(92,134,255,.34)', background:'rgba(92,134,255,.08)'};
-  return {tone:'waiting', label:'Wartet auf Zahlung', color:'var(--amber)', border:'rgba(245,158,11,.36)', background:'rgba(245,158,11,.09)'};
+  if(!claim) return {tone:'good', label:t('contracts.visual_paid'), color:'var(--teal)', border:'rgba(62,207,127,.28)', background:'rgba(62,207,127,.055)'};
+  if(claimNeedsAction(claim)) return {tone:'action', label:t('contracts.visual_action'), color:'var(--crimson)', border:'rgba(224,85,92,.42)', background:'rgba(224,85,92,.12)'};
+  if((claim.dunningLevel||0)>=7 || String(claim.status||'').toLowerCase().includes('gericht')) return {tone:'running', label:t('contracts.visual_running'), color:'var(--blue)', border:'rgba(92,134,255,.34)', background:'rgba(92,134,255,.08)'};
+  return {tone:'waiting', label:t('contracts.visual_waiting'), color:'var(--amber)', border:'rgba(245,158,11,.36)', background:'rgba(245,158,11,.09)'};
 }
 function paymentDelayChance(contract){
   const base = clamp((state.paymentDelayPercent ?? 18)/100, 0, 1);
@@ -2770,7 +2840,7 @@ function roman(n){
 }
 function legacyLabel(){
   const l = legacyState();
-  return l.masterUnlocked ? 'Master' : ((l.current||0)>0 ? 'Legacy '+roman(l.current) : 'Erste Gründung');
+  return l.masterUnlocked ? t('legacy.master') : ((l.current||0)>0 ? 'Legacy '+roman(l.current) : t('legacy.first_founding'));
 }
 function hasLegacyRun(){
   const l = legacyState();
@@ -2805,7 +2875,7 @@ function upgradeRequirementText(def){
   const parts = [];
   if((state.level||1) < (def.reqLevel||1)) parts.push(`Level ${def.reqLevel}`);
   if((legacyState().current||0) < (def.legacyReq||0)) parts.push(`Legacy ${roman(def.legacyReq)}`);
-  return parts.length ? parts.join(' · ') : 'Freigeschaltet';
+  return parts.length ? parts.join(' · ') : t('upgrades.unlocked');
 }
 function upgradeCost(def){
   const level = upgradeLevel(def.id);
@@ -2813,23 +2883,23 @@ function upgradeCost(def){
 }
 function upgradeEffectText(def){
   const level = upgradeLevel(def.id);
-  return level >= 3 ? 'Maximal ausgebaut' : def.effects[level];
+  return level >= 3 ? t('upgrades.fully_upgraded') : def.effects[level];
 }
 function buyUpgrade(id){
   ensureUpgrades();
   const def = upgradeDef(id);
   if(!def) return;
   const level = upgradeLevel(id);
-  if(level >= 3){ notify('Dieses Upgrade ist bereits vollständig ausgebaut.', 'info'); return; }
-  if(!upgradeUnlocked(def)){ notify(`Voraussetzung fehlt: ${upgradeRequirementText(def)}.`, 'warn'); return; }
+  if(level >= 3){ notify(t('upgrades.already_maxed'), 'info'); return; }
+  if(!upgradeUnlocked(def)){ notify(t('upgrades.requirement_missing',{req:upgradeRequirementText(def)}), 'warn'); return; }
   const cost = upgradeCost(def);
-  if((state.cash||0) < cost){ notify(`Nicht genug Liquidität für ${def.name}.`, 'warn'); return; }
+  if((state.cash||0) < cost){ notify(t('upgrades.not_enough_cash',{name:def.name}), 'warn'); return; }
   state.upgrades[id] = level + 1;
   state.upgradeStats.totalInvestment += cost;
   state.upgradeStats.purchases += 1;
   addTx('expense', 'Upgrade: '+def.name+' Stufe '+(level+1), -cost);
   addXp(18 + (level+1)*9, 'upgrade');
-  notify(`${def.name} auf Stufe ${level+1} ausgebaut.`, 'good');
+  notify(t('upgrades.upgraded_notify',{name:def.name, level:level+1}), 'good');
   renderAllOpen();
   scheduleSave();
 }
@@ -2943,11 +3013,11 @@ function legacyIndex(){
   const management = clamp(Math.min(1,activeContracts/8)*2.5,0,2.5) + clamp(recurringMonthlyValue()/9000*2.5,0,2.5) + clamp(recovered/Math.max(1,dunnings)*2.5,0,2.5) + clamp((state.workshopCompleted||0)/18*2.5,0,2.5) + clamp(ecuCompleted/12*1.5,0,1.5) + clamp(employeeCount/6*1.2,0,1.2) + clamp(upgradeInvestment/180000*1.3,0,1.3) + clamp((state.purchaseCount||0)/Math.max(1,sold+listed)*2,0,2) - clamp(openClaims*0.8,0,3);
   const risk = clamp(Math.max(0,equity)/180000*3,0,3) + clamp((1-(state.loanPrincipal||0)/Math.max(1,companyAssetsValue()+state.cash||1))*3,0,3) + clamp((1-lossSales/Math.max(1,sold))*2,0,2) + clamp((1-badStock/Math.max(1,(state.inventory||[]).length))*2,0,2);
   const categories = [
-    {key:'economy', label:'Wirtschaftlichkeit', max:40, points:clamp(economy,0,40)},
-    {key:'sales', label:'Verkaufsleistung', max:20, points:clamp(salesPerf,0,20)},
-    {key:'satisfaction', label:'Kundenzufriedenheit', max:15, points:clamp(satisfaction,0,15)},
-    {key:'management', label:'Unternehmensfuehrung', max:15, points:clamp(management,0,15)},
-    {key:'risk', label:'Risiko-Management', max:10, points:clamp(risk,0,10)},
+    {key:'economy', label:t('legacy.cat_economy'), max:40, points:clamp(economy,0,40)},
+    {key:'sales', label:t('legacy.cat_sales'), max:20, points:clamp(salesPerf,0,20)},
+    {key:'satisfaction', label:t('legacy.cat_satisfaction'), max:15, points:clamp(satisfaction,0,15)},
+    {key:'management', label:t('legacy.cat_management'), max:15, points:clamp(management,0,15)},
+    {key:'risk', label:t('legacy.cat_risk'), max:10, points:clamp(risk,0,10)},
   ];
   const total = clamp(categories.reduce((s,c)=>s+c.points,0),0,100);
   return {categories, total, successRate:Math.round(total)};
@@ -3550,8 +3620,11 @@ function openProgramsWindow(){
   overlay.id = 'programOverlay';
   overlay.innerHTML = `<div class="program-window" onclick="event.stopPropagation()">
     <div class="program-head">
-      <div class="program-title"><b>Programme</b><small>Alle Bereiche deines Autohauses</small></div>
-      <input class="program-search" id="programSearch" placeholder="Programm suchen..." oninput="renderProgramsGrid(this.value)" onkeydown="if(event.key==='Escape') closeProgramsWindow();">
+      <div class="program-title"><b>${escapeHtml(t('programs.title'))}</b><small>${escapeHtml(t('programs.subtitle'))}</small></div>
+      <div class="program-search-wrap">
+        <svg class="program-search-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input class="program-search" id="programSearch" placeholder="${escapeAttr(t('programs.search_placeholder'))}" oninput="renderProgramsGrid(this.value)" onkeydown="if(event.key==='Escape') closeProgramsWindow();">
+      </div>
       <button class="program-close" onclick="closeProgramsWindow()">×</button>
     </div>
     <div class="program-body" id="programBody"></div>
@@ -3564,34 +3637,103 @@ function openProgramsWindow(){
 function closeProgramsWindow(){
   document.getElementById('programOverlay')?.remove();
 }
+// Kategorien nur für die Anzeige im Programme-Fenster (Launcher) - keine Navigations- oder Logikaenderung,
+// dieselben App-IDs wie zuvor werden lediglich thematisch gruppiert und beschriftet.
+const PROGRAM_CATEGORIES = [
+  {key:'trade', ids:['market','acquisition','inventory','listings','wishlist','customers','mailbox']},
+  {key:'workshop', ids:['workshop','ecu']},
+  {key:'management', ids:['upgrades','employees','contracts','deliveries','legacy']},
+  {key:'finance', ids:['finance','bank']},
+  {key:'analytics', ids:['insights','marketstats','reviews','calculator']},
+  {key:'system', ids:['design','updates','settings']},
+];
+// Liefert 1-3 kurze Live-Statuszeilen fuer die Hover-Vorschau einer Programmkachel.
+// Rein lesend aus dem bestehenden Spielstand - keine neue Logik, keine Zustandsaenderung.
+function programLiveStats(id){
+  const L = t('programs.live');
+  switch(id){
+    case 'workshop': {
+      const jobs = state.workshopJobs||[];
+      const soon = jobs.filter(j=>(j.daysLeft||0)<=1).length;
+      if(!jobs.length) return [L.workshop_none];
+      return [t('programs.live.workshop_active',{n:jobs.length}), soon?t('programs.live.workshop_soon',{n:soon}):L.workshop_on_track];
+    }
+    case 'market': {
+      const listed = activeListingIds().length;
+      const openOffers = activeOffers().length;
+      const reserved = (state.inventory||[]).filter(c=>c.reservedFor && c.reservedFor.expiresDay>state.day).length;
+      return [t('programs.live.market_listings',{n:listed}), t('programs.live.market_offers',{n:openOffers}), reserved?t('programs.live.market_reserved',{n:reserved}):L.market_none_reserved];
+    }
+    case 'mailbox': {
+      const unread = (state.offers||[]).filter(o=>o.unread).length;
+      const open = activeOffers().length;
+      return [unread?t('programs.live.mailbox_unread',{n:unread}):L.mailbox_none_unread, t('programs.live.mailbox_conversations',{n:open})];
+    }
+    case 'ecu': {
+      const active = (state.ecuRequests||[]).filter(r=>!['completed','declined','failed'].includes(r.status));
+      const scanning = active.filter(r=>r.status==='scanning').length;
+      const waiting = active.filter(r=>r.status==='new'||r.status==='accepted').length;
+      if(!active.length) return [L.ecu_none];
+      return [t('programs.live.ecu_active',{n:active.length}), scanning?t('programs.live.ecu_scanning',{n:scanning}):t('programs.live.ecu_waiting',{n:waiting})];
+    }
+    case 'contracts': {
+      const claims = activeClaims().length;
+      return claims ? [t('programs.live.contracts_open',{n:claims}), L.contracts_cta] : [L.contracts_none];
+    }
+    case 'deliveries': {
+      const open = activeDeliveries().filter(d=>!['completed','pickup_completed'].includes(d.status)).length;
+      return open ? [t('programs.live.deliveries_planned',{n:open})] : [L.deliveries_none];
+    }
+    case 'inventory': {
+      const inv = state.inventory||[];
+      return [t('programs.live.inventory_count',{n:inv.length})];
+    }
+    case 'employees': {
+      const n = (state.employees||[]).length;
+      return [n ? t('programs.live.employees_count',{n}) : L.employees_none];
+    }
+    case 'wishlist': {
+      const open = (state.searchOrders||[]).filter(o=>o.status==='open').length;
+      return open ? [t('programs.live.wishlist_open',{n:open})] : [L.wishlist_none];
+    }
+    default: return [];
+  }
+}
 function renderProgramsGrid(q){
   const body = document.getElementById('programBody');
   if(!body) return;
   const query = (q||'').trim().toLowerCase();
-  const groups = [
-    ['Hauptbereiche',['market','acquisition','inventory','customers','workshop','ecu','listings','wishlist','mailbox']],
-    ['Management',['upgrades','employees','finance','insights','legacy','contracts','deliveries','bank','reviews','marketstats','calculator','design','updates','settings']]
-  ];
   const card = id=>{
     const app = APPS.find(a=>a.id===id); if(!app) return '';
-    const meta = REF_APP_META[id] || [app.name,'Programm öffnen','#4d8cff'];
+    const meta = appMeta(id);
     const badge = appBadgeValue(id);
+    const stats = programLiveStats(id);
     return `<div class="program-card" style="--app-a:${meta[2]}" onclick="closeProgramsWindow();navigateTo('${id}')">
-      <span class="program-icon">${refIcon(id)}</span>
-      ${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}
+      <div class="program-card-top">
+        <span class="program-icon">${refIcon(id)}</span>
+        ${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}
+      </div>
       <b>${escapeHtml(meta[0])}</b>
       <small>${escapeHtml(meta[1])}</small>
+      <div class="program-hover-info">
+        <div class="phi-head"><span class="phi-dot"></span><b>${escapeHtml(meta[0])}</b></div>
+        <p>${escapeHtml(meta[1])}</p>
+        ${stats.length?`<div class="phi-stats">${stats.map(s=>`<span>${escapeHtml(s)}</span>`).join('')}</div>`:''}
+        <div class="phi-open">${escapeHtml(t('programs.open_cta'))}</div>
+      </div>
     </div>`;
   };
-  const html = groups.map(([label, ids])=>{
+  const html = PROGRAM_CATEGORIES.map(({key, ids})=>{
+    const label = t(`programs.categories.${key}.label`);
+    const desc = t(`programs.categories.${key}.desc`);
     const cards = ids.filter(id=>{
       const app = APPS.find(a=>a.id===id);
-      const meta = REF_APP_META[id] || [];
-      return app && (!query || `${app.name} ${id} ${meta.join(' ')}`.toLowerCase().includes(query));
+      const meta = appMeta(id);
+      return app && (!query || `${meta[0]} ${id} ${meta.join(' ')}`.toLowerCase().includes(query));
     }).map(card).join('');
-    return cards ? `<div class="program-section-title">${label}</div><div class="program-grid">${cards}</div>` : '';
+    return cards ? `<div class="program-section-title"><span class="pst-label">${escapeHtml(label)}</span><span class="pst-desc">${escapeHtml(desc)}</span></div><div class="program-grid">${cards}</div>` : '';
   }).join('');
-  body.innerHTML = html || '<div class="program-empty">Kein Programm gefunden.</div>';
+  body.innerHTML = html || `<div class="program-empty">${escapeHtml(t('programs.empty'))}</div>`;
 }
 function navEditIcon(){
   return `<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
@@ -3612,19 +3754,19 @@ function renderBottomBar(){
   }
   const items = getBottomItems();
   const tabs = items.map(id=>{
-    const app = APPS.find(a=>a.id===id);
     const badge = appBadgeValue(id);
-    return `<div class="bottom-tab ${currentPage===id?'active':''} ${badge?'has-badge':''}" onclick="navigateTo('${id}')">${refIcon(id)}<span>${escapeHtml(app?.name||id)}</span>${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}</div>`;
+    return `<div class="bottom-tab ${currentPage===id?'active':''} ${badge?'has-badge':''}" onclick="navigateTo('${id}')">${refIcon(id)}<span>${escapeHtml(appDisplayName(id))}</span>${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}</div>`;
   }).join('');
-  const editBtn = `<button class="nav-edit-btn" onclick="openNavCustomize('bottom')" title="Leiste anpassen">${navEditIcon()}</button>`;
-  bar.innerHTML = `${editBtn}<div class="bottom-logo"><img src="assets/logos/app-logo.png" alt=""></div><div class="bottom-title"><b>Automotive Empire</b><small>Premium Management</small></div>
-    <span class="savebadge" id="savebadge"><span class="sdot"></span><span><b>Automatisch gespeichert</b><small>Spielstand wird nach jeder Aktion gesichert</small></span></span>
+  const editBtn = `<button class="nav-edit-btn" onclick="openNavCustomize('bottom')" title="${escapeAttr(t('sidebar.customize'))}">${navEditIcon()}</button>`;
+  const clockLocale = localeMeta().numberLocale || 'en-US';
+  bar.innerHTML = `${editBtn}<div class="bottom-logo"><img src="assets/logos/app-logo.png" alt=""></div><div class="bottom-title"><b>Automotive Empire</b><small>${escapeHtml(t('bottombar.brand_sub'))}</small></div>
+    <span class="savebadge" id="savebadge"><span class="sdot"></span><span><b>${escapeHtml(t('bottombar.autosaved_title'))}</b><small>${escapeHtml(t('bottombar.autosaved_sub'))}</small></span></span>
     <div class="bottom-tabs">${tabs}</div>
     <div class="bottom-tools">
-      <div class="bottom-tool" onclick="openProgramsWindow()" title="Programme durchsuchen">${refIcon('search')}</div>
-      <div class="bottom-tool" onclick="navigateTo('marketstats')" title="Marktstatistik">${refIcon('marketstats')}</div>
-      <div class="bottom-tool" onclick="navigateTo('mailbox')" title="Postfach">${refIcon('mailbox')}</div>
-      <div class="bottom-date">${new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}<small>${new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'short',year:'numeric'})}</small></div>
+      <div class="bottom-tool" onclick="openProgramsWindow()" title="${escapeAttr(t('bottombar.programs_tooltip'))}">${refIcon('search')}</div>
+      <div class="bottom-tool" onclick="navigateTo('marketstats')" title="${escapeAttr(t('bottombar.marketstats_tooltip'))}">${refIcon('marketstats')}</div>
+      <div class="bottom-tool" onclick="navigateTo('mailbox')" title="${escapeAttr(t('bottombar.mailbox_tooltip'))}">${refIcon('mailbox')}</div>
+      <div class="bottom-date">${new Date().toLocaleTimeString(clockLocale,{hour:'2-digit',minute:'2-digit'})}<small>${new Date().toLocaleDateString(clockLocale,{day:'2-digit',month:'short',year:'numeric'})}</small></div>
     </div>`;
 }
 
@@ -3641,12 +3783,12 @@ function openNavCustomize(target){
   overlay.onclick = (e)=>{ if(e.target===overlay) closeNavCustomize(); };
   overlay.innerHTML = `<div class="navcust-modal" onclick="event.stopPropagation()">
     <div class="navcust-head">
-      <h3>🎛️ Navigation anpassen</h3>
+      <h3>${escapeHtml(t('navcust.title'))}</h3>
       <button class="navcust-close" onclick="closeNavCustomize()">✕</button>
     </div>
     <div class="navcust-tabs">
-      <div class="navcust-tab ${_navCustTarget==='dock'?'active':''}" onclick="switchNavCustTab('dock')">⬅ Seitenleiste (Links)</div>
-      <div class="navcust-tab ${_navCustTarget==='bottom'?'active':''}" onclick="switchNavCustTab('bottom')">⬇ Statusleiste (Unten)</div>
+      <div class="navcust-tab ${_navCustTarget==='dock'?'active':''}" onclick="switchNavCustTab('dock')">${escapeHtml(t('navcust.sidebar_tab'))}</div>
+      <div class="navcust-tab ${_navCustTarget==='bottom'?'active':''}" onclick="switchNavCustTab('bottom')">${escapeHtml(t('navcust.bottombar_tab'))}</div>
     </div>
     <div class="navcust-body" id="navCustBody"></div>
   </div>`;
@@ -3679,12 +3821,10 @@ function renderNavCustBody(){
   const body = document.getElementById('navCustBody');
   if(!body) return;
   const active = getActiveNavItems();
-  const label = _navCustTarget==='dock' ? 'Seitenleiste' : 'Statusleiste';
+  const label = _navCustTarget==='dock' ? t('navcust.sidebar_name') : t('navcust.bottombar_name');
 
   // Slots (active tabs, draggable)
   const slotsHtml = active.length ? active.map((id,idx)=>{
-    const app = APPS.find(a=>a.id===id);
-    const name = app?.name || id;
     return `<div class="navcust-slot" draggable="true"
         data-id="${id}" data-idx="${idx}"
         ondragstart="navDragStart(event,'${id}')"
@@ -3693,24 +3833,24 @@ function renderNavCustBody(){
         ondrop="navDrop(event,'${id}')">
       <div class="navcust-drag-handle"><span></span><span></span><span></span></div>
       <div class="navcust-slot-icon">${refIcon(id)}</div>
-      <span class="navcust-slot-name">${escapeHtml(name)}</span>
-      <button class="navcust-slot-remove" onclick="navRemoveItem('${id}')" title="Entfernen">✕</button>
+      <span class="navcust-slot-name">${escapeHtml(appDisplayName(id))}</span>
+      <button class="navcust-slot-remove" onclick="navRemoveItem('${id}')" title="${escapeAttr(t('navcust.remove'))}">✕</button>
     </div>`;
-  }).join('') : `<div class="navcust-empty">Keine Einträge – füge Apps unten hinzu.</div>`;
+  }).join('') : `<div class="navcust-empty">${escapeHtml(t('navcust.empty_active'))}</div>`;
 
   // Available apps (not yet in active list)
   const available = APPS.filter(a=>!active.includes(a.id));
   const availHtml = available.length ? available.map(a=>`<div class="navcust-app-card" onclick="navAddItem('${a.id}')">
-    ${refIcon(a.id)}<span>${escapeHtml(a.name)}</span>
-  </div>`).join('') : `<div class="navcust-empty">Alle Apps sind bereits in der ${label} vorhanden.</div>`;
+    ${refIcon(a.id)}<span>${escapeHtml(appDisplayName(a.id))}</span>
+  </div>`).join('') : `<div class="navcust-empty">${escapeHtml(t('navcust.empty_available',{label}))}</div>`;
 
   body.innerHTML = `
     <div>
-      <div class="navcust-section-label">Aktive Einträge – ziehen zum Sortieren</div>
+      <div class="navcust-section-label">${escapeHtml(t('navcust.active_label'))}</div>
       <div class="navcust-slots" id="navSlots">${slotsHtml}</div>
     </div>
     <div>
-      <div class="navcust-section-label">App hinzufügen</div>
+      <div class="navcust-section-label">${escapeHtml(t('navcust.add_label'))}</div>
       <div class="navcust-available-grid">${availHtml}</div>
     </div>`;
 }
@@ -3770,22 +3910,22 @@ function renderTopbar(){
   document.getElementById('topbar').innerHTML = `
     <div class="ref-brand">
       <span class="ref-brand-mark"><img src="assets/logos/app-logo.png" alt=""></span>
-      <span class="ref-brand-copy"><b>Automotive Empire</b><small>&Uuml;bersicht deines Autohauses</small></span>
+      <span class="ref-brand-copy"><b>Automotive Empire</b><small>${escapeHtml(t('topbar.brand_sub'))}</small></span>
     </div>
     <div class="top-day">
-      <b id="calendarWeekday">${escapeHtml(CALENDAR_WEEKDAYS[cal.weekday]||'Montag')}</b>
+      <b id="calendarWeekday">${escapeHtml(localeWeekdays()[cal.weekday]||localeWeekdays()[0])}</b>
       <small id="calendarDate">${formatCalendarDate(cal, true)}</small>
       <span class="day-clock-track"><span class="day-clock-fill" id="dayProgress"></span></span>
     </div>
     <div class="top-metrics">
-      <div class="top-metric"><span class="mi">${refIcon('bank')}</span><span><b>${money(state.cash)}</b><small>Kontostand</small></span></div>
-      <div class="top-metric"><span class="mi" style="color:var(--emerald)">${refIcon('finance')}</span><span><b class="${delta>=0?'pos':'neg'}">${fmtDelta(delta)}</b><small>Tagesgewinn</small></span></div>
-      <div class="top-metric"><span class="mi" style="color:var(--blue)">${refIcon('marketstats')}</span><span><b>${successRate}%</b><small>Erfolgsquote</small></span></div>
-      <div class="top-metric"><span class="mi" style="color:var(--violet)">${refIcon('legacy')}</span><span><b>${legacyReady?'Bereit':legacyLabel()}</b><small>Legacy</small></span></div>
+      <div class="top-metric"><span class="mi">${refIcon('bank')}</span><span><b>${money(state.cash)}</b><small>${escapeHtml(t('topbar.balance'))}</small></span></div>
+      <div class="top-metric"><span class="mi" style="color:var(--emerald)">${refIcon('finance')}</span><span><b class="${delta>=0?'pos':'neg'}">${fmtDelta(delta)}</b><small>${escapeHtml(t('topbar.daily_profit'))}</small></span></div>
+      <div class="top-metric"><span class="mi" style="color:var(--blue)">${refIcon('marketstats')}</span><span><b>${successRate}%</b><small>${escapeHtml(t('topbar.success_rate'))}</small></span></div>
+      <div class="top-metric"><span class="mi" style="color:var(--violet)">${refIcon('legacy')}</span><span><b>${legacyReady?t('topbar.legacy_ready'):legacyLabel()}</b><small>${escapeHtml(t('topbar.legacy'))}</small></span></div>
     </div>
     <div class="top-actions">
-      <button class="top-icon-btn ${state.unreadNotif>0?'has-unread':''}" onclick="toggleNotifPanel(event)" title="Benachrichtigungen">${refIcon('bell')}${state.unreadNotif>0?`<span class="bell-badge">${Math.min(99,state.unreadNotif)}</span>`:''}</button>
-      <button class="top-profile" onclick="switchProfile()" title="Profil wechseln"><span class="avatar">${initials}</span><span><b>${escapeHtml(activeProfileName||'Autohaus')}</b><small>Gesch&auml;ftsf&uuml;hrer</small></span></button>
+      <button class="top-icon-btn ${state.unreadNotif>0?'has-unread':''}" onclick="toggleNotifPanel(event)" title="${escapeAttr(t('topbar.notifications'))}">${refIcon('bell')}${state.unreadNotif>0?`<span class="bell-badge">${Math.min(99,state.unreadNotif)}</span>`:''}</button>
+      <button class="top-profile" onclick="switchProfile()" title="${escapeAttr(t('topbar.switch_profile'))}"><span class="avatar">${initials}</span><span><b>${escapeHtml(activeProfileName||'Autohaus')}</b><small>${escapeHtml(t('topbar.ceo'))}</small></span></button>
     </div>
   `;
 }
@@ -3811,9 +3951,9 @@ function toggleNotifPanel(e){
 function renderNotifPanel(){
   const p = document.getElementById('notifpanel');
   if(!p) return;
-  const head = `<div class="notif-head"><span style="font-family:var(--font-d);font-weight:800;font-size:13px;">Benachrichtigungen</span><span class="x" onclick="document.getElementById('notifOverlay')?.remove();">✕</span></div>`;
+  const head = `<div class="notif-head"><span style="font-family:var(--font-d);font-weight:800;font-size:13px;">${escapeHtml(t('topbar.notifications'))}</span><span class="x" onclick="document.getElementById('notifOverlay')?.remove();">✕</span></div>`;
   if(state.notifications.length===0){
-    p.innerHTML = head + `<div class="empty-state" style="padding:20px;"><div class="ic">🔔</div>Keine Benachrichtigungen</div>`;
+    p.innerHTML = head + `<div class="empty-state" style="padding:20px;"><div class="ic">🔔</div>${escapeHtml(t('topbar.no_notifications'))}</div>`;
     return;
   }
   p.innerHTML = head +
@@ -3841,18 +3981,17 @@ function renderSidebar(){
     return n ? `<span class="badge">${Math.min(99,n)}</span>` : '';
   };
   const dock = dockIds.map(id=>{
-    const app = APPS.find(a=>a.id===id);
-    const label = escapeHtml(app?.name||id);
+    const label = escapeHtml(appDisplayName(id));
     return `<div class="dock-item ${currentPage===id?'active':''}" onclick="navigateTo('${id}')" title="${label}">
     ${refIcon(id)}<span class="lbl">${label}</span>${badgeFor(id)}
   </div>`;
   }).join('');
   const rep = clamp(Math.round(legacyIndex().successRate||0),0,100);
-  const editDockBtn = `<div class="dock-edit-btn" onclick="openNavCustomize('dock')" title="Navigation anpassen">${navEditIcon()}<span>Anpassen</span></div>`;
+  const editDockBtn = `<div class="dock-edit-btn" onclick="openNavCustomize('dock')" title="${escapeAttr(t('sidebar.customize'))}">${navEditIcon()}<span>${escapeHtml(t('sidebar.customize'))}</span></div>`;
   document.getElementById('sidebar').innerHTML = `
-    <div class="dock-list">${dock}<div class="dock-item ${document.getElementById('programOverlay')?'active':''}" onclick="openProgramsWindow()" title="Programme">${refIcon('apps')}<span class="lbl">Programme</span></div>${editDockBtn}</div>
+    <div class="dock-list">${dock}<div class="dock-item ${document.getElementById('programOverlay')?'active':''}" onclick="openProgramsWindow()" title="${escapeAttr(t('sidebar.programs'))}">${refIcon('apps')}<span class="lbl">${escapeHtml(t('sidebar.programs'))}</span></div>${editDockBtn}</div>
     <div class="dock-spacer"></div>
-    <div class="dock-ring" onclick="navigateTo('legacy')" title="Reputation &amp; Legacy"><span class="ring" style="--p:${rep}"><span>${rep}%</span></span><small>Reputation</small></div>
+    <div class="dock-ring" onclick="navigateTo('legacy')" title="${escapeAttr(t('sidebar.reputation'))} &amp; Legacy"><span class="ring" style="--p:${rep}"><span>${rep}%</span></span><small>${escapeHtml(t('sidebar.reputation'))}</small></div>
   `;
   renderBottomBar();
 }
@@ -3989,6 +4128,11 @@ function refreshClockChrome(){
     const dayDuration = clamp(state.dayDurationMs || DEFAULT_DAY_DURATION_MS, MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
     bar.style.width = Math.round((dayElapsedMs/dayDuration)*100)+'%';
   }
+  if(!isEditingElement(document.activeElement)){
+    if(!(currentPage==='mailbox' && syncActiveMailboxView())){
+      renderPageContent();
+    }
+  }
   if(document.getElementById('notifOverlay')) renderNotifPanel();
   enhancePremiumUi();
 }
@@ -4043,7 +4187,7 @@ function renderAchievementStrip(){
   return `
     <div style="min-width:220px;max-width:320px;flex:0 1 320px;">
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-1);margin-bottom:6px;">
-        <span>Erfolge</span><span>${unlocked.length} / ${ACHIEVEMENTS.length}</span>
+        <span>${escapeHtml(t('dashboard.achievements'))}</span><span>${unlocked.length} / ${ACHIEVEMENTS.length}</span>
       </div>
       <div class="progress"><div style="width:${pct}%;background:linear-gradient(90deg,#2fb87c,#d4af6a,#ef5da8);"></div></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;">
@@ -4054,7 +4198,7 @@ function renderAchievementStrip(){
 function renderAchievementsPanel(){
   const unlocked = state.achievements||[];
   return `
-    <h2 class="section-title" style="font-size:14px;margin-bottom:10px;">Erfolge</h2>
+    <h2 class="section-title" style="font-size:14px;margin-bottom:10px;">${escapeHtml(t('dashboard.achievements'))}</h2>
     <div class="ach-grid">
       ${ACHIEVEMENTS.map(a=>{
         const done = unlocked.includes(a.id);
@@ -4062,7 +4206,7 @@ function renderAchievementsPanel(){
           <div class="ach-ico">${a.icon}</div>
           <div>
             <div class="ach-name">${a.label}</div>
-            <div class="ach-desc">${done ? a.desc : 'Noch gesperrt - '+a.desc}</div>
+            <div class="ach-desc">${done ? a.desc : escapeHtml(t('dashboard.achievement_locked_prefix'))+a.desc}</div>
             <div class="ach-rarity">${achievementRarityLabel(a.rarity)}${a.xp?` · ${a.xp} XP`:''}</div>
           </div>
         </div>`;
@@ -4070,9 +4214,10 @@ function renderAchievementsPanel(){
     </div>`;
 }
 function dashDelta(current, previous){
-  if(!previous) return current ? '+100,0%' : '+0,0%';
+  const dec = currentLanguage()==='de' ? ',' : '.';
+  if(!previous) return current ? `+100${dec}0%` : `+0${dec}0%`;
   const pct = ((current-previous)/Math.abs(previous))*100;
-  return `${pct>=0?'+':''}${pct.toFixed(1).replace('.',',')}%`;
+  return `${pct>=0?'+':''}${pct.toFixed(1).replace('.',dec)}%`;
 }
 function dashSpark(points, color){
   const vals = points && points.length ? points : [0,1,0,1,2,1,3];
@@ -4092,7 +4237,7 @@ function dashKpi(label, value, delta, tone, icon, points){
 }
 function dashKpiRing(label, pct){
   pct = clamp(Math.round(pct||0),0,100);
-  const word = pct>=85?'Sehr gut':pct>=70?'Gut':pct>=50?'Solide':'Ausbauf&auml;hig';
+  const word = pct>=85?t('dashboard.ring_great'):pct>=70?t('dashboard.ring_good'):pct>=50?t('dashboard.ring_solid'):t('dashboard.ring_growing');
   return `<div class="dash-kpi green">
     <div class="dash-kpi-head"><span>${label}</span></div>
     <div class="kpi-split">
@@ -4118,20 +4263,21 @@ function dashVehicleCard(c){
   const inWorkshop = (state.workshopJobs||[]).find(j=>j.carId===c.id);
   const reserved = c.reservedFor && c.reservedFor.expiresDay>state.day;
   const sold = c.location==='sold' || c.sold || c.soldDay;
-  let status = {label:'Nicht inseriert', cls:'unlisted', meta:'Noch kein aktives Inserat'};
-  if(sold) status = {label:'Verkauft', cls:'sold', meta:c.soldDay?`Verkauft am ${gameDateShort(c.soldDay)}`:'Nicht mehr im aktiven Bestand'};
-  else if(reserved) status = {label:'Reserviert', cls:'reserved', meta:`Bis ${gameDateShort(c.reservedFor.expiresDay)}${c.reservedFor.customerName?' · '+c.reservedFor.customerName:''}`};
-  else if(inWorkshop || c.repairStatus) status = {label:'In Vorbereitung', cls:'prep', meta:inWorkshop?`${inWorkshop.label||'Werkstatt'} · ${inWorkshop.daysLeft} Tag(e)`:'Noch nicht verkaufsbereit'};
-  else if(listing) status = {label:'Inseriert', cls:'listed', meta:`${money(listing.price)} · ${listingAllowedPaymentMethods(listing).map(m=>paymentMethodMeta(m).label).join(', ')} · ${interested} Anfrage${interested===1?'':'n'} · seit ${Math.max(0,state.day-(listing.createdDay||state.day))} Tag(en)`};
+  const D = t('dashboard');
+  let status = {label:D.status_unlisted, cls:'unlisted', meta:D.status_unlisted_meta};
+  if(sold) status = {label:D.status_sold, cls:'sold', meta:c.soldDay?t('dashboard.status_sold_meta_day',{date:gameDateShort(c.soldDay)}):D.status_sold_meta_none};
+  else if(reserved) status = {label:D.status_reserved, cls:'reserved', meta:t('dashboard.status_reserved_meta',{date:gameDateShort(c.reservedFor.expiresDay)})+(c.reservedFor.customerName?' · '+c.reservedFor.customerName:'')};
+  else if(inWorkshop || c.repairStatus) status = {label:D.status_prep, cls:'prep', meta:inWorkshop?t('dashboard.status_prep_meta_job',{job:inWorkshop.label||t('app.workshop.name'), days:inWorkshop.daysLeft}):D.status_prep_meta_none};
+  else if(listing) status = {label:D.status_listed, cls:'listed', meta:t('dashboard.status_listed_meta',{price:money(listing.price), methods:listingAllowedPaymentMethods(listing).map(m=>paymentMethodMeta(m).label).join(', '), n:interested, ies:interested===1?(currentLanguage()==='de'?'':'y'):(currentLanguage()==='de'?'n':'ies'), days:Math.max(0,state.day-(listing.createdDay||state.day))})};
   return `<div class="dash-car-card" onclick="navigateTo('inventory')">
-    <span class="dash-listing-badge ${status.cls}">${status.label}</span>
+    <span class="dash-listing-badge ${status.cls}">${escapeHtml(status.label)}</span>
     ${renderCarPhoto(c)}
     <div class="dash-car-name">${c.brand} ${c.model}</div>
-    <div class="dash-car-sub">${c.year} · ${(c.mileage||0).toLocaleString('de-DE')} km</div>
+    <div class="dash-car-sub">${c.year} · ${(c.mileage||0).toLocaleString(localeMeta().numberLocale||'en-US')} km</div>
     <div class="dash-car-price">${money(listPrice||0)}</div>
     <div class="dash-listing-meta">${escapeHtml(status.meta)}</div>
-    <div class="dash-car-foot"><span>Gewinn<br><b class="pos">+${money(profit)}</b></span><span>Interessenten<br><b>${interested}</b></span></div>
-    ${!listing && !reserved && !inWorkshop && !sold ? `<button class="btn btn-ghost btn-sm dash-listing-action" onclick="event.stopPropagation();openListModal('${c.id}')">Jetzt inserieren</button>`:''}
+    <div class="dash-car-foot"><span>${escapeHtml(D.car_profit)}<br><b class="pos">+${money(profit)}</b></span><span>${escapeHtml(D.car_interested)}<br><b>${interested}</b></span></div>
+    ${!listing && !reserved && !inWorkshop && !sold ? `<button class="btn btn-ghost btn-sm dash-listing-action" onclick="event.stopPropagation();openListModal('${c.id}')">${escapeHtml(D.car_list_now)}</button>`:''}
   </div>`;
 }
 function dashMessagesPanel(){
@@ -4158,17 +4304,18 @@ function dashReviewsPanel(){
   const avgStars = avgReviewStars();
   const total = reviews.length || 0;
   const latest = reviews[0];
+  const dec = currentLanguage()==='de' ? ',' : '.';
   const rows = [5,4,3,2,1].map(stars=>{
     const count = reviews.filter(r=>(r.stars||0)===stars).length;
     const pct = total ? Math.round(count/total*100) : 0;
-    return `<div class="rating-row"><span>${stars} Sterne</span><div><i style="width:${pct}%"></i></div><b>${pct}%</b></div>`;
+    return `<div class="rating-row"><span>${stars} ★</span><div><i style="width:${pct}%"></i></div><b>${pct}%</b></div>`;
   }).join('');
   const unanswered = reviews.filter(r=>!r.reply).length;
   return `<div class="dash-panel dash-side-panel">
-    <div class="dash-panel-head"><b>Kundenbewertungen${unanswered?` <strong>${unanswered} offen</strong>`:''}</b><button onclick="navigateTo('reviews')">Alle anzeigen</button></div>
-    <div class="review-score"><strong>${avgStars?avgStars.toFixed(1).replace('.',','):'0,0'}</strong><span class="stars">${starsText(Math.round(avgStars||0))}</span><small>(${total} Bewertungen)</small></div>
+    <div class="dash-panel-head"><b>${escapeHtml(t('dashboard.reviews_title'))}${unanswered?` <strong>${escapeHtml(t('dashboard.reviews_open_suffix',{n:unanswered}))}</strong>`:''}</b><button onclick="navigateTo('reviews')">${escapeHtml(t('dashboard.reviews_view_all'))}</button></div>
+    <div class="review-score"><strong>${avgStars?avgStars.toFixed(1).replace('.',dec):'0'+dec+'0'}</strong><span class="stars">${starsText(Math.round(avgStars||0))}</span><small>(${total} ${escapeHtml(t('dashboard.reviews_suffix'))})</small></div>
     <div class="rating-bars">${rows}</div>
-    ${latest?`<div class="latest-review"><span class="avatar">${(latest.customerName||'K').slice(0,2).toUpperCase()}</span><span><b>${escapeHtml(latest.customerName)}</b><small>${starsText(latest.stars||0)} · ${escapeHtml((latest.text||'').slice(0,90))}</small></span></div>`:''}
+    ${latest?`<div class="latest-review"><span class="avatar">${(latest.customerName||'?').slice(0,2).toUpperCase()}</span><span><b>${escapeHtml(latest.customerName)}</b><small>${starsText(latest.stars||0)} · ${escapeHtml((latest.text||'').slice(0,90))}</small></span></div>`:''}
   </div>`;
 }
 let dashRevenueRange = 'year';
@@ -4177,7 +4324,7 @@ function cycleDashRevenueRange(){
   renderPageContent();
 }
 function dashRevenueRangeLabel(){
-  return dashRevenueRange==='30d' ? 'Letzte 30 Tage' : (dashRevenueRange==='all' ? 'Gesamt' : 'Dieses Jahr');
+  return dashRevenueRange==='30d' ? t('dashboard.revenue_range_30d') : (dashRevenueRange==='all' ? t('dashboard.revenue_range_all') : t('dashboard.revenue_range_year'));
 }
 function dashRevenueSales(){
   const sales = state.salesHistory || [];
@@ -4200,7 +4347,7 @@ function dashRevenueChart(){
     const cal = calendarFromGameDay(dashRevenueRange==='30d' ? to : from);
     const label = dashRevenueRange==='30d'
       ? `${String(cal.day).padStart(2,'0')}.${String(cal.month).padStart(2,'0')}.`
-      : CALENDAR_MONTHS_PLAIN[cal.month-1].slice(0,3);
+      : localeMonths()[cal.month-1].slice(0,3);
     return {label, value:0, profit:0, count:0, from, to};
   });
   chartSales.forEach(s=>{
@@ -4220,9 +4367,10 @@ function dashRevenueChart(){
   const revPts = buckets.map((b,i)=>`${px(i).toFixed(1)},${py(b.value).toFixed(1)}`).join(' ');
   const profitPts = buckets.map((b,i)=>`${px(i).toFixed(1)},${py(b.profit).toFixed(1)}`).join(' ');
   const areaPts = `${PAD},${py(0).toFixed(1)} ${revPts} ${(W-PAD)},${py(0).toFixed(1)}`;
+  const D = t('dashboard');
   return `<div class="dash-panel revenue-panel">
-    <div class="dash-panel-head"><b>Business Insights</b><button class="dash-range-btn" onclick="cycleDashRevenueRange()" title="Zeitraum wechseln">${dashRevenueRangeLabel()}</button></div>
-    <div class="chart-legend"><span><i style="background:var(--emerald)"></i>Gewinn</span><span><i style="background:var(--violet)"></i>Umsatz</span><span class="revenue-sum">${money(totalRevenue)} Umsatz gesamt</span></div>
+    <div class="dash-panel-head"><b>${escapeHtml(D.revenue_title)}</b><button class="dash-range-btn" onclick="cycleDashRevenueRange()" title="${escapeAttr(D.revenue_range_tooltip)}">${escapeHtml(dashRevenueRangeLabel())}</button></div>
+    <div class="chart-legend"><span><i style="background:var(--emerald)"></i>${escapeHtml(D.legend_profit)}</span><span><i style="background:var(--violet)"></i>${escapeHtml(D.legend_revenue)}</span><span class="revenue-sum">${money(totalRevenue)} ${escapeHtml(D.total_revenue_suffix)}</span></div>
     <div class="line-chart">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
         <line x1="${PAD}" y1="${py(0).toFixed(1)}" x2="${W-PAD}" y2="${py(0).toFixed(1)}" stroke="rgba(148,163,184,.2)" stroke-width="1" stroke-dasharray="4 4"></line>
@@ -4235,7 +4383,7 @@ function dashRevenueChart(){
         const avgSale = b.count ? Math.round(b.value/b.count) : 0;
         return `<div class="line-col" tabindex="0">
           <small>${b.label}</small>
-          <em class="bar-tooltip"><b>${b.label}</b><br>Zeitraum: ${gameDateShort(b.from)} – ${gameDateShort(b.to)}<br>Umsatz: ${money(b.value)}<br>Gewinn: ${money(b.profit)}<br>Verkäufe: ${b.count}<br>Ø Verkauf: ${money(avgSale)}<br>Anteil: ${pct}%</em>
+          <em class="bar-tooltip"><b>${b.label}</b><br>${escapeHtml(D.tip_period)}: ${gameDateShort(b.from)} – ${gameDateShort(b.to)}<br>${escapeHtml(D.tip_revenue)}: ${money(b.value)}<br>${escapeHtml(D.tip_profit)}: ${money(b.profit)}<br>${escapeHtml(D.tip_sales)}: ${b.count}<br>${escapeHtml(D.tip_avg_sale)}: ${money(avgSale)}<br>${escapeHtml(D.tip_share)}: ${pct}%</em>
         </div>`;
       }).join('')}</div>
     </div>
@@ -4247,22 +4395,23 @@ function dashOrdersPanel(){
     const bm = b.messages && b.messages.length ? b.messages[b.messages.length-1].day : 0;
     return bm-am;
   }).slice(0,4);
+  const D = t('dashboard');
   const rows = offers.map(o=>{
     const c = findCar(o.carId);
     const initials = (o.name||'K').split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
-    let badge = `<span class="order-badge">${Math.max(0,Math.round(o.patience))} Tage Geduld</span>`;
-    if(o.applicationPending) badge = `<span class="order-badge bank">Bank pr&uuml;ft</span>`;
-    else if((o.patience||0)<=1) badge = `<span class="order-badge hot">Springt bald ab</span>`;
+    let badge = `<span class="order-badge">${escapeHtml(t('dashboard.orders_patience',{n:Math.max(0,Math.round(o.patience))}))}</span>`;
+    if(o.applicationPending) badge = `<span class="order-badge bank">${escapeHtml(D.orders_bank_review)}</span>`;
+    else if((o.patience||0)<=1) badge = `<span class="order-badge hot">${escapeHtml(D.orders_jumping_soon)}</span>`;
     return `<div class="order-row" onclick="navigateTo('mailbox');openConversation('${o.id}')">
       <span class="avatar">${initials}</span>
-      <span><b>${escapeHtml(o.name||'Kunde')}</b><small>${c?escapeHtml(c.brand+' '+c.model):'Fahrzeug'} · ${escapeHtml(o.persona||'')}</small></span>
+      <span><b>${escapeHtml(o.name||t('common.customer'))}</b><small>${c?escapeHtml(c.brand+' '+c.model):escapeHtml(t('common.vehicle'))} · ${escapeHtml(o.persona||'')}</small></span>
       <span class="order-side"><span class="order-price">${money(o.amount)}</span>${badge}</span>
     </div>`;
   }).join('');
   return `<div class="dash-panel">
-    <div class="dash-panel-head"><b>Aktuelle Auftr&auml;ge <strong>${activeOffers().length}</strong></b><button onclick="navigateTo('listings')">Inserate</button></div>
-    <div class="order-list">${rows || '<p class="subtle" style="margin:0;">Keine offenen Kundenanfragen. Inserierte Fahrzeuge erzeugen neue Auftr&auml;ge.</p>'}</div>
-    <div class="panel-link" onclick="navigateTo('mailbox')">Alle Auftr&auml;ge anzeigen &rarr;</div>
+    <div class="dash-panel-head"><b>${escapeHtml(D.orders_title)} <strong>${activeOffers().length}</strong></b><button onclick="navigateTo('listings')">${escapeHtml(D.orders_listings_btn)}</button></div>
+    <div class="order-list">${rows || `<p class="subtle" style="margin:0;">${escapeHtml(D.orders_empty)}</p>`}</div>
+    <div class="panel-link" onclick="navigateTo('mailbox')">${escapeHtml(D.orders_view_all)}</div>
   </div>`;
 }
 function dashStockPanel(){
@@ -4272,16 +4421,17 @@ function dashStockPanel(){
   const reserved = inv.filter(c=>c.reservedFor && c.reservedFor.expiresDay>state.day).length;
   const delivering = activeDeliveries().filter(d=>!['completed','pickup_completed'].includes(d.status)).length;
   const carCards = inv.slice(0,2).map(dashVehicleCard).join('');
+  const D = t('dashboard');
   return `<div class="dash-panel inventory-panel">
-    <div class="dash-panel-head"><b>Fahrzeugbestand</b><button onclick="navigateTo('inventory')">Zum Fahrzeugbestand</button></div>
+    <div class="dash-panel-head"><b>${escapeHtml(D.stock_title)}</b><button onclick="navigateTo('inventory')">${escapeHtml(D.stock_cta)}</button></div>
     <div class="stock-hero">
-      <div class="stock-count">${inv.length}<small>Fahrzeuge</small></div>
+      <div class="stock-count">${inv.length}<small>${escapeHtml(D.stock_vehicles)}</small></div>
     </div>
     <div class="stock-breakdown">
-      <div class="stock-line green"><span>Im Verkauf</span><b>${listed}</b></div>
-      <div class="stock-line gold"><span>In Werkstatt</span><b>${inWorkshop}</b></div>
-      <div class="stock-line purple"><span>Reserviert</span><b>${reserved}</b></div>
-      <div class="stock-line blue"><span>In Lieferung</span><b>${delivering}</b></div>
+      <div class="stock-line green"><span>${escapeHtml(D.stock_selling)}</span><b>${listed}</b></div>
+      <div class="stock-line gold"><span>${escapeHtml(D.stock_workshop)}</span><b>${inWorkshop}</b></div>
+      <div class="stock-line purple"><span>${escapeHtml(D.stock_reserved)}</span><b>${reserved}</b></div>
+      <div class="stock-line blue"><span>${escapeHtml(D.stock_delivering)}</span><b>${delivering}</b></div>
     </div>
     <div class="dash-car-row">${carCards}</div>
   </div>`;
@@ -4289,21 +4439,22 @@ function dashStockPanel(){
 function dashClaimsPanel(){
   const claims = activeClaims();
   const total = sumBy(claims, x=>claimTotal(x.claim));
+  const D = t('dashboard');
   const rows = claims.slice(0,4).map(x=>{
     const due = claimNeedsAction(x.claim);
     const label = due ? claimStatusLabel(x.claim) : gameDateShort(x.claim.nextActionDay);
     const fees = claimFeesByBucket(x.claim);
     return `<div class="claim-row" onclick="navigateTo('contracts')">
-      <span>${escapeHtml(x.contract.customerName||'Kunde')}</span>
+      <span>${escapeHtml(x.contract.customerName||t('common.customer'))}</span>
       <b>${money(claimTotal(x.claim))}</b>
       <span class="claim-badge ${due?'':'scheduled'}">${escapeHtml(label)}</span>
-      <small>Rate ${money(x.claim.baseAmount||0)} · Mahngebühren ${money(fees.dunning)} · Inkasso ${money(fees.collection)} · Gericht ${money(fees.court)}</small>
+      <small>${escapeHtml(D.claim_rate)} ${money(x.claim.baseAmount||0)} · ${escapeHtml(D.claim_dunning)} ${money(fees.dunning)} · ${escapeHtml(D.claim_collection)} ${money(fees.collection)} · ${escapeHtml(D.claim_court)} ${money(fees.court)}</small>
     </div>`;
   }).join('');
   return `<div class="dash-panel">
-    <div class="dash-panel-head"><b>Offene Forderungen</b><button onclick="navigateTo('contracts')">Vertr&auml;ge</button></div>
-    ${claims.length ? `<div class="claims-total">${money(total)}<small>Gesamtbetrag aus ${claims.length} Vertrag/Vertr&auml;gen</small></div>${rows}` : '<div class="notice good" style="margin:0;">Keine offenen Forderungen – alle Raten gehen p&uuml;nktlich ein.</div>'}
-    ${claims.length ? `<div class="panel-link" onclick="navigateTo('contracts')">Zur Forderungsverwaltung &rarr;</div>` : ''}
+    <div class="dash-panel-head"><b>${escapeHtml(D.claims_title)}</b><button onclick="navigateTo('contracts')">${escapeHtml(D.claims_cta)}</button></div>
+    ${claims.length ? `<div class="claims-total">${money(total)}<small>${escapeHtml(t('dashboard.claims_total',{n:claims.length}))}</small></div>${rows}` : `<div class="notice good" style="margin:0;">${escapeHtml(D.claims_none)}</div>`}
+    ${claims.length ? `<div class="panel-link" onclick="navigateTo('contracts')">${escapeHtml(D.claims_view_all)}</div>` : ''}
   </div>`;
 }
 function dashActivityPanel(){
@@ -4318,8 +4469,8 @@ function dashActivityPanel(){
     </div>`;
   }).join('');
   return `<div class="dash-panel dash-side-panel">
-    <div class="dash-panel-head"><b>Aktivit&auml;ten</b><button onclick="toggleNotifPanel(event)">Alle anzeigen</button></div>
-    ${rows || '<p class="subtle" style="margin:0;">Noch keine Ereignisse.</p>'}
+    <div class="dash-panel-head"><b>${escapeHtml(t('dashboard.activity_title'))}</b><button onclick="toggleNotifPanel(event)">${escapeHtml(t('dashboard.activity_view_all'))}</button></div>
+    ${rows || `<p class="subtle" style="margin:0;">${escapeHtml(t('dashboard.activity_none'))}</p>`}
   </div>`;
 }
 function dashTasksPanel(){
@@ -4346,19 +4497,19 @@ function dashBottomStatus(){
   const wishes = activeSearchOrders().filter(o=>o.status==='open');
   const wsJobs = activeWorkshopJobs();
   const listingCount = activeListingIds().length;
+  const D = t('dashboard');
   return `<div class="bottom-status">
-    <div><span class="status-ico green">FI</span><b>Offene Finanzierungen</b><strong>${fin.length}</strong><small>Gesamt: ${money(sumBy(fin,r=>r.remainingPrincipal||0))}</small></div>
-    <div><span class="status-ico orange">MA</span><b>Mahnungen</b><strong>${claimActions}</strong><small>Offen: ${money(sumBy(claims,x=>claimTotal(x.claim)))}</small></div>
-    <div><span class="status-ico purple">WS</span><b>Werkstatt Auslastung</b><strong>${wsJobs.length}</strong><small>${wsJobs.length>2?'Sehr hoch':'Normal'}</small></div>
-    <div><span class="status-ico blue">WF</span><b>Wunschfahrzeuge</b><strong>${wishes.length}</strong><small>Aktive Anfragen</small></div>
-    <div><span class="status-ico green">MK</span><b>Marketing</b><strong>${listingCount?'Aktiv':'Inaktiv'}</strong><small>${listingCount} Inserate laufen</small></div>
+    <div><span class="status-ico green">FI</span><b>${escapeHtml(D.bottom_financing)}</b><strong>${fin.length}</strong><small>${escapeHtml(D.bottom_financing_total)}: ${money(sumBy(fin,r=>r.remainingPrincipal||0))}</small></div>
+    <div><span class="status-ico orange">MA</span><b>${escapeHtml(D.bottom_dunning)}</b><strong>${claimActions}</strong><small>${escapeHtml(D.bottom_dunning_open)}: ${money(sumBy(claims,x=>claimTotal(x.claim)))}</small></div>
+    <div><span class="status-ico purple">WS</span><b>${escapeHtml(D.bottom_workshop_load)}</b><strong>${wsJobs.length}</strong><small>${wsJobs.length>2?escapeHtml(D.bottom_workshop_high):escapeHtml(D.bottom_workshop_normal)}</small></div>
+    <div><span class="status-ico blue">WF</span><b>${escapeHtml(D.bottom_wishlist)}</b><strong>${wishes.length}</strong><small>${escapeHtml(D.bottom_wishlist_meta)}</small></div>
+    <div><span class="status-ico green">MK</span><b>${escapeHtml(D.bottom_marketing)}</b><strong>${listingCount?escapeHtml(D.bottom_marketing_active):escapeHtml(D.bottom_marketing_inactive)}</strong><small>${escapeHtml(t('dashboard.bottom_marketing_meta',{n:listingCount}))}</small></div>
   </div>`;
 }
 function renderPremiumDashboard(){
   const valuation = companyValuation();
   const idx = valuation.index || legacyIndex();
-  const legacyKpiLabel = hasLegacyRun() ? 'Legacy-Score' : 'Gr&uuml;ndungsindex';
-  const legacyKpiIcon = hasLegacyRun() ? 'LG' : 'GI';
+  const legacyKpiLabel = hasLegacyRun() ? t('dashboard.kpi_legacy_score') : t('dashboard.kpi_founding_index');
   const recentSales = (state.salesHistory||[]).filter(s=>inActiveBranch(s) && s.day>=state.day-30);
   const prevSales = (state.salesHistory||[]).filter(s=>inActiveBranch(s) && s.day<state.day-30 && s.day>=state.day-60);
   const monthProfit = sumBy(recentSales,s=>s.profit||0) + recurringMonthlyValue();
@@ -4369,12 +4520,12 @@ function renderPremiumDashboard(){
   const cashDeltaAbs = todaysDelta();
   return `
     <div class="dashboard-premium">
-      <div class="ref-section-title">Übersicht</div>
+      <div class="ref-section-title">${escapeHtml(t('dashboard.overview'))}</div>
       <div class="dash-kpi-grid">
-        ${dashKpi('Kontostand', money(state.cash), `${fmtDelta(cashDeltaAbs)} (${dashDelta(state.cash, Math.max(1,state.cash-cashDeltaAbs))})`, 'green', 'KO', cashPts)}
-        ${dashKpi('Monatsgewinn', money(monthProfit), `${fmtDelta(monthProfit-prevProfit)} (${dashDelta(monthProfit, prevProfit)})`, 'gold', 'MG', netPts)}
-        ${dashKpi('Unternehmenswert', money(valuation.value), dashDelta(valuation.value, Math.max(1,valuation.value-(state.totalProfit||0))), 'blue', 'UW', cashPts)}
-        ${dashKpiRing('Erfolgsquote', idx.successRate||0)}
+        ${dashKpi(t('dashboard.kpi_balance'), money(state.cash), `${fmtDelta(cashDeltaAbs)} (${dashDelta(state.cash, Math.max(1,state.cash-cashDeltaAbs))})`, 'green', 'KO', cashPts)}
+        ${dashKpi(t('dashboard.kpi_month_profit'), money(monthProfit), `${fmtDelta(monthProfit-prevProfit)} (${dashDelta(monthProfit, prevProfit)})`, 'gold', 'MG', netPts)}
+        ${dashKpi(t('dashboard.kpi_company_value'), money(valuation.value), dashDelta(valuation.value, Math.max(1,valuation.value-(state.totalProfit||0))), 'blue', 'UW', cashPts)}
+        ${dashKpiRing(t('dashboard.kpi_success_rate'), idx.successRate||0)}
         ${dashKpiLegacy(legacyKpiLabel, Math.round(idx.total||0))}
       </div>
       <div class="dash-main-grid">
@@ -4487,16 +4638,18 @@ function renderMarket(){
       return renderMarket();
     }
   }
+  const M = t('market');
+  const brandSuffix = marketFilter==='Alle' ? '' : t('market.brand_suffix',{brand:marketFilter});
   return `
-    <h2 class="section-title">Fahrzeugbörse</h2>
-    <p class="subtle">${list.length} verfügbare Fahrzeuge${marketFilter==='Alle'?'':' von '+marketFilter} · Seite ${marketPage} von ${totalPages} · täglich neue Angebote von Privatverkäufern, Händlern & Auktionen.</p>
-    <div class="pill-tabs market-brand-tabs">${brands.map(b=>`<div class="pill-tab ${marketFilter===b?'active':''}" onclick="marketFilter='${b}';marketPage=1;renderApp('market')">${b}</div>`).join('')}</div>
+    <h2 class="section-title">${escapeHtml(M.title)}</h2>
+    <p class="subtle">${escapeHtml(t('market.subtitle',{n:list.length, brandSuffix, page:marketPage, pages:totalPages}))}</p>
+    <div class="pill-tabs market-brand-tabs">${brands.map(b=>`<div class="pill-tab ${marketFilter===b?'active':''}" onclick="marketFilter='${b}';marketPage=1;renderApp('market')">${b==='Alle'?escapeHtml(M.all_brands):b}</div>`).join('')}</div>
     ${renderMarketSearchOrderBanner(activeOrder, activeMatches.length)}
     ${renderMarketFilters()}
     ${renderMarketHealth()}
     ${renderMarketPager(totalPages, list.length)}
     <div class="grid-cars">
-      ${pageItems.map(carCard).join('') || '<div class="empty-state">Keine Fahrzeuge in dieser Kategorie.</div>'}
+      ${pageItems.map(carCard).join('') || `<div class="empty-state">${escapeHtml(M.empty)}</div>`}
     </div>
     ${renderMarketPager(totalPages, list.length)}
   `;
@@ -4507,15 +4660,16 @@ function renderMarketHealth(){
   const bandCounts = MARKET_PRICE_BANDS.map(b=>`${b.id}: ${all.filter(c=>marketPriceBand(c).id===b.id).length}`).join(' · ');
   const luxuryCount = all.filter(c=>['luxus','supersport','hypercar'].includes(marketVehicleSegment(c))).length;
   const evCount = all.filter(c=>c.engine==='Elektro').length;
+  const M = t('market');
   return `<div class="offer-card" style="margin:0 0 12px;">
     <div class="spec-row">
-      <span class="chip">Marktbestand ${all.length}</span>
-      <span class="chip">Luxus/Exklusiv ${luxuryCount}</span>
-      <span class="chip">Elektro ${evCount}</span>
-      <span class="chip">SUV ${segmentCounts.suv||0}</span>
-      <span class="chip">Sport ${segmentCounts.sportwagen||0}</span>
+      <span class="chip">${escapeHtml(M.health_stock)} ${all.length}</span>
+      <span class="chip">${escapeHtml(M.health_luxury)} ${luxuryCount}</span>
+      <span class="chip">${escapeHtml(M.health_electric)} ${evCount}</span>
+      <span class="chip">${escapeHtml(M.health_suv)} ${segmentCounts.suv||0}</span>
+      <span class="chip">${escapeHtml(M.health_sport)} ${segmentCounts.sportwagen||0}</span>
     </div>
-    <p class="subtle" style="margin:8px 0 0;">Preisbänder: ${escapeHtml(bandCounts)}</p>
+    <p class="subtle" style="margin:8px 0 0;">${escapeHtml(t('market.health_bands',{bands:bandCounts}))}</p>
   </div>`;
 }
 function filteredMarketCars(){
@@ -4551,42 +4705,43 @@ function filteredMarketCars(){
   return list.sort(sorters[marketSort] || sorters.priceAsc);
 }
 function renderMarketFilters(){
+  const M = t('market');
   return `
     <div class="offer-card" style="margin:12px 0 14px;">
       <div class="spec-row">
-        <input type="text" placeholder="Fahrzeug suchen: Marke, Modell, Farbe..." value="${escapeAttr(marketSearch)}" oninput="marketSearch=this.value;marketPage=1;" onkeydown="if(event.key==='Enter'){renderApp('market')}">
+        <input type="text" placeholder="${escapeAttr(M.search_placeholder)}" value="${escapeAttr(marketSearch)}" oninput="marketSearch=this.value;marketPage=1;" onkeydown="if(event.key==='Enter'){renderApp('market')}">
         <select onchange="marketSort=this.value;marketPage=1;renderApp('market')">
-          <option value="priceAsc" ${marketSort==='priceAsc'?'selected':''}>Preis niedrig</option>
-          <option value="priceDesc" ${marketSort==='priceDesc'?'selected':''}>Preis hoch</option>
-          <option value="mileageAsc" ${marketSort==='mileageAsc'?'selected':''}>Kilometer niedrig</option>
-          <option value="mileageDesc" ${marketSort==='mileageDesc'?'selected':''}>Kilometer hoch</option>
-          <option value="yearDesc" ${marketSort==='yearDesc'?'selected':''}>Baujahr neu</option>
-          <option value="yearAsc" ${marketSort==='yearAsc'?'selected':''}>Baujahr alt</option>
+          <option value="priceAsc" ${marketSort==='priceAsc'?'selected':''}>${escapeHtml(M.sort_price_asc)}</option>
+          <option value="priceDesc" ${marketSort==='priceDesc'?'selected':''}>${escapeHtml(M.sort_price_desc)}</option>
+          <option value="mileageAsc" ${marketSort==='mileageAsc'?'selected':''}>${escapeHtml(M.sort_mileage_asc)}</option>
+          <option value="mileageDesc" ${marketSort==='mileageDesc'?'selected':''}>${escapeHtml(M.sort_mileage_desc)}</option>
+          <option value="yearDesc" ${marketSort==='yearDesc'?'selected':''}>${escapeHtml(M.sort_year_desc)}</option>
+          <option value="yearAsc" ${marketSort==='yearAsc'?'selected':''}>${escapeHtml(M.sort_year_asc)}</option>
         </select>
-        <input type="number" placeholder="Baujahr ab" value="${escapeAttr(marketYearMin)}" onchange="marketYearMin=this.value;marketPage=1;renderApp('market')">
-        <input type="number" placeholder="Baujahr bis" value="${escapeAttr(marketYearMax)}" onchange="marketYearMax=this.value;marketPage=1;renderApp('market')">
-        <input type="number" placeholder="Preis bis" value="${escapeAttr(marketPriceMax)}" onchange="marketPriceMax=this.value;marketPage=1;renderApp('market')">
-        <input type="number" placeholder="km bis" value="${escapeAttr(marketMileageMax)}" onchange="marketMileageMax=this.value;marketPage=1;renderApp('market')">
+        <input type="number" placeholder="${escapeAttr(M.year_from)}" value="${escapeAttr(marketYearMin)}" onchange="marketYearMin=this.value;marketPage=1;renderApp('market')">
+        <input type="number" placeholder="${escapeAttr(M.year_to)}" value="${escapeAttr(marketYearMax)}" onchange="marketYearMax=this.value;marketPage=1;renderApp('market')">
+        <input type="number" placeholder="${escapeAttr(M.price_to)}" value="${escapeAttr(marketPriceMax)}" onchange="marketPriceMax=this.value;marketPage=1;renderApp('market')">
+        <input type="number" placeholder="${escapeAttr(M.mileage_to)}" value="${escapeAttr(marketMileageMax)}" onchange="marketMileageMax=this.value;marketPage=1;renderApp('market')">
         <select onchange="marketEngine=this.value;marketPage=1;renderApp('market')">
-          <option value="">Alle Kraftstoffe</option>
+          <option value="">${escapeHtml(M.all_fuels)}</option>
           ${ENGINES.map(e=>`<option value="${escapeAttr(e.label)}" ${marketEngine===e.label?'selected':''}>${e.label}</option>`).join('')}
         </select>
         <select onchange="marketTransmission=this.value;marketPage=1;renderApp('market')">
-          <option value="">Alle Getriebe</option>
-          ${TRANS.map(t=>`<option value="${escapeAttr(t)}" ${marketTransmission===t?'selected':''}>${t}</option>`).join('')}
+          <option value="">${escapeHtml(M.all_transmissions)}</option>
+          ${TRANS.map(tr=>`<option value="${escapeAttr(tr)}" ${marketTransmission===tr?'selected':''}>${tr}</option>`).join('')}
         </select>
         <select onchange="marketColor=this.value;marketPage=1;renderApp('market')">
-          <option value="">Alle Farben</option>
+          <option value="">${escapeHtml(M.all_colors)}</option>
           ${COLORS.map(c=>`<option value="${escapeAttr(c)}" ${marketColor===c?'selected':''}>${c}</option>`).join('')}
         </select>
       </div>
       <div class="field" style="margin:10px 0 0;">
-        <label>Mindestzustand: <span style="color:var(--brass);font-family:var(--font-m);">${marketConditionMin||0}/100</span></label>
+        <label>${escapeHtml(M.min_condition)} <span style="color:var(--brass);font-family:var(--font-m);">${marketConditionMin||0}/100</span></label>
         <input type="range" min="0" max="100" step="5" value="${marketConditionMin||0}" oninput="marketConditionMin=this.value;marketPage=1;renderApp('market')">
       </div>
       <div class="row-actions" style="margin-top:10px;">
-        <button class="btn btn-primary btn-sm" onclick="marketPage=1;renderApp('market')">Suchen</button>
-        <button class="btn btn-ghost btn-sm" onclick="resetMarketFilters()">Filter zurücksetzen</button>
+        <button class="btn btn-primary btn-sm" onclick="marketPage=1;renderApp('market')">${escapeHtml(M.search_btn)}</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetMarketFilters()">${escapeHtml(M.reset_filters)}</button>
       </div>
     </div>
   `;
@@ -4649,38 +4804,40 @@ function clearMarketSearchHighlight(){
 function observeActiveSearchOrder(){
   const so = activeMarketSearchOrder();
   if(!so) return;
-  notify(`Suchauftrag bleibt aktiv: ${so.desc}.`, 'info');
+  notify(t('market.search_order_notify',{desc:so.desc}), 'info');
 }
 function renderMarketSearchOrderBanner(so, matchCount){
   if(!so) return '';
+  const M = t('market');
   const desc = escapeHtml(so.desc || `${so.brand||''} ${so.model||''}`.trim());
-  const hitText = matchCount ? `${matchCount} passende${matchCount>1?' Fahrzeuge':'s Fahrzeug'} gefunden` : 'Aktuell kein passendes Fahrzeug gefunden';
+  const hitText = matchCount ? t(matchCount===1?'market.hits_found_one':'market.hits_found_other',{n:matchCount}) : M.hits_none;
   return `<div class="market-search-banner">
     <div>
-      <b>Suchauftrag aktiv:</b> ${desc}<br>
-      <span class="hit">${hitText}</span>
+      <b>${escapeHtml(M.search_order_active)}</b> ${desc}<br>
+      <span class="hit">${escapeHtml(hitText)}</span>
     </div>
     <div class="row-actions" style="margin:0;flex-wrap:wrap;justify-content:flex-end;">
-      <button class="btn btn-ghost btn-sm" onclick="navigateTo('wishlist')">Suchauftrag anzeigen</button>
-      ${matchCount ? `<button class="btn btn-ghost btn-sm" onclick="resetMarketFilters(false)">Filter zurücksetzen</button>` : `<button class="btn btn-primary btn-sm" onclick="applySearchOrderToMarket('${so.id}', true)">Filter lockern</button><button class="btn btn-ghost btn-sm" onclick="observeActiveSearchOrder()">Suchauftrag beobachten</button>`}
-      ${matchCount ? `<button class="btn btn-ghost btn-sm" onclick="clearMarketSearchHighlight()">Highlight beenden</button>` : `<button class="btn btn-ghost btn-sm" onclick="navigateTo('wishlist')">Zurück zur Wunschliste</button>`}
+      <button class="btn btn-ghost btn-sm" onclick="navigateTo('wishlist')">${escapeHtml(M.view_search_order)}</button>
+      ${matchCount ? `<button class="btn btn-ghost btn-sm" onclick="resetMarketFilters(false)">${escapeHtml(M.reset_filters)}</button>` : `<button class="btn btn-primary btn-sm" onclick="applySearchOrderToMarket('${so.id}', true)">${escapeHtml(M.loosen_filters)}</button><button class="btn btn-ghost btn-sm" onclick="observeActiveSearchOrder()">${escapeHtml(M.watch_search_order)}</button>`}
+      ${matchCount ? `<button class="btn btn-ghost btn-sm" onclick="clearMarketSearchHighlight()">${escapeHtml(M.end_highlight)}</button>` : `<button class="btn btn-ghost btn-sm" onclick="navigateTo('wishlist')">${escapeHtml(M.back_to_wishlist)}</button>`}
     </div>
   </div>`;
 }
 function renderMarketPager(totalPages, totalItems){
   if(totalPages<=1) return '';
+  const M = t('market');
   const pages = [];
   const from = Math.max(1, marketPage-2);
   const to = Math.min(totalPages, marketPage+2);
   for(let p=from;p<=to;p++) pages.push(p);
   return `<div class="row-actions" style="justify-content:space-between;margin:12px 0 16px;">
-    <div class="subtle">${totalItems} Fahrzeuge · ${MARKET_PAGE_SIZE} pro Seite</div>
+    <div class="subtle">${escapeHtml(t('market.pager_count',{n:totalItems, size:MARKET_PAGE_SIZE}))}</div>
     <div class="row-actions" style="margin:0;">
-      <button class="btn btn-ghost btn-sm" onclick="marketPage=1;renderApp('market')" ${marketPage<=1?'disabled':''}>Erste</button>
-      <button class="btn btn-ghost btn-sm" onclick="marketPage=Math.max(1,marketPage-1);renderApp('market')" ${marketPage<=1?'disabled':''}>Zurück</button>
+      <button class="btn btn-ghost btn-sm" onclick="marketPage=1;renderApp('market')" ${marketPage<=1?'disabled':''}>${escapeHtml(M.first)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="marketPage=Math.max(1,marketPage-1);renderApp('market')" ${marketPage<=1?'disabled':''}>${escapeHtml(M.back)}</button>
       ${pages.map(p=>`<button class="btn ${p===marketPage?'btn-primary':'btn-ghost'} btn-sm" onclick="marketPage=${p};renderApp('market')">${p}</button>`).join('')}
-      <button class="btn btn-ghost btn-sm" onclick="marketPage=Math.min(${totalPages},marketPage+1);renderApp('market')" ${marketPage>=totalPages?'disabled':''}>Weiter</button>
-      <button class="btn btn-ghost btn-sm" onclick="marketPage=${totalPages};renderApp('market')" ${marketPage>=totalPages?'disabled':''}>Letzte</button>
+      <button class="btn btn-ghost btn-sm" onclick="marketPage=Math.min(${totalPages},marketPage+1);renderApp('market')" ${marketPage>=totalPages?'disabled':''}>${escapeHtml(M.next)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="marketPage=${totalPages};renderApp('market')" ${marketPage>=totalPages?'disabled':''}>${escapeHtml(M.last)}</button>
     </div>
   </div>`;
 }
@@ -4689,32 +4846,33 @@ function carCard(c){
   const issuesKnown = c.inspected;
   const openIssues = c.issues.filter(i=>!i.repaired);
   const openConditions = carOpenSaleConditions(c);
-  const warn = issuesKnown && openIssues.length? `<div class="tag-warn">⚠ ${openIssues.length} Mängel bekannt</div>` : (c.inspected? `<div style="color:var(--teal);font-size:10.5px;font-weight:600;">✓ Keine Mängel gefunden</div>`:'');
+  const M = t('market');
+  const warn = issuesKnown && openIssues.length? `<div class="tag-warn">⚠ ${escapeHtml(t('market.defects_known',{n:openIssues.length}))}</div>` : (c.inspected? `<div style="color:var(--teal);font-size:10.5px;font-weight:600;">${escapeHtml(M.condition_report)}</div>`:'');
   const tier = tierInfo(c.brand, c.model);
   const activeOrder = activeMarketSearchOrder();
   const highlighted = activeOrder && matchesMarketSearchOrder(c, activeOrder);
   return `
   <div class="card ${highlighted?'market-highlight pulse':''}" data-market-car-id="${c.id}" style="--tier-color:${tier.color};">
-    ${highlighted?'<span class="market-match-badge">Passend zum Suchauftrag</span>':''}
+    ${highlighted?`<span class="market-match-badge">${escapeHtml(M.match_badge)}</span>`:''}
     <span class="tier-tag">${tier.label}</span>
     ${renderCarPhoto(c)}
     <div class="car-name">${c.brand} ${c.model}</div>
-    <div class="car-sub">${c.year} · ${c.mileage.toLocaleString('de-DE')} km · ${c.engine}</div>
+    <div class="car-sub">${c.year} · ${c.mileage.toLocaleString(localeMeta().numberLocale||'en-US')} km · ${c.engine}</div>
     <div class="cond-bar"><div class="cond-fill" style="width:${c.condition}%"></div></div>
     <div class="spec-row">
       <span class="chip">${c.transmission}</span>
       <span class="chip">${c.power} PS</span>
       <span class="chip">${c.color}</span>
-      <span class="chip">TÜV ${c.tuvMonths>0? c.tuvMonths+' Mon.':'abgelaufen'}</span>
+      <span class="chip">TÜV ${c.tuvMonths>0? t('market.tuv_months',{n:c.tuvMonths}):M.tuv_expired}</span>
     </div>
     ${warn}
     <div class="price-row">
       <span class="price">${money(c.price)}</span>
-      <span class="mval">Marktwert ~${money(c.marketValue)}</span>
+      <span class="mval">${escapeHtml(t('market.market_value',{value:money(c.marketValue)}))}</span>
     </div>
     <div class="row-actions">
-      <button class="btn btn-ghost btn-sm" onclick="openInspect('${c.id}')">🔍 Prüfen</button>
-      <button class="btn btn-primary btn-sm" onclick="openBuy('${c.id}')">Kaufen</button>
+      <button class="btn btn-ghost btn-sm" onclick="openInspect('${c.id}')">${escapeHtml(M.inspect_btn)}</button>
+      <button class="btn btn-primary btn-sm" onclick="openBuy('${c.id}')">${escapeHtml(M.buy_btn)}</button>
     </div>
   </div>`;
 }
@@ -4723,14 +4881,15 @@ function findMarketCar(id){ return state.market.find(c=>c.id===id); }
 function openInspect(id){
   const c = findMarketCar(id); if(!c) return;
   const cost = 60;
+  const M = t('market');
   showModal(`
-    <h2 class="section-title">Fahrzeugprüfung</h2>
+    <h2 class="section-title">${escapeHtml(M.inspect_title)}</h2>
     <p class="subtle">${c.brand} ${c.model} (${c.year})</p>
-    <div class="notice">Eine gründliche Prüfung (OBD-Diagnose, Hebebühne, Lackmessung) kostet <b>${money(cost)}</b> und deckt versteckte Mängel sowie Unfallhistorie auf.</div>
+    <div class="notice">${escapeHtml(t('market.inspect_cost_notice',{cost:money(cost)}))}</div>
     ${c.inspected? renderInspectResults(c) : ''}
     <div class="row-actions" style="margin-top:14px;">
-      <button class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-      ${!c.inspected? `<button class="btn btn-primary" onclick="doInspect('${id}')" ${state.cash<cost?'disabled':''}>Jetzt prüfen (${money(cost)})</button>`:''}
+      <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(M.close)}</button>
+      ${!c.inspected? `<button class="btn btn-primary" onclick="doInspect('${id}')" ${state.cash<cost?'disabled':''}>${escapeHtml(t('market.inspect_now',{cost:money(cost)}))}</button>`:''}
     </div>
   `);
 }
@@ -4738,7 +4897,8 @@ function renderInspectResults(c){
   normalizeVehicleIssues(c);
   const openIssues = c.issues.filter(i=>!i.repaired);
   const rows = openIssues.map(i=>`${i.category}: ${i.label}`).join(', ');
-  return `<div class="notice good" style="display:block;">Prüfergebnis: Zustand ${c.condition}/100 · Verschleiß ${c.wearProfile?.wearScore ?? '–'}/100 · Vorbesitzer ${c.wearProfile?.owners ?? '–'} · Wartung ${c.wearProfile?.maintenanceScore ?? '–'}/100.<br>${openIssues.length? 'Gefundene Mängel: '+rows+'.' : 'Keine versteckten Mängel gefunden.'}</div>`;
+  const M = t('market');
+  return `<div class="notice good" style="display:block;">${escapeHtml(t('market.inspect_result',{condition:c.condition, wear:c.wearProfile?.wearScore ?? '–', owners:c.wearProfile?.owners ?? '–', maintenance:c.wearProfile?.maintenanceScore ?? '–'}))}<br>${openIssues.length? escapeHtml(t('market.defects_found',{list:rows})) : escapeHtml(M.no_hidden_defects)}</div>`;
 }
 function doInspect(id){
   const c = findMarketCar(id); if(!c) return;
@@ -4759,19 +4919,20 @@ function showNegotiationModal(id, suggested, round){
   const c = findMarketCar(id); if(!c) return;
   const min = Math.round(c.price*0.55);
   suggested = clamp(suggested, min, c.price);
+  const M = t('market');
   showModal(`
-    <h2 class="section-title">${c.brand} ${c.model} kaufen ${round>1?'· Runde '+round+'/3':''}</h2>
-    <p class="subtle">Verkäufer verlangt ${money(c.price)}. Marktwert ca. ${money(c.marketValue)}.</p>
+    <h2 class="section-title">${escapeHtml(t('market.buy_title',{brand:c.brand, model:c.model, roundSuffix:round>1?t('market.round_suffix',{round}):''}))}</h2>
+    <p class="subtle">${escapeHtml(t('market.seller_asks',{price:money(c.price), value:money(c.marketValue)}))}</p>
     <div class="field">
-      <label>Ihr Angebot: <span id="offerlbl" style="color:var(--amber);font-family:var(--font-m);">${money(suggested)}</span></label>
+      <label>${escapeHtml(M.your_offer)} <span id="offerlbl" style="color:var(--amber);font-family:var(--font-m);">${money(suggested)}</span></label>
       <div style="display:flex;gap:10px;align-items:center;">
         <input type="range" min="${min}" max="${c.price}" value="${suggested}" oninput="syncFromRange('offer', this.value, ${min}, ${c.price}, '_offerVal')" id="offerRange" style="flex:1;">
         <input type="number" min="${min}" max="${c.price}" step="10" value="${suggested}" oninput="syncFromNumber('offer', this.value, ${min}, ${c.price}, '_offerVal')" onblur="snapNumberField('offer', ${min}, ${c.price}, '_offerVal')" id="offerNumber" style="width:130px;flex:0 0 auto;">
       </div>
     </div>
     <div class="row-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-      <button class="btn btn-primary" onclick="makeOffer('${id}',${round})">Angebot senden</button>
+      <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(M.cancel)}</button>
+      <button class="btn btn-primary" onclick="makeOffer('${id}',${round})">${escapeHtml(M.send_offer)}</button>
     </div>
   `);
   window._offerVal = suggested;
@@ -4779,6 +4940,7 @@ function showNegotiationModal(id, suggested, round){
 function makeOffer(id, round){
   round = round||1;
   const c = findMarketCar(id); if(!c) return;
+  const M = t('market');
   const offer = window._offerVal || c.price;
   const ratio = offer/c.price;
   const buyerBonus = employeeBonus('Einkäufer');
@@ -4791,29 +4953,29 @@ function makeOffer(id, round){
     // letzte Runde: Verkäufer macht ein finales Angebot, keine weitere Verhandlung
     const finalPrice = Math.round((offer + c.price)/2/10)*10;
     showModal(`
-      <h2 class="section-title">Letztes Angebot</h2>
-      <p class="subtle">Der Verkäufer bleibt bei <b>${money(finalPrice)}</b> und ist nicht weiter verhandlungsbereit.</p>
+      <h2 class="section-title">${escapeHtml(M.final_offer_title)}</h2>
+      <p class="subtle">${escapeHtml(t('market.final_offer_notice',{price:'<b>'+money(finalPrice)+'</b>'}))}</p>
       <div class="row-actions">
-        <button class="btn btn-ghost" onclick="closeModal()">Ablehnen</button>
-        <button class="btn btn-primary" onclick="completeBuyById('${id}',${finalPrice})" ${state.cash<finalPrice?'disabled':''}>Annehmen (${money(finalPrice)})</button>
+        <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(M.decline)}</button>
+        <button class="btn btn-primary" onclick="completeBuyById('${id}',${finalPrice})" ${state.cash<finalPrice?'disabled':''}>${escapeHtml(t('market.accept',{price:money(finalPrice)}))}</button>
       </div>
     `);
     return;
   }
   const counter = Math.round((offer + c.price)/2/10)*10;
   showModal(`
-    <h2 class="section-title">Gegenangebot</h2>
-    <p class="subtle">Der Verkäufer lehnt ${money(offer)} ab, bietet aber <b>${money(counter)}</b> an.</p>
+    <h2 class="section-title">${escapeHtml(M.counter_offer_title)}</h2>
+    <p class="subtle">${escapeHtml(t('market.counter_offer_notice',{offer:money(offer), price:'<b>'+money(counter)+'</b>'}))}</p>
     <div class="row-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Ablehnen</button>
-      <button class="btn btn-ghost" onclick="showNegotiationModal('${id}',${counter},${round+1})">Eigenes Gegenangebot</button>
-      <button class="btn btn-primary" onclick="completeBuyById('${id}',${counter})" ${state.cash<counter?'disabled':''}>Annehmen (${money(counter)})</button>
+      <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(M.decline)}</button>
+      <button class="btn btn-ghost" onclick="showNegotiationModal('${id}',${counter},${round+1})">${escapeHtml(M.own_counter)}</button>
+      <button class="btn btn-primary" onclick="completeBuyById('${id}',${counter})" ${state.cash<counter?'disabled':''}>${escapeHtml(t('market.accept',{price:money(counter)}))}</button>
     </div>
   `);
 }
 function completeBuyById(id, price){ const c=findMarketCar(id); if(c) completeBuy(c, price); }
 function completeBuy(c, price){
-  if(state.cash < price){ notify('Nicht genug Kapital für diesen Kauf.', 'warn'); closeModal(); renderAllOpen(); return; }
+  if(state.cash < price){ notify(t('market.not_enough_capital'), 'warn'); closeModal(); renderAllOpen(); return; }
   const buyerBonus = employeeBonus('Einkäufer');
   state.market = state.market.filter(x=>x.id!==c.id);
   c.purchasePrice = price;
@@ -4832,7 +4994,7 @@ function completeBuy(c, price){
   trainEmployees('Einkäufer', 28, 'erfolgreicher Fahrzeugankauf');
   const newAchievements = checkAchievements();
   playSound('buy');
-  showToast('🚗', `<b>${c.brand} ${c.model}</b> für ${money(price)} gekauft – bereit für Werkstatt oder Inserat.`, null, null);
+  showToast('🚗', t('market.bought_toast',{brand:c.brand, model:c.model, price:money(price)}), null, null);
   showAchievementUnlocks(newAchievements);
   checkSearchOrderMatches();
   closeModal();
@@ -4879,14 +5041,15 @@ function bulkListingPreview(markupPct, repairMode, quickSale){
   const listed = inv.filter(c=>state.listings[c.id]).length;
   const eligible = bulkListingEligibleCars();
   const inWorkshopIds = new Set((state.workshopJobs||[]).map(j=>j.carId));
+  const IV = t('inventory');
   const rows = eligible.map(c=>{
     const inWorkshop = inWorkshopIds.has(c.id);
     const repair = bulkListingRepairQuote(c, repairMode);
     const price = bulkListingPriceForCar(c, markupPct, quickSale);
     const stats = listingPriceStats(c, price);
-    let status = 'Sofort inserieren';
-    if(inWorkshop) status = 'Übersprungen: In Werkstatt';
-    else if(repair.issues.length) status = 'Wird nach Reparatur inseriert';
+    let status = IV.bulk_status_direct;
+    if(inWorkshop) status = IV.bulk_status_workshop_skip;
+    else if(repair.issues.length) status = IV.bulk_status_after_repair;
     return {car:c, price, stats, repair, inWorkshop, status};
   });
   const direct = rows.filter(r=>!r.inWorkshop && !r.repair.issues.length);
@@ -4912,43 +5075,45 @@ function renderBulkListingPreview(){
   const repairMode = repairEnabled ? (document.querySelector('input[name="bulkRepairMode"]:checked')?.value || 'sales') : 'none';
   const quickSale = !!document.getElementById('bulkQuickSale')?.checked;
   const preview = bulkListingPreview(markup, repairMode, quickSale);
+  const IV = t('inventory');
   const html = `
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Bestand</div><div class="num">${preview.invCount}</div></div>
-      <div class="stat-card"><div class="lbl">Bereits inseriert</div><div class="num">${preview.listed}</div></div>
-      <div class="stat-card"><div class="lbl">Noch nicht inseriert</div><div class="num">${preview.unlisted}</div></div>
-      <div class="stat-card"><div class="lbl">Mit Mängeln</div><div class="num">${preview.issueCars}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IV.bulk_stat_stock)}</div><div class="num">${preview.invCount}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IV.bulk_stat_listed)}</div><div class="num">${preview.listed}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IV.bulk_stat_unlisted)}</div><div class="num">${preview.unlisted}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IV.bulk_stat_issues)}</div><div class="num">${preview.issueCars}</div></div>
     </div>
     <div class="listing-metrics" style="margin-top:10px;">
-      <div class="listing-metric"><span>Reparaturkosten</span><b>${money(preview.repairCost)}</b></div>
-      <div class="listing-metric"><span>Inseratswert</span><b>${money(preview.listingValue)}</b></div>
-      <div class="listing-metric ${preview.profit>=0?'good':'warn'}"><span>Erwarteter Gewinn</span><b>${preview.profit>=0?'+':''}${money(preview.profit)}</b></div>
-      <div class="listing-metric"><span>Sofort</span><b>${preview.direct.length}</b></div>
-      <div class="listing-metric"><span>Nach Werkstatt</span><b>${preview.afterRepair.length}</b></div>
-      <div class="listing-metric"><span>Übersprungen</span><b>${preview.skipped}</b></div>
+      <div class="listing-metric"><span>${escapeHtml(IV.bulk_metric_repair_cost)}</span><b>${money(preview.repairCost)}</b></div>
+      <div class="listing-metric"><span>${escapeHtml(IV.bulk_metric_listing_value)}</span><b>${money(preview.listingValue)}</b></div>
+      <div class="listing-metric ${preview.profit>=0?'good':'warn'}"><span>${escapeHtml(IV.bulk_metric_profit)}</span><b>${preview.profit>=0?'+':''}${money(preview.profit)}</b></div>
+      <div class="listing-metric"><span>${escapeHtml(IV.bulk_metric_direct)}</span><b>${preview.direct.length}</b></div>
+      <div class="listing-metric"><span>${escapeHtml(IV.bulk_metric_after_repair)}</span><b>${preview.afterRepair.length}</b></div>
+      <div class="listing-metric"><span>${escapeHtml(IV.bulk_metric_skipped)}</span><b>${preview.skipped}</b></div>
     </div>
     <div style="margin-top:12px;max-height:240px;overflow:auto;padding-right:4px;">
       ${preview.rows.length ? preview.rows.map(r=>`<div class="offer-card" style="margin-bottom:8px;padding:10px;">
         <div class="offer-head"><span><b>${escapeHtml(r.car.brand)} ${escapeHtml(r.car.model)}</b></span><span class="persona">${escapeHtml(r.status)}</span></div>
-        <p class="subtle" style="margin:4px 0 0;">Preis ${money(r.price)} · Kosten ${money(r.stats.total)}${r.repair.cost?` · Reparatur ${money(r.repair.cost)} · ${r.repair.days} Tag(e)`:''}</p>
-      </div>`).join('') : '<div class="notice">Keine passenden Fahrzeuge für die Sammelaktion.</div>'}
+        <p class="subtle" style="margin:4px 0 0;">${escapeHtml(t('inventory.bulk_row_summary',{price:money(r.price), cost:money(r.stats.total), repairSuffix:r.repair.cost?t('inventory.bulk_row_repair_suffix',{cost:money(r.repair.cost), days:r.repair.days}):''}))}</p>
+      </div>`).join('') : `<div class="notice">${escapeHtml(IV.bulk_none_eligible)}</div>`}
     </div>`;
   const target = document.getElementById('bulkListingPreview');
   if(target) target.innerHTML = html;
 }
 function openBulkListingModal(){
   const preview = bulkListingPreview(20, 'none', false);
+  const IV = t('inventory');
   showModal(`
     <div class="listing-modal-shell">
       <div class="listing-modal-head">
-        <h2 class="section-title">Alle Fahrzeuge inserieren</h2>
-        <p class="subtle" style="margin:0;">Komfortaktion für nicht inserierte, nicht reservierte Fahrzeuge. Einzelaktionen bleiben unverändert.</p>
+        <h2 class="section-title">${escapeHtml(IV.bulk_title)}</h2>
+        <p class="subtle" style="margin:0;">${escapeHtml(IV.bulk_sub)}</p>
       </div>
       <div class="listing-modal-scroll">
         <div class="offer-card" style="margin-bottom:12px;">
-          <h3 style="margin:0 0 10px;font-family:var(--font-d);font-size:13px;">Preisaufschlag</h3>
+          <h3 style="margin:0 0 10px;font-family:var(--font-d);font-size:13px;">${escapeHtml(IV.bulk_markup_title)}</h3>
           <div class="field" style="margin:0;">
-            <label>Aufschlag auf Gesamtkosten: <span id="bulkMarkupLabel" style="color:var(--brass);font-family:var(--font-m);">+20%</span></label>
+            <label>${escapeHtml(IV.bulk_markup_label)} <span id="bulkMarkupLabel" style="color:var(--brass);font-family:var(--font-m);">+20%</span></label>
             <input id="bulkMarkup" type="range" min="0" max="120" step="5" value="20" oninput="document.getElementById('bulkMarkupLabel').textContent='+'+this.value+'%'; document.getElementById('bulkMarkupNumber').value=this.value; renderBulkListingPreview();">
           </div>
           <div class="listing-percent-row" style="margin-top:10px;">
@@ -4959,29 +5124,29 @@ function openBulkListingModal(){
           </div>
         </div>
         <div class="offer-card" style="margin-bottom:12px;">
-          <h3 style="margin:0 0 10px;font-family:var(--font-d);font-size:13px;">Werkstatt</h3>
-          <label class="notice" style="display:flex;align-items:center;gap:8px;margin:0 0 8px;"><input id="bulkRepair" type="checkbox" onchange="renderBulkListingPreview()"> Alle Fahrzeuge vorher reparieren</label>
+          <h3 style="margin:0 0 10px;font-family:var(--font-d);font-size:13px;">${escapeHtml(IV.bulk_workshop_title)}</h3>
+          <label class="notice" style="display:flex;align-items:center;gap:8px;margin:0 0 8px;"><input id="bulkRepair" type="checkbox" onchange="renderBulkListingPreview()"> ${escapeHtml(IV.bulk_repair_all)}</label>
           <div class="spec-row">
-            <label class="chip"><input type="radio" name="bulkRepairMode" value="sales" checked onchange="renderBulkListingPreview()"> Nur verkaufsrelevante Mängel</label>
-            <label class="chip"><input type="radio" name="bulkRepairMode" value="all" onchange="renderBulkListingPreview()"> Alle Mängel vollständig</label>
+            <label class="chip"><input type="radio" name="bulkRepairMode" value="sales" checked onchange="renderBulkListingPreview()"> ${escapeHtml(IV.bulk_repair_sales)}</label>
+            <label class="chip"><input type="radio" name="bulkRepairMode" value="all" onchange="renderBulkListingPreview()"> ${escapeHtml(IV.bulk_repair_all_defects)}</label>
           </div>
         </div>
         <div class="offer-card" style="margin-bottom:12px;">
-          <h3 style="margin:0 0 10px;font-family:var(--font-d);font-size:13px;">Schnellverkauf</h3>
-          <label class="notice" style="display:flex;align-items:center;gap:8px;margin:0;"><input id="bulkQuickSale" type="checkbox" onchange="renderBulkListingPreview()"> Schnellverkauf aktivieren</label>
-          <p class="subtle" style="margin:8px 0 0;">Kalkuliert näher am Marktwert. Die Marge sinkt, dafür werden die Inserate attraktiver.</p>
+          <h3 style="margin:0 0 10px;font-family:var(--font-d);font-size:13px;">${escapeHtml(IV.bulk_quick_title)}</h3>
+          <label class="notice" style="display:flex;align-items:center;gap:8px;margin:0;"><input id="bulkQuickSale" type="checkbox" onchange="renderBulkListingPreview()"> ${escapeHtml(IV.bulk_quick_toggle)}</label>
+          <p class="subtle" style="margin:8px 0 0;">${escapeHtml(IV.bulk_quick_desc)}</p>
         </div>
         <div class="offer-card" style="margin-bottom:12px;">
-          <h3 style="margin:0 0 10px;font-family:var(--font-d);font-size:13px;">Zahlungsarten für alle Inserate</h3>
-          <p class="subtle" style="margin:0;">Diese Auswahl gilt für alle Fahrzeuge, die durch diese Sammelaktion inseriert werden.</p>
+          <h3 style="margin:0 0 10px;font-family:var(--font-d);font-size:13px;">${escapeHtml(IV.bulk_payment_title)}</h3>
+          <p class="subtle" style="margin:0;">${escapeHtml(IV.bulk_payment_desc)}</p>
           ${paymentMethodSelectorHtml('bulkPay', PAYMENT_METHODS)}
-          <div id="bulkPaymentWarn" class="notice warn" style="display:none;margin-top:10px;">Bitte mindestens eine Zahlungsart auswählen.</div>
+          <div id="bulkPaymentWarn" class="notice warn" style="display:none;margin-top:10px;">${escapeHtml(IV.payment_warn)}</div>
         </div>
-        <div id="bulkListingPreview">${preview.rows.length ? '' : '<div class="notice">Keine passenden Fahrzeuge für die Sammelaktion.</div>'}</div>
+        <div id="bulkListingPreview">${preview.rows.length ? '' : `<div class="notice">${escapeHtml(IV.bulk_none_eligible)}</div>`}</div>
       </div>
       <div class="row-actions listing-modal-actions">
-        <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-        <button class="btn btn-primary" onclick="confirmBulkListing()">Alle passenden Fahrzeuge inserieren</button>
+        <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(IV.bulk_cancel)}</button>
+        <button class="btn btn-primary" onclick="confirmBulkListing()">${escapeHtml(IV.bulk_confirm)}</button>
       </div>
     </div>
   `, 'listing-modal');
@@ -5020,7 +5185,7 @@ function confirmBulkListing(){
   if(!allowedPaymentMethods.length){
     const warn = document.getElementById('bulkPaymentWarn');
     if(warn) warn.style.display = 'flex';
-    notify('Bitte mindestens eine Zahlungsart auswählen.', 'warn');
+    notify(t('inventory.payment_warn'), 'warn');
     return;
   }
   const preview = bulkListingPreview(markup, repairMode, quickSale);
@@ -5035,7 +5200,7 @@ function confirmBulkListing(){
       listed++;
     }
   });
-  notify(`Sammelaktion: ${listed} sofort inseriert, ${queued} für Werkstatt vorgemerkt, ${skipped} übersprungen.`, queued||listed?'good':'warn');
+  notify(t('inventory.bulk_result',{listed, queued, skipped}), queued||listed?'good':'warn');
   closeModal(); renderAllOpen(); scheduleSave();
 }
 function completeBulkListingAfterRepair(c){
@@ -5045,20 +5210,21 @@ function completeBulkListingAfterRepair(c){
   const plan = c.bulkListingPlan;
   const price = bulkListingPriceForCar(c, plan.markupPct, plan.quickSale);
   const ok = createListingForCar(c, price, 'bulk-after-repair', plan.quickSale, plan.allowedPaymentMethods);
-  if(ok) notify(`Nach Werkstatt automatisch inseriert: ${c.brand} ${c.model} für ${money(price)}.`, 'good');
+  if(ok) notify(t('inventory.bulk_after_repair_notify',{brand:c.brand, model:c.model, price:money(price)}), 'good');
   return ok;
 }
 function renderInventory(){
   const inv = activeInventory();
+  const IV = t('inventory');
   if(inv.length===0){
-    return `<h2 class="section-title">Fahrzeugbestand</h2><div class="empty-state"><div class="ic">🏢</div>Ihr Bestand ist leer. Kaufen Sie Fahrzeuge über die Fahrzeugbörse.</div>`;
+    return `<h2 class="section-title">${escapeHtml(IV.title)}</h2><div class="empty-state"><div class="ic">🏢</div>${escapeHtml(IV.empty)}</div>`;
   }
   const bulkReady = bulkListingEligibleCars().length;
   return `
-    <h2 class="section-title">Fahrzeugbestand</h2>
+    <h2 class="section-title">${escapeHtml(IV.title)}</h2>
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px;">
-      <p class="subtle" style="margin:0;">${inv.length} Fahrzeuge · Ø Standtage: ${Math.round(inv.reduce((s,c)=>s+c.standDays,0)/inv.length)}</p>
-      <button class="btn btn-primary btn-sm" onclick="openBulkListingModal()" ${bulkReady?'':'disabled'}>Alle inserieren</button>
+      <p class="subtle" style="margin:0;">${escapeHtml(t('inventory.summary',{n:inv.length, days:Math.round(inv.reduce((s,c)=>s+c.standDays,0)/inv.length)}))}</p>
+      <button class="btn btn-primary btn-sm" onclick="openBulkListingModal()" ${bulkReady?'':'disabled'}>${escapeHtml(IV.list_all_btn)}</button>
     </div>
     <div class="grid-cars">${inv.map(invCard).join('')}</div>
   `;
@@ -5073,56 +5239,58 @@ function invCard(c){
   const openIssues = c.issues.filter(i=>!i.repaired);
   const vehicleFile = updateVehicleFileState(c);
   const openConditions = carOpenSaleConditions(c);
+  const IV = t('inventory');
   return `
   <div class="card" style="--tier-color:${reserved?'#e0555c':tier.color};">
-    <span class="tier-tag">${reserved?'Reserviert':tier.label}</span>
+    <span class="tier-tag">${reserved?escapeHtml(IV.tier_reserved):tier.label}</span>
     ${renderCarPhoto(c)}
     <div class="car-name">${c.brand} ${c.model}</div>
-    <div class="car-sub">${c.year} · ${c.mileage.toLocaleString('de-DE')} km · Standtage: ${c.standDays}</div>
+    <div class="car-sub">${c.year} · ${c.mileage.toLocaleString(localeMeta().numberLocale||'en-US')} km · ${escapeHtml(t('inventory.standdays',{n:c.standDays}))}</div>
     <div class="cond-bar"><div class="cond-fill" style="width:${c.condition}%"></div></div>
     <div class="spec-row">
-      <span class="chip">Zustand ${escapeHtml(vehicleFile.conditionLabel)} · ${c.condition}</span>
+      <span class="chip">${escapeHtml(t('inventory.condition',{label:vehicleFile.conditionLabel, n:c.condition}))}</span>
       ${c.acquisitionSource?`<span class="chip" style="color:var(--brass);">${c.acquisitionSource}</span>`:''}
-      ${listed?`<span class="chip" style="color:var(--teal);border-color:rgba(51,194,160,.35);">Gelistet: ${money(listed.price)}</span>`:''}
+      ${listed?`<span class="chip" style="color:var(--teal);border-color:rgba(51,194,160,.35);">${escapeHtml(t('inventory.listed_chip',{price:money(listed.price)}))}</span>`:''}
       ${listed?paymentMethodBadges(listed.allowedPaymentMethods):''}
-      ${inWorkshop?`<span class="chip" style="color:#8fb2ff;">🔧 in Werkstatt (${inWorkshop.daysLeft}d)</span>`:''}
-      ${c.bulkListingPlan && !listed?`<span class="chip" style="color:var(--amber);border-color:rgba(245,158,11,.35);">Wird nach Reparatur inseriert</span>`:''}
+      ${inWorkshop?`<span class="chip" style="color:#8fb2ff;">${escapeHtml(t('inventory.in_workshop_chip',{n:inWorkshop.daysLeft}))}</span>`:''}
+      ${c.bulkListingPlan && !listed?`<span class="chip" style="color:var(--amber);border-color:rgba(245,158,11,.35);">${escapeHtml(IV.bulk_plan_chip)}</span>`:''}
       ${reservationChip(c)}
       ${vehicleFileDebugHtml(c)}
     </div>
-    ${openIssues.length?`<div class="subtle" style="margin:6px 0 0;">Mängel: ${openIssues.slice(0,3).map(i=>escapeHtml(i.label)).join(', ')}${openIssues.length>3?' …':''}</div>`:''}
-    ${openConditions.length?`<div class="tag-warn" style="margin-top:6px;">Offener Kundenwunsch: ${escapeHtml(saleConditionText(openConditions[0]))}</div>`:''}
+    ${openIssues.length?`<div class="subtle" style="margin:6px 0 0;">${escapeHtml(t('inventory.defects',{list:openIssues.slice(0,3).map(i=>i.label).join(', ')+(openIssues.length>3?' …':'')}))}</div>`:''}
+    ${openConditions.length?`<div class="tag-warn" style="margin-top:6px;">${escapeHtml(t('inventory.open_customer_wish',{text:saleConditionText(openConditions[0])}))}</div>`:''}
     <div class="price-row">
       <span class="price">${money(c.marketValue)}</span>
-      <span class="mval">EK ${money(c.purchasePrice)} · ${profit>=0?'+':''}${money(profit)}</span>
+      <span class="mval">${escapeHtml(t('inventory.purchase_price',{price:money(c.purchasePrice), sign:profit>=0?'+':'', profit:money(profit)}))}</span>
     </div>
     ${reserved?`<div class="row-actions" style="margin-bottom:10px;">
-      <button class="btn btn-ghost btn-sm" onclick="extendReservation('${c.id}')">+3 Tage verlängern</button>
-      <button class="btn btn-danger btn-sm" onclick="cancelReservation('${c.id}')">Reservierung aufheben</button>
+      <button class="btn btn-ghost btn-sm" onclick="extendReservation('${c.id}')">${escapeHtml(IV.extend_reservation)}</button>
+      <button class="btn btn-danger btn-sm" onclick="cancelReservation('${c.id}')">${escapeHtml(IV.cancel_reservation)}</button>
     </div>`:''}
     <div class="row-actions inventory-card-actions">
-      ${!inWorkshop? `<button class="btn btn-ghost btn-sm" onclick="openWorkshopModal('${c.id}')">🔧 Werkstatt</button>`:''}
-      ${c.acquisitionHistory? `<button class="btn btn-ghost btn-sm" onclick="showAcquisitionHistory('${c.id}')">Historie</button>`:''}
-      ${!listed && !inWorkshop? `<button class="btn btn-primary btn-sm" onclick="openListModal('${c.id}')">📄 Inserieren</button>`:''}
-      ${listed? `<button class="btn btn-ghost btn-sm" onclick="openListModal('${c.id}')">Inserat bearbeiten</button><button class="btn btn-danger btn-sm" onclick="unlistCar('${c.id}')">Inserat entfernen</button>`:''}
+      ${!inWorkshop? `<button class="btn btn-ghost btn-sm" onclick="openWorkshopModal('${c.id}')">${escapeHtml(IV.workshop_btn)}</button>`:''}
+      ${c.acquisitionHistory? `<button class="btn btn-ghost btn-sm" onclick="showAcquisitionHistory('${c.id}')">${escapeHtml(IV.history_btn)}</button>`:''}
+      ${!listed && !inWorkshop? `<button class="btn btn-primary btn-sm" onclick="openListModal('${c.id}')">${escapeHtml(IV.list_btn)}</button>`:''}
+      ${listed? `<button class="btn btn-ghost btn-sm" onclick="openListModal('${c.id}')">${escapeHtml(IV.edit_listing_btn)}</button><button class="btn btn-danger btn-sm" onclick="unlistCar('${c.id}')">${escapeHtml(IV.unlist_btn)}</button>`:''}
     </div>
-    ${!listed && !inWorkshop && !reserved? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;justify-content:center;" onclick="quickTrade('${c.id}')">⚡ Schnellverkauf an Handelspartner (${money(Math.round(c.marketValue*0.78))})</button>`:''}
+    ${!listed && !inWorkshop && !reserved? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;justify-content:center;" onclick="quickTrade('${c.id}')">${escapeHtml(t('inventory.quick_trade_btn',{price:money(Math.round(c.marketValue*0.78))}))}</button>`:''}
   </div>`;
 }
 function findCar(id){ return state.inventory.find(c=>c.id===id); }
 function showAcquisitionHistory(id){
   const c = findCar(id); if(!c || !c.acquisitionHistory) return;
+  const IV = t('inventory');
   showModal(`
     <div class="vehicle-history-shell">
       <div class="vehicle-history-head">
-        <h2 class="section-title">Ankaufshistorie</h2>
-        <p class="subtle" style="margin:0;">${c.brand} ${c.model} · ${c.acquisitionSource||'Fahrzeugankauf'} · Einkauf ${money(c.purchasePrice||0)} · Prognose ${money((c.marketValue||0)-(c.purchasePrice||0))}</p>
+        <h2 class="section-title">${escapeHtml(IV.history_title)}</h2>
+        <p class="subtle" style="margin:0;">${escapeHtml(t('inventory.history_sub',{brand:c.brand, model:c.model, source:c.acquisitionSource||IV.vehicle_source_fallback, price:money(c.purchasePrice||0), forecast:money((c.marketValue||0)-(c.purchasePrice||0))}))}</p>
       </div>
       <div class="vehicle-history-body">
         <div class="vehicle-history-section">
           <div class="vehicle-history-title">
-            <span>Historie</span>
-            <span class="chip">${c.acquisitionHistory.length} Einträge</span>
+            <span>${escapeHtml(IV.history_label)}</span>
+            <span class="chip">${escapeHtml(t('inventory.history_entries',{n:c.acquisitionHistory.length}))}</span>
           </div>
           <div class="chat-messages vehicle-history-scroll">
             ${c.acquisitionHistory.map(m=>`<div class="bubble ${m.from==='player'?'player':'customer'}">${escapeHtml(formatStoredDayText(m.text))}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">${gameDateShort(m.day)}</div></div>`).join('')}
@@ -5130,7 +5298,7 @@ function showAcquisitionHistory(id){
         </div>
       </div>
       <div class="row-actions vehicle-history-actions">
-        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeModal()">Schließen</button>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeModal()">${escapeHtml(IV.close)}</button>
       </div>
     </div>
   `, 'vehicle-history-modal');
@@ -5148,18 +5316,18 @@ function isReservedForOther(car, offerId){
 function extendReservation(carId){
   const c = findCar(carId); if(!c || !c.reservedFor) return;
   c.reservedFor.expiresDay += 3;
-  notify(`Reservierung für ${c.brand} ${c.model} verlängert bis ${gameDateLong(c.reservedFor.expiresDay)}.`,'info');
+  notify(t('inventory.reservation_extended',{brand:c.brand, model:c.model, date:gameDateLong(c.reservedFor.expiresDay)}),'info');
   renderAllOpen(); scheduleSave();
 }
 function cancelReservation(carId){
   const c = findCar(carId); if(!c) return;
   c.reservedFor = null;
-  notify(`Reservierung für ${c.brand} ${c.model} aufgehoben.`,'info');
+  notify(t('inventory.reservation_cancelled',{brand:c.brand, model:c.model}),'info');
   renderAllOpen(); scheduleSave();
 }
 function reservationChip(c){
   if(!c.reservedFor || c.reservedFor.expiresDay<=state.day) return '';
-  return `<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">🔒 Reserviert bis ${gameDateShort(c.reservedFor.expiresDay)} (${c.reservedFor.customerName})</span>`;
+  return `<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">${escapeHtml(t('inventory.reserved_chip',{date:gameDateShort(c.reservedFor.expiresDay), name:c.reservedFor.customerName}))}</span>`;
 }
 function quickTrade(id){
   const c = findCar(id); if(!c) return;
@@ -5167,7 +5335,7 @@ function quickTrade(id){
   state.inventory = state.inventory.filter(x=>x.id!==id);
   delete state.listings[id];
   addTx('income','Schnellverkauf '+c.brand+' '+c.model, p);
-  notify(`Schnellverkauf: ${c.brand} ${c.model} für ${money(p)}.`,'good');
+  notify(t('inventory.quick_trade_notify',{brand:c.brand, model:c.model, price:money(p)}),'good');
   renderAllOpen(); scheduleSave();
 }
 
@@ -5223,29 +5391,30 @@ function openWorkshopModal(carId){
   const allJobs = issueJobs.concat(REPAIR_JOBS);
   const customerWishes = openCustomerWishConditionsForCar(c);
   const batch = customerWishBatchSummary(c, customerWishes);
+  const W = t('workshop');
   showModal(`
-    <h2 class="section-title">Werkstatt – ${c.brand} ${c.model}</h2>
-    <p class="subtle">Zustand aktuell: ${c.condition}/100 · Verschleiß ${c.wearProfile?.wearScore ?? '–'}/100 ${c.issues.length? '· offene Mängel: '+c.issues.filter(i=>!i.repaired).length:''}</p>
-    ${issueJobs.length?`<div class="notice warn" style="display:block;">Erkannte oder vorbeugend behebbare Mängel werden als konkrete Werkstattarbeiten angeboten.</div>`:''}
+    <h2 class="section-title">${escapeHtml(t('workshop.modal_title',{brand:c.brand, model:c.model}))}</h2>
+    <p class="subtle">${escapeHtml(t('workshop.condition_now',{condition:c.condition, wear:c.wearProfile?.wearScore ?? '–', issuesSuffix:c.issues.length?t('workshop.open_defects_suffix',{n:c.issues.filter(i=>!i.repaired).length}):''}))}</p>
+    ${issueJobs.length?`<div class="notice warn" style="display:block;">${escapeHtml(W.detected_notice)}</div>`:''}
     ${batch.items.length>1?`<div class="offer-card" style="border-color:rgba(231,192,111,.45);">
-      <div class="offer-head"><span>✅ <b>Alle Kundenwünsche erledigen</b></span><span class="persona">${batch.days} Tag(e)</span></div>
+      <div class="offer-head"><span><b>${escapeHtml(W.all_wishes_title)}</b></span><span class="persona">${escapeHtml(t('workshop.days_suffix',{n:batch.days}))}</span></div>
       <p class="subtle" style="margin:0 0 8px;">${batch.labels.map(escapeHtml).join(', ')}</p>
       <div class="spec-row" style="margin-bottom:10px;">
-        <span class="chip">Gesamtkosten ${money(batch.cost)}</span>
-        <span class="chip">+${batch.chanceGain}% Abschlusschance</span>
-        <span class="chip">+${batch.satisfactionGain} Zufriedenheit</span>
+        <span class="chip">${escapeHtml(t('workshop.total_cost',{cost:money(batch.cost)}))}</span>
+        <span class="chip">${escapeHtml(t('workshop.chance_gain',{n:batch.chanceGain}))}</span>
+        <span class="chip">${escapeHtml(t('workshop.satisfaction_gain',{n:batch.satisfactionGain}))}</span>
       </div>
-      <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="startAllCustomerWishRepairs('${carId}')" ${state.cash<batch.cost?'disabled':''}>Alle Kundenwünsche erledigen</button>
+      <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="startAllCustomerWishRepairs('${carId}')" ${state.cash<batch.cost?'disabled':''}>${escapeHtml(W.resolve_all_wishes_btn)}</button>
     </div>`:''}
     ${allJobs.map(j=>{
       const {cost, days} = workshopJobQuote(c, j);
       return `<div class="offer-card">
-        <div class="offer-head"><span>${j.icon} <b>${j.label}</b></span><span class="persona">${days} Tag(e)</span></div>
-        <p class="subtle" style="margin:0 0 10px;">${j.issueId?'Mangel gezielt beheben · ':''}+${j.cond} Zustand · ${money(cost)}</p>
-        <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="startRepair('${carId}','${j.id}')" ${state.cash<cost?'disabled':''}>Auftrag starten</button>
+        <div class="offer-head"><span>${j.icon} <b>${j.label}</b></span><span class="persona">${escapeHtml(t('workshop.days_suffix',{n:days}))}</span></div>
+        <p class="subtle" style="margin:0 0 10px;">${j.issueId?escapeHtml(W.defect_target_prefix):''}${escapeHtml(t('workshop.condition_gain',{cond:j.cond, cost:money(cost)}))}</p>
+        <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="startRepair('${carId}','${j.id}')" ${state.cash<cost?'disabled':''}>${escapeHtml(W.start_job_btn)}</button>
       </div>`;
     }).join('')}
-    <button class="btn btn-ghost" onclick="closeModal()" style="width:100%;justify-content:center;">Schließen</button>
+    <button class="btn btn-ghost" onclick="closeModal()" style="width:100%;justify-content:center;">${escapeHtml(W.close)}</button>
   `);
 }
 function startRepair(carId, jobId){
@@ -5260,7 +5429,7 @@ function startRepair(carId, jobId){
   c.costs[bucket] = Math.round((c.costs[bucket]||0) + cost);
   addTx('expense', job.label+' – '+c.brand+' '+c.model, -cost);
   state.workshopJobs.push({carId, jobId, issueId:job.issueId||null, baseJobId:job.baseId||job.id, daysLeft:days, condGain:job.cond, label:job.label});
-  notify(`Werkstattauftrag gestartet: ${job.label} für ${c.brand} ${c.model}.`,'info');
+  notify(t('workshop.job_started',{label:job.label, brand:c.brand, model:c.model}),'info');
   closeModal();
   renderAllOpen(); scheduleSave();
 }
@@ -5270,7 +5439,7 @@ function startAllCustomerWishRepairs(carId, offerId){
   const conditions = openCustomerWishConditionsForCar(c, offerId);
   const batch = customerWishBatchSummary(c, conditions);
   if(!batch.items.length) return;
-  if(state.cash<batch.cost){ notify('Nicht genug Kapital für alle Kundenwünsche.', 'warn'); return; }
+  if(state.cash<batch.cost){ notify(t('workshop.not_enough_for_wishes'), 'warn'); return; }
   c.costs = c.costs || {};
   c.costs.repair = Math.round((c.costs.repair||0) + batch.cost);
   addTx('expense', 'Alle Kundenwünsche – '+c.brand+' '+c.model, -batch.cost);
@@ -5288,8 +5457,8 @@ function startAllCustomerWishRepairs(carId, offerId){
     }
   });
   offerMessages.forEach(entry=>{
-    addMsg(entry.offer, 'player', `Wir erledigen die offenen Kundenwünsche gesammelt: ${entry.labels.join(', ')}. Der Verkauf pausiert bis zur Fertigstellung.`);
-    addMsg(entry.offer, 'customer', 'Danke, dann warte ich auf Ihre Rückmeldung nach der Werkstatt.');
+    addMsg(entry.offer, 'player', t('workshop.batch_message_player',{labels:entry.labels.join(', ')}));
+    addMsg(entry.offer, 'customer', t('workshop.batch_message_customer'));
   });
   state.workshopJobs.push({
     carId,
@@ -5302,24 +5471,26 @@ function startAllCustomerWishRepairs(carId, offerId){
     condGain:batch.condGain,
     label:'Alle Kundenwünsche erledigen'
   });
-  notify(`Sammelauftrag gestartet: ${batch.items.length} Kundenwünsche für ${c.brand} ${c.model}.`, 'info');
+  notify(t('workshop.batch_started',{n:batch.items.length, brand:c.brand, model:c.model}), 'info');
   closeModal();
   renderAllOpen(); scheduleSave();
 }
 function renderWorkshop(){
+  const W = t('workshop');
   if(state.workshopJobs.length===0){
-    return `<h2 class="section-title">Werkstatt</h2><div class="empty-state"><div class="ic">🔧</div>Keine aktiven Aufträge. Starten Sie Reparaturen über den Fahrzeugbestand.</div>`;
+    return `<h2 class="section-title">${escapeHtml(W.title)}</h2><div class="empty-state"><div class="ic">🔧</div>${escapeHtml(W.empty)}</div>`;
   }
   return `
-    <h2 class="section-title">Werkstatt</h2>
-    <p class="subtle">${state.workshopJobs.length} aktive Aufträge</p>
+    <h2 class="section-title">${escapeHtml(W.title)}</h2>
+    <p class="subtle">${escapeHtml(t('workshop.active_jobs',{n:state.workshopJobs.length}))}</p>
     ${state.workshopJobs.map(j=>{
       const c = findCar(j.carId);
       if(!c) return '';
       const job = REPAIR_JOBS.find(x=>x.id===(j.baseJobId||j.jobId)) || {icon:'🔧', baseDays:Math.max(1,j.daysLeft||1)};
       const pct = Math.round(100*(1-(j.daysLeft/Math.max(1,job.baseDays))));
+      const label = j.jobId==='customer-wishes' ? W.batch_label : j.label;
       return `<div class="offer-card">
-        <div class="offer-head"><span>${job.icon} <b>${c.brand} ${c.model}</b> — ${j.label}</span><span class="persona">${j.daysLeft} Tag(e) übrig</span></div>
+        <div class="offer-head"><span>${job.icon} <b>${c.brand} ${c.model}</b> — ${escapeHtml(label)}</span><span class="persona">${escapeHtml(t('workshop.days_left',{n:j.daysLeft}))}</span></div>
         <div class="progress"><div style="width:${clamp(pct,5,100)}%"></div></div>
       </div>`;
     }).join('')}
@@ -5420,8 +5591,14 @@ function maybeGenerateEcuRequest(workshopCompletionsToday){
   if(active >= 4) return;
   const shouldCreateIntro = !state.ecuIntroRequestCreated && active === 0;
   const serviceBase = Math.max(0, workshopCompletionsToday||0) * randFloat(.06,.11);
-  const emptyDeskBonus = active === 0 ? 0.075 : 0;
-  const chance = clamp(serviceBase + emptyDeskBonus + 0.028 + (state.reputation||50)/6500 + upgradeLevel('premium_presence')*.006, .045, .24);
+  const emptyDeskBonus = active === 0 ? 0.09 : 0;
+  // Kundendichte (offene Kaufangebote + Suchaufträge) macht das Performance Center Teil des
+  // laufenden Geschäfts: mehr Kundenverkehr -> etwas mehr ECU-Anfragen, ausgehendes Geschäft
+  // (bereits volle Warteschlange) drosselt die Chance wieder automatisch.
+  const density = clamp((state.offers||[]).length + activeSearchOrders().filter(o=>o.status==='open').length, 0, 10);
+  const densityBonus = density * 0.008;
+  const queuePenalty = active * 0.045;
+  const chance = clamp(0.16 + serviceBase + emptyDeskBonus + densityBonus - queuePenalty + (state.reputation||50)/5000 + upgradeLevel('premium_presence')*.008, .05, .25);
   if(!shouldCreateIntro && Math.random() > chance) return;
   const req = generateEcuRequest();
   state.ecuRequests.unshift(req);
@@ -5430,8 +5607,8 @@ function maybeGenerateEcuRequest(workshopCompletionsToday){
   const currentSelected = state.ecuRequests.find(x=>x.id===state.ecuSelectedRequestId && !['completed','declined','failed'].includes(x.status));
   if(!currentSelected) state.ecuSelectedRequestId = req.id;
   if(shouldCreateIntro) state.ecuIntroRequestCreated = true;
-  notify(`Neue ECU-Anfrage: ${req.customerName} möchte ${req.requestedLabel} für ${req.car.brand} ${req.car.model}.`, 'info');
-  showToast('EC', `<b>Neue ECU-Anfrage</b><br>${escapeHtml(req.customerName)} fragt eine ${escapeHtml(req.requestedLabel)} Optimierung an.`, 'Performance Center', ()=>navigateTo('ecu'));
+  notify(t('ecu.new_request_notify',{name:req.customerName, label:req.requestedLabel, brand:req.car.brand, model:req.car.model}), 'info');
+  showToast('EC', t('ecu.new_request_toast',{name:escapeHtml(req.customerName), label:escapeHtml(req.requestedLabel)}), t('ecu.open_center'), ()=>navigateTo('ecu'));
   renderSidebar();
   if(currentPage === 'ecu') renderPageContent();
   scheduleSave();
@@ -5455,8 +5632,8 @@ function selectedEcuRequest(active){
   }
   return selected;
 }
-function acceptEcuRequest(id){ const r = state.ecuRequests.find(x=>x.id===id); if(!r) return; state.ecuSelectedRequestId = id; r.status = 'accepted'; notify(`ECU-Anfrage angenommen: ${r.customerName} wartet auf die Eingangsanalyse.`, 'info'); renderPageContent(); scheduleSave(); }
-function declineEcuRequest(id){ const r = state.ecuRequests.find(x=>x.id===id); if(!r) return; r.status = 'declined'; r.closedDay = state.day; if(state.ecuSelectedRequestId===id) state.ecuSelectedRequestId = null; notify(`ECU-Anfrage von ${r.customerName} wurde abgelehnt.`, 'info'); renderSidebar(); renderPageContent(); scheduleSave(); }
+function acceptEcuRequest(id){ const r = state.ecuRequests.find(x=>x.id===id); if(!r) return; state.ecuSelectedRequestId = id; r.status = 'accepted'; notify(t('ecu.request_accepted',{name:r.customerName}), 'info'); renderPageContent(); scheduleSave(); }
+function declineEcuRequest(id){ const r = state.ecuRequests.find(x=>x.id===id); if(!r) return; r.status = 'declined'; r.closedDay = state.day; if(state.ecuSelectedRequestId===id) state.ecuSelectedRequestId = null; notify(t('ecu.request_declined',{name:r.customerName}), 'info'); renderSidebar(); renderPageContent(); scheduleSave(); }
 function ecuDragStart(ev, id){
   document.body.classList.add('ecu-dragging');
   if(ev.dataTransfer){
@@ -5475,7 +5652,7 @@ function ecuDropToLab(ev){
   const id = ev.dataTransfer ? ev.dataTransfer.getData('text/plain') : '';
   const r = state.ecuRequests.find(x=>x.id===id); if(!r || r.status!=='accepted') return;
   r.status = 'driving_in';
-  notify(`${r.car.brand} ${r.car.model} fährt ins Performance Center.`, 'info');
+  notify(t('ecu.driving_to_center',{brand:r.car.brand, model:r.car.model}), 'info');
   renderPageContent(); scheduleSave();
   setTimeout(()=>startEcuAnalysis(id), 1400);
 }
@@ -5506,12 +5683,12 @@ function finishEcuAnalysis(id){
   const primary = choices[0] || report.find(o=>o.id===r.tuneId) || report.find(o=>o.ok);
   r.options = report;
   r.customerChoices = choices.map(o=>o.id);
-  r.analysis = {ok:!!choices.length, reason:choices.length ? 'Kunde prüft die empfohlenen Optionen.' : (compat.reason || 'Keine passende Optimierung gefunden.'), fuel:normalizeFuelForEcu(r.car.engine), engineCode:r.engineCode, risk:def ? Math.round(def.risk*1000)/10 : 0, duration:def ? randInt(def.hours[0], def.hours[1]) : 0};
+  r.analysis = {ok:!!choices.length, reason:choices.length ? t('ecu.analysis_reason_reviewing') : (compat.reason || t('ecu.analysis_reason_none')), fuel:normalizeFuelForEcu(r.car.engine), engineCode:r.engineCode, risk:def ? Math.round(def.risk*1000)/10 : 0, duration:def ? randInt(def.hours[0], def.hours[1]) : 0};
   r.dyno = primary && primary.dyno ? primary.dyno : (def ? ecuDynoFor(r.car, def) : null);
   r.quote = choices.reduce((s,o)=>s+(o.price||0),0);
   r.decision = choices.length ? 'thinking' : 'declined';
   r.status = 'customer_review';
-  notify(`ECU-Analyse abgeschlossen: ${r.car.brand} ${r.car.model}.`, compat.ok ? 'good' : 'warn');
+  notify(t('ecu.analysis_complete_notify',{brand:r.car.brand, model:r.car.model}), compat.ok ? 'good' : 'warn');
   renderPageContent(); scheduleSave();
   setTimeout(()=>finishEcuCustomerDecision(id), randInt(1700,2800));
 }
@@ -5520,14 +5697,14 @@ function finishEcuCustomerDecision(id){
   if(r.customerChoices && r.customerChoices.length){
     r.decision = 'accepted';
     r.status = 'ready';
-    const labels = r.customerChoices.map(t=>ecuTuneDef(t)?.short || t).join(', ');
-    r.customerDecisionText = `Der Kunde hat das Analyseergebnis akzeptiert und möchte ${labels} durchführen lassen.`;
-    notify(`Kundenfreigabe erhalten: ${labels} für ${r.car.brand} ${r.car.model}.`, 'good');
+    const labels = r.customerChoices.map(tid=>ecuTuneDef(tid)?.short || tid).join(', ');
+    r.customerDecisionText = t('ecu.decision_accepted',{labels});
+    notify(t('ecu.customer_approved_notify',{labels, brand:r.car.brand, model:r.car.model}), 'good');
   } else {
     r.decision = 'declined';
     r.status = 'analyzed';
-    r.customerDecisionText = 'Der Kunde möchte nach der Analyse vorerst keine Softwareoptimierung durchführen.';
-    notify(`ECU-Kunde hat nach der Analyse keinen Auftrag freigegeben.`, 'info');
+    r.customerDecisionText = t('ecu.decision_declined_text');
+    notify(t('ecu.customer_no_approval_notify'), 'info');
   }
   renderPageContent(); scheduleSave();
 }
@@ -5536,8 +5713,8 @@ function informEcuCustomer(id){
   r.status = 'declined';
   r.closedDay = state.day;
   if(state.ecuSelectedRequestId===id) state.ecuSelectedRequestId = null;
-  r.customerDecisionText = 'Der Kunde wurde über das Analyseergebnis informiert. Der Auftrag wurde ohne Durchführung abgeschlossen.';
-  notify(`${r.customerName} wurde über das ECU-Analyseergebnis für ${r.car.brand} ${r.car.model} informiert.`, 'info');
+  r.customerDecisionText = t('ecu.informed_decision_text');
+  notify(t('ecu.customer_informed',{name:r.customerName, brand:r.car.brand, model:r.car.model}), 'info');
   renderSidebar(); renderPageContent(); scheduleSave();
 }
 function approveEcuCustomerDecision(id){ const r = state.ecuRequests.find(x=>x.id===id); if(!r || !r.analysis?.ok) return; r.decision = 'accepted'; r.status = 'ready'; renderPageContent(); scheduleSave(); }
@@ -5547,25 +5724,25 @@ function finishEcuProgramming(id){
   const tuneIds = (r.customerChoices && r.customerChoices.length ? r.customerChoices : [r.tuneId]).filter(Boolean);
   const defs = tuneIds.map(ecuTuneDef).filter(Boolean);
   const def = defs[0] || ecuTuneDef(r.tuneId);
-  const label = defs.map(d=>d.short).join(', ') || (def ? def.short : 'ECU-Tuning');
+  const label = defs.map(d=>d.short).join(', ') || (def ? def.short : t('ecu.fallback_tuning'));
   const totalRisk = clamp(defs.reduce((s,d)=>s+(d.risk||0),0), .01, .16);
   const failed = Math.random() < totalRisk;
   const hist = ecuHistoryForVehicle(r.car);
   if(failed){
     r.status = 'failed'; r.closedDay = state.day; state.ecuStats.failed = (state.ecuStats.failed||0)+1; state.reputation = clamp((state.reputation||50)-2, 0, 100);
-    publishReview({id:uid('rev'), day:state.day, customerName:r.customerName, car:`${r.car.brand} ${r.car.model}`, method:'ECU-Tuning', stars:2, recommend:false, complaint:true, categories:{Kommunikation:3, Service:2, Transparenz:3, Ergebnis:1}, text:`Die Analyse war nachvollziehbar, aber die Programmierung für ${label} konnte nicht sauber abgeschlossen werden.`, reply:''});
-    notify(`ECU-Programmierung fehlgeschlagen: ${r.car.brand} ${r.car.model}.`, 'warn');
+    publishReview({id:uid('rev'), day:state.day, customerName:r.customerName, car:`${r.car.brand} ${r.car.model}`, method:'ECU-Tuning', stars:2, recommend:false, complaint:true, categories:{Kommunikation:3, Service:2, Transparenz:3, Ergebnis:1}, text:t('ecu.review_failed_text',{label}), reply:''});
+    notify(t('ecu.programming_failed_notify',{brand:r.car.brand, model:r.car.model}), 'warn');
   } else {
     r.status = 'rolling_out'; r.closedDay = state.day;
     hist.installed = Array.from(new Set([...(hist.installed||[]), ...tuneIds]));
     hist.entries.unshift({day:state.day, tuneId:tuneIds.join('+'), label, power:r.dyno?.afterPower, torque:r.dyno?.afterTorque, price:r.quote});
     addTx('income', `ECU-Tuning: ${label} für ${r.car.brand} ${r.car.model}`, r.quote||0);
     state.ecuStats.completed = (state.ecuStats.completed||0)+1; state.ecuStats.revenue = (state.ecuStats.revenue||0) + (r.quote||0);
-    tuneIds.forEach(t=>{ state.ecuStats.byTune[t] = (state.ecuStats.byTune[t]||0)+1; });
+    tuneIds.forEach(tid=>{ state.ecuStats.byTune[tid] = (state.ecuStats.byTune[tid]||0)+1; });
     state.ecuHistory.unshift({id:uid('ecuh'), day:state.day, customerName:r.customerName, car:`${r.car.brand} ${r.car.model}`, tuneId:tuneIds.join('+'), label, price:r.quote||0, beforePower:r.dyno?.beforePower, afterPower:r.dyno?.afterPower});
     state.ecuHistory = state.ecuHistory.slice(0,80); state.reputation = clamp((state.reputation||50)+2, 0, 100);
-    publishReview({id:uid('rev'), day:state.day, customerName:r.customerName, car:`${r.car.brand} ${r.car.model}`, method:'ECU-Tuning', stars:5, recommend:true, complaint:false, categories:{Kommunikation:5, Service:5, Transparenz:5, Ergebnis:5}, text:`Die Optimierung ${label} wurde sauber erklärt, professionell programmiert und der Prüfstand zeigt den Unterschied deutlich.`, reply:''});
-    notify(`ECU-Tuning abgeschlossen: ${label} für ${r.car.brand} ${r.car.model}.`, 'good');
+    publishReview({id:uid('rev'), day:state.day, customerName:r.customerName, car:`${r.car.brand} ${r.car.model}`, method:'ECU-Tuning', stars:5, recommend:true, complaint:false, categories:{Kommunikation:5, Service:5, Transparenz:5, Ergebnis:5}, text:t('ecu.review_success_text',{label}), reply:''});
+    notify(t('ecu.programming_done_notify',{label, brand:r.car.brand, model:r.car.model}), 'good');
     setTimeout(()=>{
       const done = state.ecuRequests.find(x=>x.id===id);
       if(done && done.status==='rolling_out'){ done.status='completed'; renderSidebar(); renderPageContent(); scheduleSave(); }
@@ -5577,21 +5754,25 @@ function renderEcuVehicleDragCard(r){
   const c = r.car;
   const plate = c.plate || `${c.brand.slice(0,2).toUpperCase()}-${String(Math.abs(stableHash(c.id||r.id))).slice(0,2)} ${randInt(100,999)}`;
   c.plate = plate;
+  const E = t('ecu');
   return `<div class="ecu-vehicle-card" draggable="true" ondragstart="ecuDragStart(event,'${r.id}')" ondragend="document.body.classList.remove('ecu-dragging')">
-    <div class="ecu-drag-hint">Fahrzeug greifen und rechts ins Performance Center ziehen</div>
+    <div class="ecu-drag-hint">${escapeHtml(E.drag_hint)}</div>
     <div class="ecu-vehicle-photo">${renderCarPhoto(c)}</div>
     <div class="ecu-vehicle-info">
-      <div><span>Fahrzeug</span><b>${escapeHtml(c.brand)} ${escapeHtml(c.model)}</b></div>
-      <div><span>Baujahr</span><b>${c.year}</b></div>
-      <div><span>Motor</span><b>${escapeHtml(c.engine)}</b></div>
-      <div><span>Leistung</span><b>${c.power} PS</b></div>
-      <div><span>Kennzeichen</span><b>${escapeHtml(plate)}</b></div>
-      <div><span>Kunde</span><b>${escapeHtml(r.customerName)}</b></div>
+      <div><span>${escapeHtml(E.label_vehicle)}</span><b>${escapeHtml(c.brand)} ${escapeHtml(c.model)}</b></div>
+      <div><span>${escapeHtml(E.label_year)}</span><b>${c.year}</b></div>
+      <div><span>${escapeHtml(E.label_engine)}</span><b>${escapeHtml(c.engine)}</b></div>
+      <div><span>${escapeHtml(E.label_power)}</span><b>${c.power} PS</b></div>
+      <div><span>${escapeHtml(E.label_plate)}</span><b>${escapeHtml(plate)}</b></div>
+      <div><span>${escapeHtml(E.label_customer)}</span><b>${escapeHtml(r.customerName)}</b></div>
     </div>
   </div>`;
 }
 
-function ecuStatusLabel(status){ return {new:'Neue Anfrage', accepted:'Fahrzeug bereit', driving_in:'Fährt ein', in_lab:'Im Performance Center', scanning:'Analyse läuft', customer_review:'Kunde prüft Ergebnis', analyzed:'Analyse fertig', ready:'Freigabe erhalten', programming:'Programmierung', rolling_out:'Fahrzeug fertig', completed:'Abgeschlossen', declined:'Abgelehnt', failed:'Fehlgeschlagen'}[status] || status; }
+function ecuStatusLabel(status){
+  const E = t('ecu');
+  return {new:E.status_new, accepted:E.status_accepted, driving_in:E.status_driving_in, in_lab:E.status_in_lab, scanning:E.status_scanning, customer_review:E.status_customer_review, analyzed:E.status_analyzed, ready:E.status_ready, programming:E.status_programming, rolling_out:E.status_rolling_out, completed:E.status_completed, declined:E.status_declined, failed:E.status_failed}[status] || status;
+}
 let ecuTipEl = null;
 function ecuTipShow(ev, el){
   const text = el.getAttribute('data-ecutip');
@@ -5625,49 +5806,52 @@ function ecuTipShow(ev, el){
 function ecuTipHide(){ if(ecuTipEl) ecuTipEl.classList.remove('show'); }
 function renderEcuOptionResults(r){
   if(!r.options) return '';
+  const E = t('ecu');
   const selected = new Set(r.customerChoices || []);
   const okCount = r.options.filter(o=>o.ok).length;
   const rows = r.options.map(o=>{
-    const stateText = o.ok ? (selected.has(o.id) ? 'Vom Kunden freigegeben.' : 'Technisch möglich.') : 'Nicht möglich.';
-    const detail = o.ok ? (o.dyno ? `Erwartet: ${o.dyno.beforePower} PS auf ${o.dyno.afterPower} PS (+${o.dyno.powerGainPct}%), Preis ${money(o.price)}.` : `Preis ${money(o.price)}.`) : (o.reason || 'Für dieses Fahrzeug nicht umsetzbar.');
-    const short = o.ok ? (selected.has(o.id) ? `Freigegeben · ${money(o.price)}` : money(o.price)) : (o.reason || 'Nicht möglich');
+    const stateText = o.ok ? (selected.has(o.id) ? E.opt_state_approved : E.opt_state_possible) : E.opt_state_blocked;
+    const detail = o.ok ? (o.dyno ? t('ecu.opt_detail_expected',{before:o.dyno.beforePower, after:o.dyno.afterPower, pct:o.dyno.powerGainPct, price:money(o.price)}) : t('ecu.opt_detail_price',{price:money(o.price)})) : (o.reason || E.opt_detail_unavailable);
+    const short = o.ok ? (selected.has(o.id) ? t('ecu.opt_short_approved',{price:money(o.price)}) : money(o.price)) : (o.reason || E.opt_short_blocked);
     return `<div class="ecu-option ${o.ok?'ok':'blocked'} ${selected.has(o.id)?'selected':''}" data-ecutip-title="${escapeHtml(o.fullLabel||o.label)}" data-ecutip="${escapeHtml(`${stateText} ${detail}`)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><i>${o.ok?'✓':'×'}</i><b>${escapeHtml(o.fullLabel||o.label)}</b><span>${escapeHtml(short)}</span></div>`;
   }).join('');
-  return `<div class="ecu-options"><div class="dash-panel-head"><b>Analyseergebnis</b><span>${okCount} von ${r.options.length} möglich</span></div><div class="ecu-option-list">${rows}</div></div>`;
+  return `<div class="ecu-options"><div class="dash-panel-head"><b>${escapeHtml(E.analysis_option_title)}</b><span>${escapeHtml(t('ecu.options_possible',{ok:okCount, total:r.options.length}))}</span></div><div class="ecu-option-list">${rows}</div></div>`;
 }
 function renderEcuDyno(r){
   const d = r.dyno;
-  if(!d) return '<div class="notice">Nach der Analyse erscheint hier der virtuelle Prüfstand.</div>';
-  return `<div class="ecu-dyno"><svg viewBox="0 0 420 170" aria-label="Virtueller Prüfstand"><path class="grid" d="M30 135H395M30 95H395M30 55H395M55 20V145M150 20V145M245 20V145M340 20V145"></path><path class="curve before" d="M35 132 C95 122, 130 98, 188 82 S298 50, 390 42"></path><path class="curve after" d="M35 130 C90 112, 138 84, 195 62 S302 29, 390 22"></path></svg><div class="ecu-dyno-stats"><span>Vorher <b>${d.beforePower} PS / ${d.beforeTorque} Nm</b></span><span>Nachher <b>${d.afterPower} PS / ${d.afterTorque} Nm</b></span><span>Gewinn <b>+${d.powerGainPct}% PS / +${d.torqueGainPct}% Nm</b></span></div></div>`;
+  const E = t('ecu');
+  if(!d) return `<div class="notice">${escapeHtml(E.dyno_placeholder)}</div>`;
+  return `<div class="ecu-dyno"><svg viewBox="0 0 420 170" aria-label="${escapeAttr(E.dyno_fold_label)}"><path class="grid" d="M30 135H395M30 95H395M30 55H395M55 20V145M150 20V145M245 20V145M340 20V145"></path><path class="curve before" d="M35 132 C95 122, 130 98, 188 82 S298 50, 390 42"></path><path class="curve after" d="M35 130 C90 112, 138 84, 195 62 S302 29, 390 22"></path></svg><div class="ecu-dyno-stats"><span>${escapeHtml(E.dyno_before)} <b>${d.beforePower} PS / ${d.beforeTorque} Nm</b></span><span>${escapeHtml(E.dyno_after)} <b>${d.afterPower} PS / ${d.afterTorque} Nm</b></span><span>${escapeHtml(E.dyno_gain)} <b>+${d.powerGainPct}% PS / +${d.torqueGainPct}% Nm</b></span></div></div>`;
 }
 function renderEcuLabDetails(r){
   const def = ecuTuneDef(r.tuneId) || {};
-  if(r.status==='driving_in') return `<div class="ecu-drive-note"><div class="ecu-mini-car"></div><b>Fahrzeug fährt ins Performance Center...</b></div>`;
-  if(r.status==='in_lab') return `<div class="row-actions"><button class="btn btn-primary" onclick="startEcuAnalysis('${r.id}')">Fahrzeug analysieren</button></div>`;
-  if(r.status==='scanning') return `<div class="ecu-scan"><div class="ecu-scan-ring"></div><div><b>Steuergerät wird ausgelesen</b><small><span>Motorsteuergerät wird gelesen...</span><span>CAN-Bus wird analysiert...</span><span>Kompatibilität wird geprüft...</span><span>Leistungsreserven werden berechnet...</span></small></div></div><div class="progress ecu-progress"><div></div></div>`;
+  const E = t('ecu');
+  if(r.status==='driving_in') return `<div class="ecu-drive-note"><div class="ecu-mini-car"></div><b>${escapeHtml(E.driving_in_note)}</b></div>`;
+  if(r.status==='in_lab') return `<div class="row-actions"><button class="btn btn-primary" onclick="startEcuAnalysis('${r.id}')">${escapeHtml(E.analyze_btn)}</button></div>`;
+  if(r.status==='scanning') return `<div class="ecu-scan"><div class="ecu-scan-ring"></div><div><b>${escapeHtml(E.scanning_title)}</b><small><span>${escapeHtml(E.scanning_step1)}</span><span>${escapeHtml(E.scanning_step2)}</span><span>${escapeHtml(E.scanning_step3)}</span><span>${escapeHtml(E.scanning_step4)}</span></small></div></div><div class="progress ecu-progress"><div></div></div>`;
   const analysis = r.analysis; if(!analysis) return '';
-  const wishLabel = (r.customerChoices||[]).map(t=>ecuTuneDef(t)?.short || t).join(', ') || def.short || 'Offen';
+  const wishLabel = (r.customerChoices||[]).map(tid=>ecuTuneDef(tid)?.short || tid).join(', ') || def.short || E.wish_open;
   const customerDeclined = !analysis.ok && r.decision==='declined' && (r.options||[]).some(o=>o.ok);
-  const verdictTitle = analysis.ok ? 'Optimierung möglich' : (customerDeclined ? 'Kunde hat abgelehnt' : 'Keine Optimierung möglich');
+  const verdictTitle = analysis.ok ? E.verdict_ok : (customerDeclined ? E.verdict_declined : E.verdict_blocked);
   const d = analysis.ok ? r.dyno : null;
-  const dynoFold = d ? `<details class="ecu-dyno-fold"><summary><span>Virtueller Prüfstand</span><b>${d.beforePower} → ${d.afterPower} PS (+${d.powerGainPct}%)</b></summary>${renderEcuDyno(r)}</details>` : '';
+  const dynoFold = d ? `<details class="ecu-dyno-fold"><summary><span>${escapeHtml(E.dyno_fold_label)}</span><b>${d.beforePower} → ${d.afterPower} PS (+${d.powerGainPct}%)</b></summary>${renderEcuDyno(r)}</details>` : '';
   const foot = [
-    r.status==='customer_review' ? `<div class="ecu-scan"><div class="ecu-scan-ring"></div><div><b>Kunde prüft das Analyseergebnis</b><small>Die möglichen Optionen wurden gesendet. Die Freigabe erscheint automatisch.</small></div></div>` : '',
-    r.status==='analyzed' ? `<div class="row-actions"><button class="btn btn-primary" onclick="informEcuCustomer('${r.id}')">Kunde informieren</button></div>` : '',
-    r.status==='ready' ? `<div class="row-actions"><button class="btn btn-primary" onclick="startEcuProgramming('${r.id}')">Kundenwunsch durchführen</button></div>` : '',
-    r.status==='programming' ? `<div class="ecu-scan"><div class="ecu-scan-ring hot"></div><div><b>Programmierung läuft</b><small>Backup erstellt, Kennfelder geschrieben, Plausibilitätscheck aktiv.</small></div></div><div class="progress ecu-progress"><div></div></div>` : '',
-    r.status==='rolling_out' ? `<div class="ecu-drive-note out"><div class="ecu-mini-car"></div><b>Fahrzeug fährt aus dem Performance Center...</b></div>` : '',
-    r.status==='completed' ? `<div class="notice">Auftrag abgeschlossen. Rechnung verbucht und Fahrzeughistorie aktualisiert.</div>` : '',
-    r.status==='failed' ? `<div class="notice warn">Programmierung wurde abgebrochen. Der Kunde wurde informiert und die Bewertung wurde verarbeitet.</div>` : ''
+    r.status==='customer_review' ? `<div class="ecu-scan"><div class="ecu-scan-ring"></div><div><b>${escapeHtml(E.customer_reviewing_title)}</b><small>${escapeHtml(E.customer_reviewing_sub)}</small></div></div>` : '',
+    r.status==='analyzed' ? `<div class="row-actions"><button class="btn btn-primary" onclick="informEcuCustomer('${r.id}')">${escapeHtml(E.inform_customer_btn)}</button></div>` : '',
+    r.status==='ready' ? `<div class="row-actions"><button class="btn btn-primary" onclick="startEcuProgramming('${r.id}')">${escapeHtml(E.perform_wish_btn)}</button></div>` : '',
+    r.status==='programming' ? `<div class="ecu-scan"><div class="ecu-scan-ring hot"></div><div><b>${escapeHtml(E.programming_title)}</b><small>${escapeHtml(E.programming_sub)}</small></div></div><div class="progress ecu-progress"><div></div></div>` : '',
+    r.status==='rolling_out' ? `<div class="ecu-drive-note out"><div class="ecu-mini-car"></div><b>${escapeHtml(E.driving_out_note)}</b></div>` : '',
+    r.status==='completed' ? `<div class="notice">${escapeHtml(E.job_completed_note)}</div>` : '',
+    r.status==='failed' ? `<div class="notice warn">${escapeHtml(E.job_failed_note)}</div>` : ''
   ].join('');
   return `<div class="ecu-report">
     <div class="ecu-verdict ${analysis.ok?'ok':'blocked'}"><b>${verdictTitle}</b><span>${escapeHtml(r.customerDecisionText || analysis.reason)}</span></div>
     <div class="ecu-fact-row">
-      <div><span>Steuergerät</span><b>${escapeHtml(analysis.engineCode)}</b></div>
-      <div><span>Dauer</span><b>${analysis.duration} Std.</b></div>
-      <div><span>Preis</span><b>${money(r.quote||0)}</b></div>
-      <div><span>Risiko</span><b>${analysis.risk.toFixed(1).replace('.',',')}%</b></div>
-      <div data-ecutip-title="Kundenwunsch von ${escapeHtml(r.customerName)}" data-ecutip="${escapeHtml(r.message || wishLabel)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><span>Kundenwunsch</span><b>${escapeHtml(wishLabel)}</b></div>
+      <div><span>${escapeHtml(E.ecu_label)}</span><b>${escapeHtml(analysis.engineCode)}</b></div>
+      <div><span>${escapeHtml(E.duration_label)}</span><b>${escapeHtml(t('ecu.hours_suffix',{n:analysis.duration}))}</b></div>
+      <div><span>${escapeHtml(E.price_label)}</span><b>${money(r.quote||0)}</b></div>
+      <div><span>${escapeHtml(E.risk_label)}</span><b>${analysis.risk.toFixed(1).replace('.',currentLanguage()==='de'?',':'.')}%</b></div>
+      <div data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${escapeHtml(r.message || wishLabel)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><span>${escapeHtml(E.wish_label)}</span><b>${escapeHtml(wishLabel)}</b></div>
     </div>
     ${renderEcuOptionResults(r)}
     ${dynoFold}
@@ -5682,24 +5866,26 @@ function renderEcuCenterVehicle(r){
   </div>`;
 }
 function renderEcuCenterDiagnostics(r){
-  if(!r) return `<div class="ecu-monitor"><b>Diagnosemonitor</b><span>Bereit</span><small>Warte auf Fahrzeug.</small></div>`;
+  const E = t('ecu');
+  if(!r) return `<div class="ecu-monitor"><b>${escapeHtml(E.diagnostics_title)}</b><span>${escapeHtml(E.diag_ready)}</span><small>${escapeHtml(E.diag_waiting)}</small></div>`;
   const temp = 72 + (r.status==='programming'?randInt(3,9):0);
-  const bus = r.status==='scanning' ? 'Scan aktiv' : (r.analysis ? 'Synchron' : 'Standby');
-  return `<div class="ecu-monitor"><b>Diagnosemonitor</b><span>${ecuStatusLabel(r.status)}</span><small>ECU: ${escapeHtml(r.engineCode || 'unbekannt')} · CAN-Bus: ${bus} · Öltemp.: ${temp}°C</small></div>`;
+  const bus = r.status==='scanning' ? E.diag_scan_active : (r.analysis ? E.diag_synced : E.diag_standby);
+  return `<div class="ecu-monitor"><b>${escapeHtml(E.diagnostics_title)}</b><span>${ecuStatusLabel(r.status)}</span><small>${escapeHtml(t('ecu.diag_line',{code:r.engineCode || E.ecu_unknown, bus, temp}))}</small></div>`;
 }
 
 function renderEcuRequestCard(r, isSelected=false){
   const def = ecuTuneDef(r.tuneId) || {};
+  const E = t('ecu');
   const active = !['completed','declined','failed'].includes(r.status);
   const canDrag = r.status==='accepted' && isSelected;
-  const tipAttrs = r.message ? `data-ecutip-title="Kundenwunsch von ${escapeHtml(r.customerName)}" data-ecutip="${escapeHtml(r.message)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"` : '';
+  const tipAttrs = r.message ? `data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${escapeHtml(r.message)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"` : '';
   return `<div class="ecu-request ${active?'active':''} ${isSelected?'selected':''}" onclick="selectEcuRequest('${r.id}')" ${isSelected?'':tipAttrs}>
     <div class="offer-head"><span><b>${escapeHtml(r.customerName)}</b> - ${escapeHtml(def.short||r.requestedLabel)}</span><span class="persona">${ecuStatusLabel(r.status)}</span></div>
     <div class="ecu-compact-status"><b>${escapeHtml(r.car.brand)} ${escapeHtml(r.car.model)}</b><span>${escapeHtml(r.car.engine)} · ${r.car.power} PS · ${escapeHtml(r.car.year||'')}</span></div>
-    ${isSelected && r.message ? `<div class="ecu-wish" ${tipAttrs}><i>Wunsch</i><span>${escapeHtml(r.message)}</span></div>` : ''}
-    ${r.status==='new'?`<div class="row-actions"><button class="btn btn-primary" onclick="event.stopPropagation();acceptEcuRequest('${r.id}')">Annehmen</button><button class="btn btn-ghost" onclick="event.stopPropagation();declineEcuRequest('${r.id}')">Ablehnen</button></div>`:''}
+    ${isSelected && r.message ? `<div class="ecu-wish" ${tipAttrs}><i>${escapeHtml(E.wish_label)}</i><span>${escapeHtml(r.message)}</span></div>` : ''}
+    ${r.status==='new'?`<div class="row-actions"><button class="btn btn-primary" onclick="event.stopPropagation();acceptEcuRequest('${r.id}')">${escapeHtml(E.accept)}</button><button class="btn btn-ghost" onclick="event.stopPropagation();declineEcuRequest('${r.id}')">${escapeHtml(E.decline)}</button></div>`:''}
     ${canDrag?`<div onclick="event.stopPropagation()">${renderEcuVehicleDragCard(r)}</div>`:''}
-    ${r.status==='accepted' && !isSelected?`<div class="ecu-step-note compact"><b>Bereit</b><span>Auswählen, dann Fahrzeug ziehen.</span></div>`:''}
+    ${r.status==='accepted' && !isSelected?`<div class="ecu-step-note compact"><b>${escapeHtml(E.ready_note_title)}</b><span>${escapeHtml(E.ready_note_sub)}</span></div>`:''}
   </div>`;
 }
 function renderEcuTuning(){
@@ -5711,12 +5897,13 @@ function renderEcuTuning(){
   const active = activeEcuRequests();
   const selected = selectedEcuRequest(active);
   const stats = state.ecuStats || {};
+  const E = t('ecu');
   const centerJob = selected && !['new','accepted'].includes(selected.status) ? selected : null;
-  const centerTitle = centerJob ? `${centerJob.car.brand} ${centerJob.car.model} - ${ecuStatusLabel(centerJob.status)}` : (selected ? `${selected.car.brand} ${selected.car.model} bereit` : 'Bereit für die nächste Analyse');
-  return `<div class="ecu-page"><div class="ecu-page-head"><div><h2 class="section-title">ECU-Tuning</h2><p class="subtle">Kompaktes Performance Center für Softwareoptimierung, Analyse und Kundenfreigabe.</p></div><div class="ecu-kpis"><div><span>Offen</span><b>${active.length}</b></div><div><span>Fertig</span><b>${stats.completed||0}</b></div><div><span>Umsatz</span><b>${money(stats.revenue||0)}</b></div></div></div><div class="ecu-layout"><section class="ecu-requests-panel"><div class="dash-panel-head"><b>Kundenanfragen</b><span>${active.length} aktiv</span></div><div class="ecu-request-list">${active.length ? active.map(r=>renderEcuRequestCard(r, selected && r.id===selected.id)).join('') : `<div class="empty-state compact"><div class="ic">EC</div>Keine offenen ECU-Anfragen.</div>`}</div></section><aside class="ecu-center-panel"><div class="ecu-center">
+  const centerTitle = centerJob ? `${centerJob.car.brand} ${centerJob.car.model} - ${ecuStatusLabel(centerJob.status)}` : (selected ? t('ecu.center_vehicle_ready',{brand:selected.car.brand, model:selected.car.model}) : E.center_ready);
+  return `<div class="ecu-page"><div class="ecu-page-head"><div><h2 class="section-title">${escapeHtml(E.page_title)}</h2><p class="subtle">${escapeHtml(E.page_sub)}</p></div><div class="ecu-kpis"><div><span>${escapeHtml(E.kpi_open)}</span><b>${active.length}</b></div><div><span>${escapeHtml(E.kpi_done)}</span><b>${stats.completed||0}</b></div><div><span>${escapeHtml(E.kpi_revenue)}</span><b>${money(stats.revenue||0)}</b></div></div></div><div class="ecu-layout"><section class="ecu-requests-panel"><div class="dash-panel-head"><b>${escapeHtml(E.requests_title)}</b><span>${escapeHtml(t('ecu.requests_active',{n:active.length}))}</span></div><div class="ecu-request-list">${active.length ? active.map(r=>renderEcuRequestCard(r, selected && r.id===selected.id)).join('') : `<div class="empty-state compact"><div class="ic">EC</div>${escapeHtml(E.no_open_requests)}</div>`}</div></section><aside class="ecu-center-panel"><div class="ecu-center">
     <div class="ecu-center-head">
       <div class="ecu-center-lights"><span></span><span></span><span></span></div>
-      <div class="ecu-center-title"><b>Performance Center</b><small>${escapeHtml(centerTitle)}</small></div>
+      <div class="ecu-center-title"><b>${escapeHtml(E.center_title)}</b><small>${escapeHtml(centerTitle)}</small></div>
     </div>
     <div class="ecu-center-body">
       <div class="ecu-center-stage">
@@ -5724,11 +5911,11 @@ function renderEcuTuning(){
           <div class="ecu-lift"></div>
           <div class="ecu-rollers"></div>
           ${renderEcuCenterVehicle(centerJob)}
-          ${centerJob ? '' : `<div class="ecu-drop" ondragenter="ecuDropZoneActive(event,true)" ondragover="ecuDropZoneActive(event,true)" ondragleave="ecuDropZoneActive(event,false)" ondrop="ecuDropToLab(event)"><b>Fahrzeug hier zur Analyse ablegen</b><span>${selected && selected.status==='accepted' ? 'Die ausgewählte Fahrzeugkarte links hier ablegen.' : 'Links eine Anfrage annehmen, dann das Fahrzeug hier ablegen.'}</span></div>`}
+          ${centerJob ? '' : `<div class="ecu-drop" ondragenter="ecuDropZoneActive(event,true)" ondragover="ecuDropZoneActive(event,true)" ondragleave="ecuDropZoneActive(event,false)" ondrop="ecuDropToLab(event)"><b>${escapeHtml(E.drop_hint_title)}</b><span>${selected && selected.status==='accepted' ? escapeHtml(E.drop_hint_ready) : escapeHtml(E.drop_hint_pick)}</span></div>`}
         </div>
-        <div class="ecu-center-grid">${renderEcuCenterDiagnostics(centerJob)}<div class="ecu-monitor"><b>Nächster Schritt</b><span>${centerJob ? ecuStatusLabel(centerJob.status) : (selected ? ecuStatusLabel(selected.status) : 'Anfrage wählen')}</span><small>${centerJob ? 'Analyse, Entscheidung und Programmierung laufen hier im Center.' : (selected && selected.status==='accepted' ? 'Fahrzeugkarte links greifen und in die Drop-Zone ziehen.' : 'Aktiven Auftrag links auswählen oder annehmen.')}</small></div></div>
+        <div class="ecu-center-grid">${renderEcuCenterDiagnostics(centerJob)}<div class="ecu-monitor"><b>${escapeHtml(E.next_step)}</b><span>${centerJob ? ecuStatusLabel(centerJob.status) : (selected ? ecuStatusLabel(selected.status) : escapeHtml(E.choose_request))}</span><small>${centerJob ? escapeHtml(E.workflow_analysis) : (selected && selected.status==='accepted' ? escapeHtml(E.workflow_drag) : escapeHtml(E.workflow_select))}</small></div></div>
       </div>
-      <div class="ecu-center-workflow">${centerJob ? renderEcuLabDetails(centerJob) : `<div class="notice">Bitte eine ECU-Anfrage auswählen, annehmen und das Fahrzeug in das Performance Center ziehen.</div>`}</div>
+      <div class="ecu-center-workflow">${centerJob ? renderEcuLabDetails(centerJob) : `<div class="notice">${escapeHtml(E.workflow_prompt)}</div>`}</div>
     </div>
   </div></aside></div></div>`;
 }
@@ -5744,66 +5931,67 @@ function openListModal(carId){
   const init = listingPriceStats(c, sug);
   const markupOptions = Array.from({length:20},(_,i)=>(i+1)*5);
   const paymentMethods = listingAllowedPaymentMethods(existing);
+  const IV = t('inventory');
   showModal(`
     <div class="listing-modal-shell">
       <div class="listing-modal-head">
-        <h2 class="section-title">${existing?'Inserat bearbeiten':'Inserat erstellen'}</h2>
-        <p class="subtle" style="margin:0;">${c.brand} ${c.model} · Marktwert ~${money(c.marketValue)} · Kostenbasis ${money(costs.total)}</p>
+        <h2 class="section-title">${existing?escapeHtml(IV.listing_edit_title):escapeHtml(IV.listing_create_title)}</h2>
+        <p class="subtle" style="margin:0;">${escapeHtml(t('inventory.listing_sub',{brand:c.brand, model:c.model, value:money(c.marketValue), cost:money(costs.total)}))}</p>
       </div>
       <div class="listing-modal-scroll">
         <div class="listing-price-panel">
           <div class="listing-price-hero">
             <div>
-              <div class="subtle" style="margin:0;text-transform:uppercase;font-weight:850;letter-spacing:.07em;">Verkaufspreis festlegen</div>
+              <div class="subtle" style="margin:0;text-transform:uppercase;font-weight:850;letter-spacing:.07em;">${escapeHtml(IV.set_price)}</div>
               <span class="big" id="listlbl">${money(sug)}</span>
             </div>
             <div style="text-align:right;">
-              <div class="subtle" style="margin:0 0 5px;text-transform:uppercase;font-weight:850;letter-spacing:.07em;">Preisbewertung</div>
+              <div class="subtle" style="margin:0 0 5px;text-transform:uppercase;font-weight:850;letter-spacing:.07em;">${escapeHtml(IV.price_rating)}</div>
               <div class="grade" id="listRating">${init.rating.label}</div>
             </div>
           </div>
           <div class="listing-price-grid">
             <div class="field" style="margin:0;">
-              <label>Preisregler</label>
+              <label>${escapeHtml(IV.price_slider)}</label>
               <input type="range" min="${min}" max="${max}" step="10" value="${sug}" oninput="setListingPrice(this.value, '${carId}', 'range')" id="listRange">
             </div>
             <div class="field" style="margin:0;">
-              <label>Manuelle Preiseingabe</label>
+              <label>${escapeHtml(IV.price_manual)}</label>
               <input type="number" min="${min}" max="${max}" step="10" value="${sug}" oninput="setListingPrice(this.value, '${carId}', 'number')" onblur="setListingPrice(this.value, '${carId}', 'number', true)" id="listNumber">
             </div>
           </div>
           <div class="listing-percent-row">
             <div class="field" style="margin:0;">
-              <label>Prozentaufschlag auf Gesamtkosten</label>
+              <label>${escapeHtml(IV.markup_pct)}</label>
               <select id="listMarkupSelect" onchange="setListingMarkup(this.value, '${carId}')">
-                <option value="">Individuell: ${init.markupPct.toFixed(1)}%</option>
+                <option value="">${escapeHtml(t('inventory.bulk_markup_custom',{pct:init.markupPct.toFixed(1)}))}</option>
                 ${markupOptions.map(p=>`<option value="${p}" ${Math.abs(init.markupPct-p)<0.05?'selected':''}>+${p}%</option>`).join('')}
               </select>
             </div>
-            <div class="notice" style="margin:0;">Der Aufschlag bezieht sich auf die echten Gesamtkosten: Einkauf, Werkstatt, Aufbereitung, Transport und sonstige Kosten.</div>
+            <div class="notice" style="margin:0;">${escapeHtml(IV.markup_note)}</div>
           </div>
           <div class="offer-card" style="margin:12px 0 0;">
-            <h3 style="font-family:var(--font-d);font-size:13px;margin:0 0 6px;">Zahlungsarten anbieten</h3>
-            <p class="subtle" style="margin:0;">Nur Kunden mit einer aktivierten Zahlungsart können auf dieses Inserat anfragen.</p>
+            <h3 style="font-family:var(--font-d);font-size:13px;margin:0 0 6px;">${escapeHtml(IV.offer_payment_title)}</h3>
+            <p class="subtle" style="margin:0;">${escapeHtml(IV.offer_payment_desc)}</p>
             ${paymentMethodSelectorHtml('listPay', paymentMethods)}
-            <div id="listPaymentWarn" class="notice warn" style="display:none;margin-top:10px;">Bitte mindestens eine Zahlungsart auswählen.</div>
+            <div id="listPaymentWarn" class="notice warn" style="display:none;margin-top:10px;">${escapeHtml(IV.payment_warn)}</div>
           </div>
           <div class="listing-metrics">
-            <div class="listing-metric"><span>Einkaufspreis</span><b id="listPurchase">${money(costs.purchase)}</b></div>
-            <div class="listing-metric"><span>Gesamtkosten</span><b id="listTotalCost">${money(costs.total)}</b></div>
-            <div class="listing-metric ${init.profit>=0?'good':'warn'}" id="listProfitCard"><span>Erwarteter Gewinn</span><b id="listMargin">${init.profit>=0?'+':''}${money(init.profit)}</b></div>
-            <div class="listing-metric"><span>Gewinnmarge</span><b id="listMarginPct">${init.marginPct.toFixed(1)}%</b></div>
-            <div class="listing-metric"><span>Aufschlag</span><b id="listMarkupPct">${init.markupPct>=0?'+':''}${init.markupPct.toFixed(1)}%</b></div>
-            <div class="listing-metric"><span>Marktwert</span><b>${money(c.marketValue)}</b></div>
-            <div class="listing-metric"><span>Nachfrage</span><b>${init.demandLabel}</b></div>
-            <div class="listing-metric"><span>Zustand</span><b>${c.condition}/100</b></div>
+            <div class="listing-metric"><span>${escapeHtml(IV.metric_purchase)}</span><b id="listPurchase">${money(costs.purchase)}</b></div>
+            <div class="listing-metric"><span>${escapeHtml(IV.metric_total_cost)}</span><b id="listTotalCost">${money(costs.total)}</b></div>
+            <div class="listing-metric ${init.profit>=0?'good':'warn'}" id="listProfitCard"><span>${escapeHtml(IV.metric_profit)}</span><b id="listMargin">${init.profit>=0?'+':''}${money(init.profit)}</b></div>
+            <div class="listing-metric"><span>${escapeHtml(IV.metric_margin)}</span><b id="listMarginPct">${init.marginPct.toFixed(1)}%</b></div>
+            <div class="listing-metric"><span>${escapeHtml(IV.metric_markup)}</span><b id="listMarkupPct">${init.markupPct>=0?'+':''}${init.markupPct.toFixed(1)}%</b></div>
+            <div class="listing-metric"><span>${escapeHtml(IV.metric_market_value)}</span><b>${money(c.marketValue)}</b></div>
+            <div class="listing-metric"><span>${escapeHtml(IV.metric_demand)}</span><b>${init.demandLabel}</b></div>
+            <div class="listing-metric"><span>${escapeHtml(IV.metric_condition)}</span><b>${c.condition}/100</b></div>
           </div>
         </div>
-        <div class="notice" style="margin:12px 0 0;">Ein höherer Preis bringt mehr Gewinn, senkt aber abhängig von Marktwert, Nachfrage und Zustand die Wahrscheinlichkeit für Kundenangebote.</div>
+        <div class="notice" style="margin:12px 0 0;">${escapeHtml(IV.price_note)}</div>
       </div>
       <div class="row-actions listing-modal-actions">
-        <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-        <button class="btn btn-primary" onclick="listCarConfirm('${carId}')">${existing?'Änderungen speichern':'Inserieren'}</button>
+        <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(IV.cancel)}</button>
+        <button class="btn btn-primary" onclick="listCarConfirm('${carId}')">${existing?escapeHtml(IV.save_changes):escapeHtml(IV.list_now)}</button>
       </div>
     </div>
   `, 'listing-modal');
@@ -5832,13 +6020,14 @@ function listingPriceRating(c, price){
   const conditionAdj = ((c.condition||70)-70)/1000;
   const fair = Math.max(1, (c.marketValue||price||1) * (1 + demandAdj + conditionAdj));
   const ratio = price / fair;
-  if(ratio<0.86) return {label:'Sehr günstig', tone:'good', ratio, demand};
-  if(ratio<0.94) return {label:'Günstig', tone:'good', ratio, demand};
-  if(ratio<1.02) return {label:'Fair', tone:'good', ratio, demand};
-  if(ratio<1.10) return {label:'Marktgerecht', tone:'neutral', ratio, demand};
-  if(ratio<1.20) return {label:'Etwas teuer', tone:'warn', ratio, demand};
-  if(ratio<1.34) return {label:'Teuer', tone:'warn', ratio, demand};
-  return {label:'Sehr teuer', tone:'bad', ratio, demand};
+  const IV = t('inventory');
+  if(ratio<0.86) return {label:IV.rating_very_cheap, tone:'good', ratio, demand};
+  if(ratio<0.94) return {label:IV.rating_cheap, tone:'good', ratio, demand};
+  if(ratio<1.02) return {label:IV.rating_fair, tone:'good', ratio, demand};
+  if(ratio<1.10) return {label:IV.rating_market, tone:'neutral', ratio, demand};
+  if(ratio<1.20) return {label:IV.rating_slightly_expensive, tone:'warn', ratio, demand};
+  if(ratio<1.34) return {label:IV.rating_expensive, tone:'warn', ratio, demand};
+  return {label:IV.rating_very_expensive, tone:'bad', ratio, demand};
 }
 function listingPriceStats(c, price){
   const costs = vehicleTotalCosts(c);
@@ -5846,7 +6035,8 @@ function listingPriceStats(c, price){
   const marginPct = costs.total ? profit / costs.total * 100 : 0;
   const markupPct = costs.total ? ((price - costs.total) / costs.total) * 100 : 0;
   const rating = listingPriceRating(c, price);
-  const demandLabel = rating.demand>=4 ? 'hoch' : rating.demand>=2 ? 'mittel' : rating.demand ? 'gering' : 'keine Daten';
+  const IV = t('inventory');
+  const demandLabel = rating.demand>=4 ? IV.demand_high : rating.demand>=2 ? IV.demand_medium : rating.demand ? IV.demand_low : IV.demand_none;
   return {...costs, profit, marginPct, markupPct, rating, demandLabel};
 }
 function setListingPrice(value, carId, source, snap){
@@ -5909,12 +6099,12 @@ function listCarConfirm(carId){
   if(!allowedPaymentMethods.length){
     const warn = document.getElementById('listPaymentWarn');
     if(warn) warn.style.display = 'flex';
-    notify('Bitte mindestens eine Zahlungsart auswählen.', 'warn');
+    notify(t('inventory.payment_warn'), 'warn');
     return;
   }
   const existing = state.listings[carId];
   state.listings[carId] = {...(existing||{}), price, views:existing?existing.views||0:0, createdDay:existing?existing.createdDay||state.day:state.day, allowedPaymentMethods};
-  notify((existing?'Inserat aktualisiert: ':'Fahrzeug inseriert für ')+money(price)+'.', 'info');
+  notify(existing ? t('inventory.listing_updated',{price:money(price)}) : t('inventory.listing_created',{price:money(price)}), 'info');
   closeModal(); renderAllOpen(); scheduleSave();
 }
 function unlistCar(carId){
@@ -5961,9 +6151,10 @@ function contractRow(kind, contract){
   const openAmount = claim ? claimTotal(claim) : 0;
   const nextDue = completed ? 999999 : (contract.nextDueDay||999999);
   const remaining = isFin ? (contract.monthsRemaining||0) : Math.max(0,(contract.months||0)-(contract.monthsElapsed||0));
-  const status = claim ? `${claimState.label}: ${claimStatusLabel(claim)}` : (contract.status || (completed?'Abgeschlossen':'Aktiv'));
+  const CT = t('contracts');
+  const status = claim ? `${claimState.label}: ${claimStatusLabel(claim)}` : (contract.status || (completed?CT.status_completed_label:CT.tab_active));
   const category = overdue ? 'overdue' : (defaulted ? 'default' : (completed ? 'completed' : 'active'));
-  return {id:`${kind}:${contract.id}`, kind, contract, customer:contract.customerName||'', vehicle, type:isFin?'Finanzierung':'Leasing', status, category, claimState, actionRequired:claimNeedsAction(claim), paid:paid.total, openAmount, nextDue, remaining, archived:!!contract.archived};
+  return {id:`${kind}:${contract.id}`, kind, contract, customer:contract.customerName||'', vehicle, type:isFin?CT.financing:CT.leasing, status, category, claimState, actionRequired:claimNeedsAction(claim), paid:paid.total, openAmount, nextDue, remaining, archived:!!contract.archived};
 }
 function contractRows(){
   return [
@@ -5997,34 +6188,35 @@ function renderContracts(){
   const claims = activeClaims().filter(x=>!x.contract.archived);
   const actionableClaims = claims.filter(x=>claimNeedsAction(x.claim));
   const claimSum = claims.reduce((s,x)=>s+claimTotal(x.claim),0);
+  const CT = t('contracts');
   if(allRows.length===0){
-    return `<h2 class="section-title">Verträge</h2><div class="empty-state"><div class="ic">📑</div>Noch keine Finanzierungs- oder Leasingverträge. Diese entstehen automatisch, sobald Kunden mit Finanzierung oder Leasing kaufen.</div>`;
+    return `<h2 class="section-title">${escapeHtml(CT.title)}</h2><div class="empty-state"><div class="ic">📑</div>${escapeHtml(CT.empty)}</div>`;
   }
   if(!selectedContractId || !visibleRows.some(r=>r.id===selectedContractId)) selectedContractId = visibleRows[0]?.id || null;
   const tabs = [
-    ['active','Aktiv', allRows.filter(r=>!r.archived && r.category==='active').length],
-    ['overdue','Überfällig', overdueRows.length],
-    ['completed','Abgeschlossen', completedRows.length],
-    ['default','Forderungsausfälle', defaultRows.length],
-    ['all','Alle', allRows.filter(r=>!r.archived).length],
-  ].map(([key,label,count])=>`<button class="pill-tab ${contractViewFilter===key?'active':''}" onclick="setContractViewFilter('${key}')">${label} ${count}</button>`).join('');
-  const listHtml = visibleRows.map(contractListItem).join('') || `<div class="empty-state" style="padding:28px 10px;"><div class="ic">📑</div>Keine Verträge für diese Filter.</div>`;
+    ['active',CT.tab_active, allRows.filter(r=>!r.archived && r.category==='active').length],
+    ['overdue',CT.tab_overdue, overdueRows.length],
+    ['completed',CT.tab_completed, completedRows.length],
+    ['default',CT.tab_default, defaultRows.length],
+    ['all',CT.tab_all, allRows.filter(r=>!r.archived).length],
+  ].map(([key,label,count])=>`<button class="pill-tab ${contractViewFilter===key?'active':''}" onclick="setContractViewFilter('${key}')">${escapeHtml(label)} ${count}</button>`).join('');
+  const listHtml = visibleRows.map(contractListItem).join('') || `<div class="empty-state" style="padding:28px 10px;"><div class="ic">📑</div>${escapeHtml(CT.empty_filter)}</div>`;
   return `
-    <h2 class="section-title">Verträge</h2>
-    <p class="subtle">${activeFinancings.length} aktive Finanzierungen · ${activeLeases.length} aktive Leasingverträge · ${overdueRows.length} überfällig · ${completedRows.length} abgeschlossen · ${defaultRows.length} Forderungsausfälle · wiederkehrend <b style="color:var(--brass);">${money(recurringMonthly)}/Monat</b></p>
+    <h2 class="section-title">${escapeHtml(CT.title)}</h2>
+    <p class="subtle">${escapeHtml(t('contracts.summary',{fin:activeFinancings.length, lea:activeLeases.length, overdue:overdueRows.length, completed:completedRows.length, def:defaultRows.length, amount:''}))}<b style="color:var(--brass);">${money(recurringMonthly)}/${currentLanguage()==='de'?'Monat':'month'}</b></p>
     <div class="stat-grid" style="margin-bottom:12px;">
-      <div class="stat-card"><div class="lbl">Aktiv</div><div class="num">${activeFinancings.length+activeLeases.length}</div></div>
-      <div class="stat-card"><div class="lbl">Offene Forderungen</div><div class="num" style="color:${claimSum?'var(--crimson)':'var(--teal)'};">${money(claimSum)}</div></div>
-      <div class="stat-card"><div class="lbl">Aktionen nötig</div><div class="num" style="color:${actionableClaims.length?'var(--crimson)':'var(--teal)'};">${actionableClaims.length}</div></div>
-      <div class="stat-card"><div class="lbl">Monatlich</div><div class="num">${money(recurringMonthly)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.stat_active)}</div><div class="num">${activeFinancings.length+activeLeases.length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.stat_open_claims)}</div><div class="num" style="color:${claimSum?'var(--crimson)':'var(--teal)'};">${money(claimSum)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.stat_actions_needed)}</div><div class="num" style="color:${actionableClaims.length?'var(--crimson)':'var(--teal)'};">${actionableClaims.length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.stat_monthly)}</div><div class="num">${money(recurringMonthly)}</div></div>
     </div>
-    ${claims.length?`<div class="notice ${actionableClaims.length?'warn':''}" style="display:block;">${actionableClaims.length?'⚠ Aktion erforderlich':'⏳ Wartestatus'} · ${claims.length} offene Forderung(en) · Gesamt ${money(claimSum)} · ${actionableClaims.length} aktuell notwendige Aktion(en).</div>`:''}
+    ${claims.length?`<div class="notice ${actionableClaims.length?'warn':''}" style="display:block;">${actionableClaims.length?escapeHtml(CT.claims_banner_action):escapeHtml(CT.claims_banner_waiting)} · ${escapeHtml(t('contracts.claims_banner_body',{n:claims.length, sum:money(claimSum), actionable:actionableClaims.length}))}</div>`:''}
     <div class="pill-tabs">${tabs}</div>
     <div class="notice" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <input type="search" placeholder="Kunde oder Fahrzeug suchen" value="${escapeAttr(contractSearchQuery)}" oninput="setContractSearch(this.value)" style="min-width:220px;flex:1;">
-      <select onchange="setContractTypeFilter(this.value)"><option value="all" ${contractTypeFilter==='all'?'selected':''}>Alle Arten</option><option value="fin" ${contractTypeFilter==='fin'?'selected':''}>Finanzierung</option><option value="lea" ${contractTypeFilter==='lea'?'selected':''}>Leasing</option></select>
-      <select onchange="setContractSortMode(this.value)"><option value="nextDue" ${contractSortMode==='nextDue'?'selected':''}>Nächste Rate</option><option value="open" ${contractSortMode==='open'?'selected':''}>Offene Forderung</option><option value="paid" ${contractSortMode==='paid'?'selected':''}>Erhaltener Betrag</option><option value="remaining" ${contractSortMode==='remaining'?'selected':''}>Restlaufzeit</option></select>
-      <button class="btn btn-ghost btn-sm" onclick="toggleContractArchiveView()">${contractShowArchive?'Archiv ausblenden':'Archiv anzeigen'}</button>
+      <input type="search" placeholder="${escapeAttr(CT.search_placeholder)}" value="${escapeAttr(contractSearchQuery)}" oninput="setContractSearch(this.value)" style="min-width:220px;flex:1;">
+      <select onchange="setContractTypeFilter(this.value)"><option value="all" ${contractTypeFilter==='all'?'selected':''}>${escapeHtml(CT.all_types)}</option><option value="fin" ${contractTypeFilter==='fin'?'selected':''}>${escapeHtml(CT.financing)}</option><option value="lea" ${contractTypeFilter==='lea'?'selected':''}>${escapeHtml(CT.leasing)}</option></select>
+      <select onchange="setContractSortMode(this.value)"><option value="nextDue" ${contractSortMode==='nextDue'?'selected':''}>${escapeHtml(CT.sort_next_due)}</option><option value="open" ${contractSortMode==='open'?'selected':''}>${escapeHtml(CT.sort_open)}</option><option value="paid" ${contractSortMode==='paid'?'selected':''}>${escapeHtml(CT.sort_paid)}</option><option value="remaining" ${contractSortMode==='remaining'?'selected':''}>${escapeHtml(CT.sort_remaining)}</option></select>
+      <button class="btn btn-ghost btn-sm" onclick="toggleContractArchiveView()">${contractShowArchive?escapeHtml(CT.hide_archive):escapeHtml(CT.show_archive)}</button>
     </div>
     <div class="mailbox-layout">
       <div class="convo-list">${listHtml}</div>
@@ -6033,6 +6225,7 @@ function renderContracts(){
   `;
 }
 function contractListItem(row){
+  const CT = t('contracts');
   const stateInfo = row.claimState || (row.category==='completed' ? claimVisualState(null) : null);
   const color = stateInfo ? stateInfo.color : row.category==='default' ? 'var(--crimson)' : 'var(--ink-2)';
   const style = stateInfo
@@ -6040,25 +6233,26 @@ function contractListItem(row){
     : (row.category==='default'?'border-color:rgba(224,85,92,.28);background:rgba(224,85,92,.055);':'');
   return `<div class="convo-item ${selectedContractId===row.id?'active':''}" onclick="openContract('${row.id}')" style="${style}">
     <div class="top"><span>${escapeHtml(row.customer)}${row.actionRequired?'<span class="badge">!</span>':''}</span><span style="color:${color};font-weight:700;">${escapeHtml(row.type)}</span></div>
-    <div class="snippet">${escapeHtml(row.vehicle)} · ${escapeHtml(row.status)}${row.openAmount?` · offen ${money(row.openAmount)}`:''}<br>Nächste Rate: ${row.nextDue>=999999?'–':gameDateShort(row.nextDue)} · Restlaufzeit: ${row.remaining} Monate · erhalten ${money(row.paid)}${row.archived?' · Archiv':''}</div>
+    <div class="snippet">${escapeHtml(row.vehicle)} · ${escapeHtml(row.status)}${row.openAmount?` · ${escapeHtml(t('contracts.open_paid',{amount:money(row.openAmount)}))}`:''}<br>${escapeHtml(CT.next_due)} ${row.nextDue>=999999?escapeHtml(CT.none_due):gameDateShort(row.nextDue)} · ${escapeHtml(t('contracts.remaining_term',{n:row.remaining}))} · ${escapeHtml(CT.received)} ${money(row.paid)}${row.archived?' · '+escapeHtml(CT.archive_flag):''}</div>
   </div>`;
 }
 function archiveContractPrompt(kind, id){
   const contract = kind==='fin'
     ? (state.receivables||[]).find(x=>x.id===id)
     : (state.leaseContracts||[]).find(x=>x.id===id);
+  const CT = t('contracts');
   if(!contract || !canArchiveContract(contract)){
-    notify('Dieser Vertrag kann nicht entfernt werden. Nur abgeschlossene Verträge oder endgültige Forderungsausfälle sind archivierbar.', 'warn');
+    notify(CT.cannot_remove, 'warn');
     return;
   }
   const isDefault = isContractDefaulted(contract);
   showModal(`
-    <h2 class="section-title">${isDefault?'Forderungsausfall wirklich aus der Übersicht entfernen?':'Abgeschlossenen Vertrag wirklich löschen?'}</h2>
-    <p class="subtle">${isDefault?'Der Verlust bleibt in Statistiken, Unternehmenswert und Business Insights erhalten.':'Dieser Vertrag wird aus der Vertragsübersicht entfernt. Bereits gebuchte Einnahmen und Statistiken bleiben erhalten.'}</p>
-    <div class="notice warn" style="display:block;">Es wird technisch archiviert, nicht rückwirkend aus Buchungen gelöscht.</div>
+    <h2 class="section-title">${isDefault?escapeHtml(CT.remove_default_title):escapeHtml(CT.remove_completed_title)}</h2>
+    <p class="subtle">${isDefault?escapeHtml(CT.remove_default_desc):escapeHtml(CT.remove_completed_desc)}</p>
+    <div class="notice warn" style="display:block;">${escapeHtml(CT.archive_notice)}</div>
     <div class="row-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-      <button class="btn btn-danger" onclick="archiveContract('${kind}','${id}')">Aus Übersicht entfernen</button>
+      <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(CT.cancel)}</button>
+      <button class="btn btn-danger" onclick="archiveContract('${kind}','${id}')">${escapeHtml(CT.remove_from_overview)}</button>
     </div>
   `);
 }
@@ -6071,7 +6265,7 @@ function archiveContract(kind, id){
   contract.archivedDay = state.day;
   closeModal();
   selectedContractId = null;
-  notify('Vertrag wurde archiviert. Buchungen und Statistiken bleiben erhalten.', 'info');
+  notify(t('contracts.archived_notify'), 'info');
   renderAllOpen(); scheduleSave();
 }
 function restoreArchivedContract(kind, id){
@@ -6080,37 +6274,38 @@ function restoreArchivedContract(kind, id){
     : (state.leaseContracts||[]).find(x=>x.id===id);
   if(!contract) return;
   contract.archived = false;
-  notify('Archivierter Vertrag ist wieder sichtbar.', 'good');
+  notify(t('contracts.restored_notify'), 'good');
   renderAllOpen(); scheduleSave();
 }
 function renderClaimBox(kind, contract){
   const claim = contract.openClaim;
+  const CT = t('contracts');
   if(!claim && (contract.closed || String(contract.status||'').toLowerCase().includes('abgeschlossen'))){
-    return `<div class="notice good">✅ Vertragsstatus: <b>Abgeschlossen</b>. Der Vertrag bleibt in der Historie sichtbar.</div>`;
+    return `<div class="notice good">${escapeHtml(CT.status_completed_body)}</div>`;
   }
-  if(!claim) return `<div class="notice good">Alle Raten sind aktuell. Nächste Rate: ${gameDateLong(contract.nextDueDay)}.</div>`;
+  if(!claim) return `<div class="notice good">${escapeHtml(t('contracts.all_current',{date:gameDateLong(contract.nextDueDay)}))}</div>`;
   normalizeClaimFees(claim);
   const fees = claimFeesByBucket(claim);
   const nextLevel = Math.min((claim.dunningLevel||0)+1, DUNNING_STEPS.length-1);
   const daysLate = Math.max(0, state.day-(claim.dueDay||state.day));
   const dunningLocked = (claim.dunningLevel||0)>0 && state.day < (claim.nextActionDay||0);
-  const primaryActionLabel = (claim.dunningLevel||0)>=7 ? 'Gerichtsergebnis prüfen' : `${dunningStep(nextLevel).label} senden`;
+  const primaryActionLabel = (claim.dunningLevel||0)>=7 ? CT.court_review : t('contracts.send_step',{label:dunningStep(nextLevel).label});
   const visual = claimVisualState(claim);
   return `
     <div class="notice ${visual.tone==='action'?'warn':''}" style="border-color:${visual.border};background:${visual.background};display:block;">
       <b style="color:${visual.color};">${visual.label}</b><br>
-      Status: ${claimStatusLabel(claim)} · ${daysLate} Tag(e) überfällig · ${claimActionLabel(claim)}<br>
-      Offene Raten: <b>${claim.openRates||1}</b> · offene Rate(n): ${money(claim.baseAmount||0)} · Mahngebühren: ${money(fees.dunning)} · Inkasso: ${money(fees.collection)} · Gericht: ${money(fees.court)} · <b>aktuell zu zahlen: ${money(claimTotal(claim))}</b>
-      ${state.greedyDunningMode?`<br><span style="color:var(--crimson);font-weight:700;">GEIZIG-Modus aktiv: höhere Zahlungswahrscheinlichkeit, aber stärkerer Zufriedenheits- und Rufverlust.</span>`:''}
-      ${dunningLocked?`<br><span style="color:var(--ink-1);">Nächste Mahnstufe ist gesperrt bis ${gameDateLong(claim.nextActionDay)}.</span>`:''}
+      ${escapeHtml(CT.status_prefix)} ${claimStatusLabel(claim)} · ${escapeHtml(t('contracts.days_overdue',{n:daysLate}))} · ${claimActionLabel(claim)}<br>
+      ${escapeHtml(CT.open_installments)} <b>${claim.openRates||1}</b> · ${escapeHtml(CT.open_installment_amount)} ${money(claim.baseAmount||0)} · ${escapeHtml(CT.dunning_fees)} ${money(fees.dunning)} · ${escapeHtml(CT.collection_fees)} ${money(fees.collection)} · ${escapeHtml(CT.court_fees)} ${money(fees.court)} · <b>${escapeHtml(CT.currently_due)} ${money(claimTotal(claim))}</b>
+      ${state.greedyDunningMode?`<br><span style="color:var(--crimson);font-weight:700;">${escapeHtml(CT.strict_mode_note)}</span>`:''}
+      ${dunningLocked?`<br><span style="color:var(--ink-1);">${escapeHtml(t('contracts.next_level_locked',{date:gameDateLong(claim.nextActionDay)}))}</span>`:''}
     </div>
     <div class="row-actions" style="margin:10px 0 14px;">
-      <button class="btn btn-primary btn-sm" onclick="sendDunning('${kind}','${contract.id}')" ${(dunningLocked || (!claim.actionRequired && claim.nextActionDay>state.day))?'disabled':''}>${primaryActionLabel}</button>
-      <button class="btn btn-ghost btn-sm" onclick="grantPaymentDeferral('${kind}','${contract.id}')">Zahlungsaufschub</button>
-      <button class="btn btn-danger btn-sm" onclick="forceContractEscalation('${kind}','${contract.id}')" ${dunningLocked?'disabled':''}>Konsequent eskalieren</button>
+      <button class="btn btn-primary btn-sm" onclick="sendDunning('${kind}','${contract.id}')" ${(dunningLocked || (!claim.actionRequired && claim.nextActionDay>state.day))?'disabled':''}>${escapeHtml(primaryActionLabel)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="grantPaymentDeferral('${kind}','${contract.id}')">${escapeHtml(CT.payment_deferral)}</button>
+      <button class="btn btn-danger btn-sm" onclick="forceContractEscalation('${kind}','${contract.id}')" ${dunningLocked?'disabled':''}>${escapeHtml(CT.escalate)}</button>
     </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Forderungsverlauf</h3>
-    <table class="tbl"><thead><tr><th>Datum</th><th>Ereignis</th></tr></thead><tbody>${(claim.history||[]).map(h=>`<tr><td>${gameDateShort(h.day)}</td><td>${formatStoredDayText(h.text)}</td></tr>`).join('')}</tbody></table>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">${escapeHtml(CT.claim_history)}</h3>
+    <table class="tbl"><thead><tr><th>${escapeHtml(CT.col_date)}</th><th>${escapeHtml(CT.col_event)}</th></tr></thead><tbody>${(claim.history||[]).map(h=>`<tr><td>${gameDateShort(h.day)}</td><td>${formatStoredDayText(h.text)}</td></tr>`).join('')}</tbody></table>
   `;
 }
 function contractPaymentBreakdown(contract){
@@ -6124,23 +6319,25 @@ function renderContractPaymentSummary(contract){
   const claim = contract.openClaim;
   const visual = claimVisualState(claim);
   const fees = claim ? claimFeesByBucket(claim) : {dunning:0, collection:0, court:0, total:0};
+  const CT = t('contracts');
   return `
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Zahlungsstand</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">${escapeHtml(CT.payment_status)}</h3>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Gezahlte Raten</div><div class="num" style="color:var(--teal);">${money(paid.rates)}</div></div>
-      <div class="stat-card"><div class="lbl">Gezahlte Mahngebühren</div><div class="num" style="color:${paid.fees?'var(--brass)':'var(--ink-1)'};">${money(paid.fees)}</div></div>
-      <div class="stat-card"><div class="lbl">Gesamt erhalten</div><div class="num" style="color:var(--teal);">${money(paid.total)}</div></div>
-      <div class="stat-card"><div class="lbl">Aktuell offen</div><div class="num" style="color:${claim?visual.color:'var(--teal)'};">${claim?money(claimTotal(claim)):'0 €'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.paid_installments)}</div><div class="num" style="color:var(--teal);">${money(paid.rates)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.paid_fees)}</div><div class="num" style="color:${paid.fees?'var(--brass)':'var(--ink-1)'};">${money(paid.fees)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.total_received)}</div><div class="num" style="color:var(--teal);">${money(paid.total)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.currently_open)}</div><div class="num" style="color:${claim?visual.color:'var(--teal)'};">${claim?money(claimTotal(claim)):money(0)}</div></div>
     </div>
-    ${claim?`<div class="notice ${visual.tone==='action'?'warn':''}" style="display:block;border-color:${visual.border};background:${visual.background};">Aktuelle Forderung aufgeteilt: offene Rate(n) <b>${money(claim.baseAmount||0)}</b> + Mahngebühren <b>${money(fees.dunning)}</b> + Inkasso <b>${money(fees.collection)}</b> + Gericht <b>${money(fees.court)}</b> = <b>${money(claimTotal(claim))}</b>.</div>`:''}
+    ${claim?`<div class="notice ${visual.tone==='action'?'warn':''}" style="display:block;border-color:${visual.border};background:${visual.background};">${t('contracts.claim_breakdown',{base:'<b>'+money(claim.baseAmount||0)+'</b>', dunning:'<b>'+money(fees.dunning)+'</b>', collection:'<b>'+money(fees.collection)+'</b>', court:'<b>'+money(fees.court)+'</b>', total:'<b>'+money(claimTotal(claim))+'</b>'})}</div>`:''}
   `;
 }
 function renderPaymentHistory(contract){
   const hist = contract.paymentHistory || [];
-  if(!hist.length) return '<p class="subtle">Noch keine Zahlungen erhalten.</p>';
-  return `<table class="tbl"><thead><tr><th>Datum</th><th>Ereignis</th><th>Rate</th><th>Gebühr</th><th>Gesamt</th></tr></thead><tbody>${hist.map(p=>{
+  const CT = t('contracts');
+  if(!hist.length) return `<p class="subtle">${escapeHtml(CT.no_payments_yet)}</p>`;
+  return `<table class="tbl"><thead><tr><th>${escapeHtml(CT.col_date)}</th><th>${escapeHtml(CT.col_event)}</th><th>${escapeHtml(CT.col_amount)}</th><th>${escapeHtml(CT.col_fee)}</th><th>${escapeHtml(CT.col_total)}</th></tr></thead><tbody>${hist.map(p=>{
     const total = (p.amount||0)+(p.fee||0);
-    return `<tr><td>${gameDateShort(p.day)}</td><td>${p.label||'Zahlung'}</td><td style="color:var(--teal);font-family:var(--font-m);">+${money(p.amount||0)}</td><td style="color:${(p.fee||0)>0?'var(--brass)':'var(--ink-2)'};font-family:var(--font-m);">${money(p.fee||0)}</td><td style="color:var(--teal);font-family:var(--font-m);font-weight:800;">+${money(total)}</td></tr>`;
+    return `<tr><td>${gameDateShort(p.day)}</td><td>${p.label||CT.payment_default_label}</td><td style="color:var(--teal);font-family:var(--font-m);">+${money(p.amount||0)}</td><td style="color:${(p.fee||0)>0?'var(--brass)':'var(--ink-2)'};font-family:var(--font-m);">${money(p.fee||0)}</td><td style="color:var(--teal);font-family:var(--font-m);font-weight:800;">+${money(total)}</td></tr>`;
   }).join('')}</tbody></table>`;
 }
 function lastPaymentAmount(contract){
@@ -6174,29 +6371,30 @@ function completeLeaseContract(lease){
 }
 function showContractCompletionModal(kind, contract){
   const isFin = kind==='fin';
-  const title = isFin ? 'Finanzierung vollständig abbezahlt' : 'Leasingvertrag erfolgreich abgeschlossen';
+  const CT = t('contracts');
+  const title = isFin ? CT.fin_paid_off_title : CT.lease_completed_title;
   const vehicle = isFin ? contract.carDesc : `${contract.carSnapshot.brand} ${contract.carSnapshot.model}`;
   const intro = isFin
-    ? `${escapeHtml(contract.customerName)} hat die Finanzierung für den ${escapeHtml(vehicle)} vollständig abbezahlt.`
-    : `Der Leasingvertrag für den ${escapeHtml(vehicle)} mit ${escapeHtml(contract.customerName)} wurde erfolgreich abgeschlossen.`;
+    ? t('contracts.fin_intro',{name:escapeHtml(contract.customerName), vehicle:escapeHtml(vehicle)})
+    : t('contracts.lease_intro',{vehicle:escapeHtml(vehicle), name:escapeHtml(contract.customerName)});
   const stats = isFin ? [
-    ['Kunde', escapeHtml(contract.customerName)],
-    ['Fahrzeug', escapeHtml(vehicle)],
-    ['Finanzierungsbetrag', money(contract.principal||0)],
-    ['Laufzeit', `${contract.months||0} Monate`],
-    ['Gezahlte Gesamtsumme', money(contractPaymentBreakdown(contract).total)],
-    ['Erhaltene Zinsen', money(financingInterestReceived(contract))],
-    ['Letzte Rate', money(lastPaymentAmount(contract))],
-    ['Abschlussdatum', gameDateLong(contract.completedDay||state.day)],
-    ['Vertragsstatus', 'Abgeschlossen'],
+    [CT.stat_customer, escapeHtml(contract.customerName)],
+    [CT.stat_vehicle, escapeHtml(vehicle)],
+    [CT.stat_financing_amount, money(contract.principal||0)],
+    [CT.stat_term, t('contracts.months_suffix',{n:contract.months||0})],
+    [CT.stat_total_paid, money(contractPaymentBreakdown(contract).total)],
+    [CT.stat_interest_received, money(financingInterestReceived(contract))],
+    [CT.stat_last_installment, money(lastPaymentAmount(contract))],
+    [CT.stat_completion_date, gameDateLong(contract.completedDay||state.day)],
+    [CT.stat_contract_status, CT.status_completed_label],
   ] : [
-    ['Kunde', escapeHtml(contract.customerName)],
-    ['Fahrzeug', escapeHtml(vehicle)],
-    ['Leasingdauer', `${contract.months||0} Monate`],
-    ['Gezahlte Gesamtsumme', money(contractPaymentBreakdown(contract).total)],
-    ['Letzte Leasingrate', money(lastPaymentAmount(contract))],
-    ['Vertragsende', gameDateLong(contract.completedDay||state.day)],
-    ['Vertragsstatus', 'Abgeschlossen'],
+    [CT.stat_customer, escapeHtml(contract.customerName)],
+    [CT.stat_vehicle, escapeHtml(vehicle)],
+    [CT.stat_lease_term, t('contracts.months_suffix',{n:contract.months||0})],
+    [CT.stat_total_paid, money(contractPaymentBreakdown(contract).total)],
+    [CT.stat_last_lease_payment, money(lastPaymentAmount(contract))],
+    [CT.stat_contract_end, gameDateLong(contract.completedDay||state.day)],
+    [CT.stat_contract_status, CT.status_completed_label],
   ];
   showModal(`<div class="contract-complete-shell">
     <div class="contract-complete-hero">
@@ -6210,17 +6408,19 @@ function showContractCompletionModal(kind, contract){
   if(overlay) overlay.onclick = ()=>{};
 }
 function renderContractActions(kind, contract){
+  const CT = t('contracts');
   const actions = [];
   if(contract.archived){
-    actions.push(`<button class="btn btn-primary btn-sm" onclick="restoreArchivedContract('${kind}','${contract.id}')">Aus Archiv wiederherstellen</button>`);
+    actions.push(`<button class="btn btn-primary btn-sm" onclick="restoreArchivedContract('${kind}','${contract.id}')">${escapeHtml(CT.restore_from_archive)}</button>`);
   } else if(canArchiveContract(contract)){
-    actions.push(`<button class="btn btn-danger btn-sm" onclick="archiveContractPrompt('${kind}','${contract.id}')">${isContractDefaulted(contract)?'Forderungsausfall entfernen':'Abgeschlossenen Vertrag löschen'}</button>`);
+    actions.push(`<button class="btn btn-danger btn-sm" onclick="archiveContractPrompt('${kind}','${contract.id}')">${isContractDefaulted(contract)?escapeHtml(CT.remove_default):escapeHtml(CT.delete_completed)}</button>`);
   }
   if(!actions.length) return '';
-  return `<h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Aktionen</h3><div class="row-actions">${actions.join('')}</div>`;
+  return `<h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">${escapeHtml(CT.actions_title)}</h3><div class="row-actions">${actions.join('')}</div>`;
 }
 function renderContractDetail(id){
-  if(!id) return `<div class="empty-state"><div class="ic">📑</div>Vertrag auswählen</div>`;
+  const CT = t('contracts');
+  if(!id) return `<div class="empty-state"><div class="ic">📑</div>${escapeHtml(CT.select_contract)}</div>`;
   const [kind, realId] = id.split(':');
   if(kind==='fin'){
     const f = (state.receivables||[]).find(x=>x.id===realId);
@@ -6228,25 +6428,25 @@ function renderContractDetail(id){
     return `
     <div class="chat-head">
       <div><div style="font-family:var(--font-d);font-weight:800;font-size:15px;">${f.customerName}</div>
-      <div class="subtle" style="margin:0;">${f.carDesc} · Finanzierungsvertrag</div></div>
+      <div class="subtle" style="margin:0;">${f.carDesc} · ${escapeHtml(CT.financing_contract_label)}</div></div>
       <span class="chip" style="color:${f.openClaim?'var(--crimson)':((f.status==='aktuell'||f.closed)?'var(--teal)':'var(--crimson)')};">${f.openClaim?claimStatusLabel(f.openClaim):f.status}</span>
     </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:2px 0 8px;">Vertragsübersicht</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:2px 0 8px;">${escapeHtml(CT.contract_overview)}</h3>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Kaufpreis</div><div class="num">${money(f.purchasePrice)}</div></div>
-      <div class="stat-card"><div class="lbl">Anzahlung</div><div class="num">${money(f.downPayment)}</div></div>
-      <div class="stat-card"><div class="lbl">Restschuld</div><div class="num">${money(f.remainingPrincipal)}</div></div>
-      <div class="stat-card"><div class="lbl">Monatsrate</div><div class="num">${money(f.monthlyPayment)}</div></div>
-      <div class="stat-card"><div class="lbl">Sollzins</div><div class="num">${(f.nominalRate*100).toFixed(1)}%</div></div>
-      <div class="stat-card"><div class="lbl">Eff. Jahreszins</div><div class="num">${(f.effectiveRate*100).toFixed(1)}%</div></div>
-      <div class="stat-card"><div class="lbl">Restlaufzeit</div><div class="num">${f.monthsRemaining} Monate</div></div>
-      <div class="stat-card"><div class="lbl">Bereits erhalten</div><div class="num">${money(f.totalPaid||0)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.purchase_price)}</div><div class="num">${money(f.purchasePrice)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.down_payment)}</div><div class="num">${money(f.downPayment)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.remaining_debt)}</div><div class="num">${money(f.remainingPrincipal)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.monthly_installment)}</div><div class="num">${money(f.monthlyPayment)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.nominal_rate)}</div><div class="num">${(f.nominalRate*100).toFixed(1)}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.effective_rate)}</div><div class="num">${(f.effectiveRate*100).toFixed(1)}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.remaining_term_label)}</div><div class="num">${t('contracts.months_suffix',{n:f.monthsRemaining})}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.already_received)}</div><div class="num">${money(f.totalPaid||0)}</div></div>
     </div>
-    <p class="subtle">Vertragsbeginn: ${gameDateShort(f.startDay)} · ${f.closed?`Abschluss: ${gameDateShort(f.completedDay||state.day)}`:`Nächste Rate fällig: ${gameDateShort(f.nextDueDay)}`} · Mahnstufe: ${f.dunningLevel||0}/${DUNNING_STEPS.length-1}</p>
+    <p class="subtle">${escapeHtml(t('contracts.contract_start',{date:gameDateShort(f.startDay), rest:f.closed?t('contracts.completion_label',{date:gameDateShort(f.completedDay||state.day)}):t('contracts.next_due_label',{date:gameDateShort(f.nextDueDay)}), level:f.dunningLevel||0, max:DUNNING_STEPS.length-1}))}</p>
     ${renderContractPaymentSummary(f)}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Mahnungen / Forderungen</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">${escapeHtml(CT.dunning_claims_title)}</h3>
     ${renderClaimBox('fin', f)}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Zahlungshistorie</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">${escapeHtml(CT.payment_history_title)}</h3>
     ${renderPaymentHistory(f)}
     ${renderContractActions('fin', f)}
     `;
@@ -6256,23 +6456,23 @@ function renderContractDetail(id){
   return `
     <div class="chat-head">
       <div><div style="font-family:var(--font-d);font-weight:800;font-size:15px;">${l.customerName}</div>
-      <div class="subtle" style="margin:0;">${l.carSnapshot.brand} ${l.carSnapshot.model} · Leasingvertrag</div></div>
+      <div class="subtle" style="margin:0;">${l.carSnapshot.brand} ${l.carSnapshot.model} · ${escapeHtml(CT.leasing_contract_label)}</div></div>
       <span class="chip" style="color:${l.openClaim?'var(--crimson)':'var(--teal)'};">${l.openClaim?claimStatusLabel(l.openClaim):l.status}</span>
     </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:2px 0 8px;">Vertragsübersicht</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:2px 0 8px;">${escapeHtml(CT.contract_overview)}</h3>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Leasingrate</div><div class="num">${money(l.monthlyPayment)}</div></div>
-      <div class="stat-card"><div class="lbl">Restwert</div><div class="num">${money(l.residual)}</div></div>
-      <div class="stat-card"><div class="lbl">Laufzeit</div><div class="num">${l.monthsElapsed}/${l.months} Monate</div></div>
-      <div class="stat-card"><div class="lbl">km-Limit/Jahr</div><div class="num">${l.mileageLimitPerYear?l.mileageLimitPerYear.toLocaleString('de-DE'):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Mehrkilometer</div><div class="num">${l.mileageOverageKm.toLocaleString('de-DE')} km</div></div>
-      <div class="stat-card"><div class="lbl">Schäden</div><div class="num">${l.damageEvents}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.lease_rate)}</div><div class="num">${money(l.monthlyPayment)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.residual_value)}</div><div class="num">${money(l.residual)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.lease_term)}</div><div class="num">${l.monthsElapsed}/${l.months} ${currentLanguage()==='de'?'Monate':'months'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.mileage_limit)}</div><div class="num">${l.mileageLimitPerYear?l.mileageLimitPerYear.toLocaleString(localeMeta().numberLocale||'en-US'):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.excess_mileage)}</div><div class="num">${l.mileageOverageKm.toLocaleString(localeMeta().numberLocale||'en-US')} km</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(CT.damage_events)}</div><div class="num">${l.damageEvents}</div></div>
     </div>
-    <p class="subtle">Vertragsbeginn: ${gameDateShort(l.createdDay)} · ${l.closed?`Vertragsende: ${gameDateShort(l.completedDay||state.day)}`:`Nächste Rate fällig: ${gameDateShort(l.nextDueDay)}`}</p>
+    <p class="subtle">${escapeHtml(t('contracts.contract_start_simple',{date:gameDateShort(l.createdDay), rest:l.closed?t('contracts.completion_label',{date:gameDateShort(l.completedDay||state.day)}):t('contracts.next_due_label',{date:gameDateShort(l.nextDueDay)})}))}</p>
     ${renderContractPaymentSummary(l)}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Mahnungen / Forderungen</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">${escapeHtml(CT.dunning_claims_title)}</h3>
     ${renderClaimBox('lea', l)}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Zahlungshistorie</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">${escapeHtml(CT.payment_history_title)}</h3>
     ${renderPaymentHistory(l)}
     ${renderContractActions('lea', l)}
   `;
@@ -6296,19 +6496,21 @@ function satisfactionColor(v){
   return 'var(--red)';
 }
 function customerStatus(cust){
+  const C = t('customers');
   const hasFinancing = (state.receivables||[]).some(r=>r.customerId===cust.id);
   const hasLease = (state.leaseContracts||[]).some(l=>l.customerId===cust.id);
   const hasPurchase = (cust.purchases||[]).length>0;
-  if(hasFinancing) return {key:'financed', label:'Finanziert', color:'var(--violet)', rank:1};
-  if(hasLease) return {key:'leased', label:'Geleast', color:'var(--brass)', rank:2};
-  if(hasPurchase) return {key:'bought', label:'Gekauft', color:'var(--emerald)', rank:3};
-  return {key:'other', label:'Kunde', color:'var(--ink-2)', rank:4};
+  if(hasFinancing) return {key:'financed', label:C.status_financed, color:'var(--violet)', rank:1};
+  if(hasLease) return {key:'leased', label:C.status_leased, color:'var(--brass)', rank:2};
+  if(hasPurchase) return {key:'bought', label:C.status_bought, color:'var(--emerald)', rank:3};
+  return {key:'other', label:C.status_other, color:'var(--ink-2)', rank:4};
 }
 function renderCustomers(){
   cleanupTransientCustomers();
+  const C = t('customers');
   const ids = Object.keys(state.customers).filter(id=>isRetainedCustomer(state.customers[id]));
   if(ids.length===0){
-    return `<h2 class="section-title">Kunden</h2><div class="empty-state"><div class="ic">👤</div>Noch keine gespeicherten Kunden. Interessenten ohne Kauf werden automatisch bereinigt; Käufer sowie Finanzierungs- und Leasingkunden bleiben hier erhalten.</div>`;
+    return `<h2 class="section-title">${escapeHtml(C.title)}</h2><div class="empty-state"><div class="ic">👤</div>${escapeHtml(C.empty)}</div>`;
   }
   const all = ids.map(id=>state.customers[id]);
   const counts = {
@@ -6326,22 +6528,22 @@ function renderCustomers(){
   if(!list.length) selectedCustomerId = null;
   else if(!selectedCustomerId || !list.some(c=>c.id===selectedCustomerId)) selectedCustomerId = list[0].id;
   const tabs = [
-    ['all','Alle',counts.all],
-    ['financed','Finanziert',counts.financed],
-    ['leased','Geleast',counts.leased],
-    ['bought','Gekauft',counts.bought],
-  ].map(([key,label,count])=>`<button class="pill-tab ${customerFilter===key?'active':''}" onclick="setCustomerFilter('${key}')">${label} ${count}</button>`).join('');
+    ['all',C.tab_all,counts.all],
+    ['financed',C.tab_financed,counts.financed],
+    ['leased',C.tab_leased,counts.leased],
+    ['bought',C.tab_bought,counts.bought],
+  ].map(([key,label,count])=>`<button class="pill-tab ${customerFilter===key?'active':''}" onclick="setCustomerFilter('${key}')">${escapeHtml(label)} ${count}</button>`).join('');
   const listHtml = list.map(cust=>{
     const activeThread = state.offers.find(o=>o.customerId===cust.id);
     const status = customerStatus(cust);
     return `<div class="convo-item ${selectedCustomerId===cust.id?'active':''}" onclick="openCustomerProfile('${cust.id}')">
       <div class="top"><span>${cust.name}${activeThread?'<span class="unread-dot"></span>':''}</span><span style="color:${status.color};font-weight:800;">${status.label}</span></div>
-      <div class="snippet">${cust.purchases.length}× gekauft · ${cust.persona} · Zufriedenheit ${cust.satisfaction}/100</div>
+      <div class="snippet">${escapeHtml(t('customers.purchases_count',{n:cust.purchases.length}))} · ${cust.persona} · ${escapeHtml(t('customers.satisfaction_inline',{n:cust.satisfaction}))}</div>
     </div>`;
-  }).join('') || `<div class="empty-state" style="padding:28px 10px;"><div class="ic">👤</div>Keine Kunden in dieser Kategorie.</div>`;
+  }).join('') || `<div class="empty-state" style="padding:28px 10px;"><div class="ic">👤</div>${escapeHtml(C.empty_category)}</div>`;
   return `
-    <h2 class="section-title">Kunden</h2>
-    <p class="subtle">${ids.length} Käufer, Finanzierungs- oder Leasingkunden in Ihrer Kartei</p>
+    <h2 class="section-title">${escapeHtml(C.title)}</h2>
+    <p class="subtle">${escapeHtml(t('customers.summary',{n:ids.length}))}</p>
     <div class="pill-tabs">${tabs}</div>
     <div class="mailbox-layout">
       <div class="convo-list">${listHtml}</div>
@@ -6351,7 +6553,8 @@ function renderCustomers(){
 }
 function renderCustomerDetail(custId){
   const cust = state.customers[custId];
-  if(!cust) return `<div class="empty-state"><div class="ic">👤</div>Kunde auswählen</div>`;
+  const C = t('customers');
+  if(!cust) return `<div class="empty-state"><div class="ic">👤</div>${escapeHtml(C.select_prompt)}</div>`;
   const activeOffer = state.offers.find(o=>o.customerId===custId);
   const activeWish = state.searchOrders.find(o=>o.customerId===custId && o.status==='open');
   const allMessages = (cust.conversationLog||[]).concat(activeOffer?(activeOffer.messages||[]):[]);
@@ -6366,44 +6569,44 @@ function renderCustomerDetail(custId){
         <div class="spec-row" style="margin:0;">
           <span class="chip">${cust.persona}</span>
           <span class="chip">💼 ${cust.job}</span>
-          <span class="chip">Bonität ${cust.creditScore}/100</span>
-          <span class="chip">Zahlung zuletzt: ${cust.financingStatus}</span>
+          <span class="chip">${escapeHtml(t('customers.credit_score',{n:cust.creditScore}))}</span>
+          <span class="chip">${escapeHtml(t('customers.last_payment',{status:cust.financingStatus}))}</span>
         </div>
-        <button class="btn btn-danger btn-sm" onclick="deleteCustomerProfile('${cust.id}')">Löschen</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCustomerProfile('${cust.id}')">${escapeHtml(C.delete)}</button>
       </div>
     </div>
     <div class="stat-grid" style="margin-bottom:14px;">
       <div class="stat-card">
-        <div class="lbl">Zufriedenheit</div>
+        <div class="lbl">${escapeHtml(C.satisfaction)}</div>
         <div class="num" style="color:${satisfactionColor(cust.satisfaction)};">${cust.satisfaction}/100</div>
         <div class="progress"><div style="width:${cust.satisfaction}%;background:${satisfactionColor(cust.satisfaction)};"></div></div>
       </div>
-      <div class="stat-card"><div class="lbl">Käufe gesamt</div><div class="num">${cust.purchases.length}</div></div>
-      <div class="stat-card"><div class="lbl">Umsatz gesamt</div><div class="num">${money(cust.totalSpent||0)}</div></div>
-      <div class="stat-card"><div class="lbl">Budget-Schätzung</div><div class="num">${money(cust.budgetEstimate||0)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(C.total_purchases)}</div><div class="num">${cust.purchases.length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(C.total_revenue)}</div><div class="num">${money(cust.totalSpent||0)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(C.budget_estimate)}</div><div class="num">${money(cust.budgetEstimate||0)}</div></div>
     </div>
     <div class="spec-row" style="margin-bottom:14px;">
-      ${cust.preferredBrands.length? cust.preferredBrands.map(b=>`<span class="chip">${b}</span>`).join('') : '<span class="chip">Noch keine bevorzugten Marken</span>'}
+      ${cust.preferredBrands.length? cust.preferredBrands.map(b=>`<span class="chip">${b}</span>`).join('') : `<span class="chip">${escapeHtml(C.no_preferred_brands)}</span>`}
     </div>
-    ${activeOffer?`<div class="notice good">💬 Aktive Unterhaltung läuft – <a style="color:var(--brass);cursor:pointer;" onclick="navigateTo('mailbox');openConversation('${activeOffer.id}')">im Postfach öffnen</a></div>`:''}
-    ${activeWish?`<div class="notice">🔍 Offener Suchauftrag: ${activeWish.desc}</div>`:''}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">Kaufhistorie</h3>
-    ${cust.purchases.length? `<table class="tbl"><thead><tr><th>Datum</th><th>Fahrzeug</th><th>Preis</th><th>Marge</th></tr></thead><tbody>
+    ${activeOffer?`<div class="notice good">${t('customers.active_conversation',{offerId:activeOffer.id})}</div>`:''}
+    ${activeWish?`<div class="notice">${escapeHtml(t('customers.open_search_order',{desc:activeWish.desc}))}</div>`:''}
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:14px 0 8px;">${escapeHtml(C.purchase_history)}</h3>
+    ${cust.purchases.length? `<table class="tbl"><thead><tr><th>${escapeHtml(C.col_date)}</th><th>${escapeHtml(C.col_vehicle)}</th><th>${escapeHtml(C.col_price)}</th><th>${escapeHtml(C.col_margin)}</th></tr></thead><tbody>
       ${cust.purchases.slice().reverse().map(p=>`<tr><td>${gameDateShort(p.day)}</td><td>${p.brand} ${p.model} (${p.year})</td><td>${money(p.price)}</td><td style="color:${p.profit>=0?'var(--teal)':'var(--red)'};">${p.profit>=0?'+':''}${money(p.profit)}</td></tr>`).join('')}
-    </tbody></table>${totalProfit?`<p class="subtle" style="margin-top:8px;">Gesamtmarge mit diesem Kunden: <b style="color:${totalProfit>=0?'var(--teal)':'var(--red)'};">${totalProfit>=0?'+':''}${money(totalProfit)}</b></p>`:''}` : '<p class="subtle">Noch keine abgeschlossenen Käufe.</p>'}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:16px 0 8px;">Gesprächsverlauf</h3>
+    </tbody></table>${totalProfit?`<p class="subtle" style="margin-top:8px;">${escapeHtml(C.total_margin)} <b style="color:${totalProfit>=0?'var(--teal)':'var(--red)'};">${totalProfit>=0?'+':''}${money(totalProfit)}</b></p>`:''}` : `<p class="subtle">${escapeHtml(C.no_purchases_yet)}</p>`}
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:16px 0 8px;">${escapeHtml(C.conversation_log)}</h3>
     <div class="chat-messages" style="max-height:26vh;">
-      ${allMessages.length? allMessages.map(m=>`<div class="bubble ${m.from}">${formatStoredDayText(m.text)}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">${gameDateShort(m.day)}</div></div>`).join('') : '<p class="subtle">Noch keine Nachrichten.</p>'}
+      ${allMessages.length? allMessages.map(m=>`<div class="bubble ${m.from}">${formatStoredDayText(m.text)}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">${gameDateShort(m.day)}</div></div>`).join('') : `<p class="subtle">${escapeHtml(C.no_messages)}</p>`}
     </div>
   `;
 }
 function deleteCustomerProfile(custId){
   const cust = state.customers[custId];
   if(!cust) return;
-  if(!confirm(`${cust.name} aus der Kundenkartei löschen? Bestehende Verträge und Buchungen bleiben erhalten.`)) return;
+  if(!confirm(t('customers.delete_confirm',{name:cust.name}))) return;
   delete state.customers[custId];
   selectedCustomerId = null;
-  notify(`${cust.name} wurde aus der Kundenkartei gelöscht.`, 'info');
+  notify(t('customers.deleted_notify',{name:cust.name}), 'info');
   renderAllOpen(); scheduleSave();
 }
 
@@ -6414,22 +6617,23 @@ function renderAcquisition(){
   const visible = activePurchaseRequests().filter(r=>r.status==='open' || r.status==='purchased');
   const open = visible.filter(r=>r.status==='open');
   const purchased = visible.filter(r=>r.status==='purchased');
+  const A = t('acquisition');
   if(!visible.length){
     selectedPurchaseRequestId = null;
-    return `<h2 class="section-title">Fahrzeugankauf</h2><div class="empty-state"><div class="ic">🤝</div>Aktuell keine Ankaufsanfragen. Gute Bewertungen und Ruf erhöhen die Chance auf hochwertige Angebote.</div>`;
+    return `<h2 class="section-title">${escapeHtml(A.title)}</h2><div class="empty-state"><div class="ic">🤝</div>${escapeHtml(A.empty)}</div>`;
   }
   if(!selectedPurchaseRequestId || !visible.some(r=>r.id===selectedPurchaseRequestId)) selectedPurchaseRequestId = visible[0].id;
   const listHtml = visible.map(r=>{
     const margin = r.car.marketValue-r.wishPrice;
     const bought = r.status==='purchased';
     return `<div class="convo-item ${selectedPurchaseRequestId===r.id?'active':''}" onclick="openPurchaseRequest('${r.id}')">
-      <div class="top"><span>${r.sellerName}</span><span style="color:${bought?'var(--emerald)':(margin>=0?'var(--emerald)':'var(--crimson)')};font-weight:800;">${bought?'Gekauft':money(r.wishPrice)}</span></div>
-      <div class="snippet">${r.car.brand} ${r.car.model} · ${bought?`gekauft für ${money(r.purchasedPrice||r.car.purchasePrice||0)}`:`${r.personaLabel} · Potenzial ${margin>=0?'+':''}${money(margin)}`}</div>
+      <div class="top"><span>${r.sellerName}</span><span style="color:${bought?'var(--emerald)':(margin>=0?'var(--emerald)':'var(--crimson)')};font-weight:800;">${bought?escapeHtml(A.bought_badge):money(r.wishPrice)}</span></div>
+      <div class="snippet">${r.car.brand} ${r.car.model} · ${bought?escapeHtml(t('acquisition.bought_for',{price:money(r.purchasedPrice||r.car.purchasePrice||0)})):`${r.personaLabel} · ${escapeHtml(t('acquisition.potential',{sign:margin>=0?'+':'', margin:money(margin)}))}`}</div>
     </div>`;
   }).join('');
   return `
-    <h2 class="section-title">Fahrzeugankauf</h2>
-    <p class="subtle">${open.length} offene Ankaufsanfrage(n) · ${purchased.length} gekaufte Vorgänge. Gekaufte Chats bleiben erhalten, bis Sie sie löschen.</p>
+    <h2 class="section-title">${escapeHtml(A.title)}</h2>
+    <p class="subtle">${escapeHtml(t('acquisition.summary',{open:open.length, purchased:purchased.length}))}</p>
     <div class="mailbox-layout">
       <div class="convo-list">${listHtml}</div>
       <div class="chat-thread">${renderPurchaseRequestDetail(selectedPurchaseRequestId)}</div>
@@ -6438,72 +6642,73 @@ function renderAcquisition(){
 }
 function renderPurchaseRequestDetail(id){
   const r = (state.purchaseRequests||[]).find(x=>x.id===id);
-  if(!r) return `<div class="empty-state"><div class="ic">🤝</div>Anfrage auswählen</div>`;
+  const A = t('acquisition');
+  if(!r) return `<div class="empty-state"><div class="ic">🤝</div>${escapeHtml(A.select_prompt)}</div>`;
   const c = r.car;
   const memory = ensurePurchaseChat(r);
   const bought = r.status==='purchased';
-  const issues = r.inspected ? (c.hiddenIssues.length?c.hiddenIssues.join(', '):'keine versteckten Mängel gefunden') : 'erst nach Besichtigung/OBD sichtbar';
+  const issues = r.inspected ? (c.hiddenIssues.length?c.hiddenIssues.join(', '):A.no_hidden_defects) : A.defects_hidden;
   const activeCounter = latestPurchaseCounterOffer(r);
   const bubbles = (r.messages||[]).map((m,idx)=>{
     const counterButton = activeCounter && activeCounter.index===idx && m.from==='seller' && !bought
-      ? `<button class="btn btn-primary btn-sm" style="margin-top:9px;width:100%;justify-content:center;" onclick="acceptPurchaseCounterOffer('${r.id}', ${activeCounter.amount})">${money(activeCounter.amount)} akzeptieren</button>`
+      ? `<button class="btn btn-primary btn-sm" style="margin-top:9px;width:100%;justify-content:center;" onclick="acceptPurchaseCounterOffer('${r.id}', ${activeCounter.amount})">${escapeHtml(t('acquisition.accept_counter',{price:money(activeCounter.amount)}))}</button>`
       : '';
     return `<div class="bubble ${m.from==='player'?'player':'customer'}">${escapeHtml(formatStoredDayText(m.text))}<div style="font-size:10px;color:var(--ink-2);margin-top:4px;">${gameDateShort(m.day)}</div>${counterButton}</div>`;
   }).join('');
   const debug = state.chatDebug && r.lastPurchaseChatDebug ? `<div class="notice" style="display:block;margin-top:8px;border-color:rgba(92,134,255,.32);">
-    <b>Ankaufschat-Debug</b><br>
-    Intent: ${escapeHtml(r.lastPurchaseChatDebug.intent)} · Zustand: ${escapeHtml(r.lastPurchaseChatDebug.conversationState)}<br>
-    Offene Frage: ${escapeHtml(r.lastPurchaseChatDebug.openQuestion ? r.lastPurchaseChatDebug.openQuestion.text : 'keine')}<br>
-    Geduld: ${r.lastPurchaseChatDebug.patience}<br>
-    Empfehlung: ${escapeHtml(r.lastPurchaseChatDebug.nextRecommendedReaction)}
+    <b>${escapeHtml(A.debug_title)}</b><br>
+    ${escapeHtml(A.debug_intent)}: ${escapeHtml(r.lastPurchaseChatDebug.intent)} · ${escapeHtml(A.debug_state)}: ${escapeHtml(r.lastPurchaseChatDebug.conversationState)}<br>
+    ${escapeHtml(A.debug_open_question)}: ${escapeHtml(r.lastPurchaseChatDebug.openQuestion ? r.lastPurchaseChatDebug.openQuestion.text : A.debug_none)}<br>
+    ${escapeHtml(A.debug_patience)}: ${r.lastPurchaseChatDebug.patience}<br>
+    ${escapeHtml(A.debug_recommendation)}: ${escapeHtml(r.lastPurchaseChatDebug.nextRecommendedReaction)}
   </div>` : '';
   return `
-    ${bought?`<div class="notice good" style="justify-content:center;text-align:center;font-family:var(--font-d);font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--emerald);border-color:rgba(47,184,124,.5);">Gekauft · ${money(r.purchasedPrice||c.purchasePrice||0)} · ${gameDateShort(r.purchasedDay||state.day)}</div>`:''}
+    ${bought?`<div class="notice good" style="justify-content:center;text-align:center;font-family:var(--font-d);font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--emerald);border-color:rgba(47,184,124,.5);">${escapeHtml(t('acquisition.bought_banner',{price:money(r.purchasedPrice||c.purchasePrice||0), date:gameDateShort(r.purchasedDay||state.day)}))}</div>`:''}
     <div class="chat-head">
       <div>
         <div style="font-family:var(--font-d);font-weight:800;font-size:15px;">${r.sellerName}</div>
         <div class="subtle" style="margin:0;">${r.sellerType} · ${r.personaLabel} · ${r.photoQuality}</div>
         <div class="customer-profile-strip">
           <span class="chip">${escapeHtml(memory.conversationState)}</span>
-          <span class="chip">Geduld ${r.patience}</span>
-          <span class="chip">Flex ${Math.round((r.flex||0)*100)}%</span>
+          <span class="chip">${escapeHtml(t('acquisition.patience',{n:r.patience}))}</span>
+          <span class="chip">${escapeHtml(t('acquisition.flex',{pct:Math.round((r.flex||0)*100)}))}</span>
         </div>
       </div>
-      <span class="chip" style="color:${bought?'var(--emerald)':'var(--brass)'};">${bought?'Gekauft für '+money(r.purchasedPrice||c.purchasePrice||0):'Wunschpreis '+money(r.wishPrice)}</span>
+      <span class="chip" style="color:${bought?'var(--emerald)':'var(--brass)'};">${bought?escapeHtml(t('acquisition.bought_for_chip',{price:money(r.purchasedPrice||c.purchasePrice||0)})):escapeHtml(t('acquisition.wish_price_chip',{price:money(r.wishPrice)}))}</span>
     </div>
     <div class="offer-card" style="display:grid;grid-template-columns:minmax(180px,260px) 1fr;gap:14px;align-items:start;">
       <div>${renderCarPhoto(c)}</div>
       <div>
         <div class="car-name">${c.brand} ${c.model}</div>
-        <div class="car-sub">${c.year} · ${c.mileage.toLocaleString('de-DE')} km · ${c.engine} · ${c.transmission}</div>
+        <div class="car-sub">${c.year} · ${c.mileage.toLocaleString(localeMeta().numberLocale||'en-US')} km · ${c.engine} · ${c.transmission}</div>
         <div class="spec-row">
-          <span class="chip">${c.power} PS</span><span class="chip">${c.color}</span><span class="chip">TÜV ${c.tuvMonths>0?c.tuvMonths+' Mon.':'abgelaufen'}</span><span class="chip">${r.knownDamage}</span>
+          <span class="chip">${c.power} PS</span><span class="chip">${c.color}</span><span class="chip">TÜV ${c.tuvMonths>0?t('acquisition.tuv_months',{n:c.tuvMonths}):A.tuv_expired}</span><span class="chip">${r.knownDamage}</span>
         </div>
         <div class="stat-grid" style="margin:10px 0 0;">
-          <div class="stat-card"><div class="lbl">Wunschpreis</div><div class="num">${money(r.wishPrice)}</div></div>
-          <div class="stat-card"><div class="lbl">Schätzwert</div><div class="num">${money(c.marketValue)}</div></div>
-          <div class="stat-card"><div class="lbl">Zustand</div><div class="num">${r.inspected?c.condition+'/100':'unbekannt'}</div></div>
-          <div class="stat-card"><div class="lbl">Mängel</div><div class="num" style="font-size:13px;line-height:1.35;">${issues}</div></div>
+          <div class="stat-card"><div class="lbl">${escapeHtml(A.wish_price)}</div><div class="num">${money(r.wishPrice)}</div></div>
+          <div class="stat-card"><div class="lbl">${escapeHtml(A.estimate)}</div><div class="num">${money(c.marketValue)}</div></div>
+          <div class="stat-card"><div class="lbl">${escapeHtml(A.condition)}</div><div class="num">${r.inspected?c.condition+'/100':escapeHtml(A.condition_unknown)}</div></div>
+          <div class="stat-card"><div class="lbl">${escapeHtml(A.defects)}</div><div class="num" style="font-size:13px;line-height:1.35;">${issues}</div></div>
         </div>
       </div>
     </div>
     <div class="chat-messages" id="purchaseChatMessages">${bubbles}</div>
     ${debug}
     ${bought?'':`<div style="display:flex;gap:8px;margin:10px 0;">
-      <input type="text" id="purchaseTextInput" value="${escapeAttr(r.draftText||'')}" placeholder="Nachricht an Verkäufer schreiben..." style="flex:1;padding:9px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--ink-0);font-size:12.5px;" oninput="updatePurchaseDraft('${r.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();sendPurchaseMessage('${r.id}');}">
-      <button class="btn btn-primary btn-sm" onclick="sendPurchaseMessage('${r.id}')">Senden</button>
+      <input type="text" id="purchaseTextInput" value="${escapeAttr(r.draftText||'')}" placeholder="${escapeAttr(A.message_placeholder)}" style="flex:1;padding:9px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--ink-0);font-size:12.5px;" oninput="updatePurchaseDraft('${r.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();sendPurchaseMessage('${r.id}');}">
+      <button class="btn btn-primary btn-sm" onclick="sendPurchaseMessage('${r.id}')">${escapeHtml(A.send)}</button>
     </div>`}
     <div class="chat-actions">
       ${bought?`
-      <button class="btn btn-primary btn-sm" onclick="navigateTo('inventory')">Bestand öffnen</button>
-      <button class="btn btn-danger btn-sm" onclick="deletePurchasedRequest('${r.id}')">Eintrag löschen</button>
+      <button class="btn btn-primary btn-sm" onclick="navigateTo('inventory')">${escapeHtml(A.open_inventory)}</button>
+      <button class="btn btn-danger btn-sm" onclick="deletePurchasedRequest('${r.id}')">${escapeHtml(A.delete_entry)}</button>
       `:`
-      <button class="btn btn-ghost btn-sm" onclick="inspectPurchaseRequest('${r.id}')">🔍 Besichtigung</button>
-      <button class="btn btn-ghost btn-sm" onclick="requestPurchaseInfo('${r.id}','photos')">Bilder anfordern</button>
-      <button class="btn btn-ghost btn-sm" onclick="requestPurchaseInfo('${r.id}','history')">Historie</button>
-      <button class="btn btn-ghost btn-sm" onclick="requestPurchaseInfo('${r.id}','obd')">OBD-Prüfung</button>
-      <button class="btn btn-primary btn-sm" onclick="openPurchaseOfferModal('${r.id}', ${Math.max(300, Math.round(c.marketValue*0.86/10)*10)})">Angebot</button>
-      <button class="btn btn-danger btn-sm" onclick="archivePurchaseRequest('${r.id}')">Archivieren</button>
+      <button class="btn btn-ghost btn-sm" onclick="inspectPurchaseRequest('${r.id}')">${escapeHtml(A.inspect_btn)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="requestPurchaseInfo('${r.id}','photos')">${escapeHtml(A.request_photos)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="requestPurchaseInfo('${r.id}','history')">${escapeHtml(A.request_history)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="requestPurchaseInfo('${r.id}','obd')">${escapeHtml(A.request_obd)}</button>
+      <button class="btn btn-primary btn-sm" onclick="openPurchaseOfferModal('${r.id}', ${Math.max(300, Math.round(c.marketValue*0.86/10)*10)})">${escapeHtml(A.offer_btn)}</button>
+      <button class="btn btn-danger btn-sm" onclick="archivePurchaseRequest('${r.id}')">${escapeHtml(A.archive_btn)}</button>
       `}
     </div>
   `;
@@ -6526,17 +6731,18 @@ function requestPurchaseInfo(id, type){
 }
 function openPurchaseOfferModal(id, suggested){
   const r = state.purchaseRequests.find(x=>x.id===id); if(!r) return;
+  const A = t('acquisition');
   showModal(`
-    <h2 class="section-title">Ankaufsangebot</h2>
-    <p class="subtle">${r.car.brand} ${r.car.model} · Wunschpreis ${money(r.wishPrice)} · Schätzwert ${money(r.car.marketValue)}</p>
+    <h2 class="section-title">${escapeHtml(A.offer_title)}</h2>
+    <p class="subtle">${escapeHtml(t('acquisition.offer_sub',{brand:r.car.brand, model:r.car.model, wish:money(r.wishPrice), value:money(r.car.marketValue)}))}</p>
     <div class="field">
-      <label>Angebot: <span id="purchaseOfferlbl" style="font-family:var(--font-m);color:var(--brass);">${money(suggested)}</span></label>
+      <label>${escapeHtml(A.offer_label)} <span id="purchaseOfferlbl" style="font-family:var(--font-m);color:var(--brass);">${money(suggested)}</span></label>
       <input type="range" min="300" max="${Math.max(r.wishPrice*1.25, r.car.marketValue*1.2)}" step="100" value="${suggested}" oninput="syncFromRange('purchaseOffer', this.value, 300, ${Math.max(r.wishPrice*1.25, r.car.marketValue*1.2)}, '_purchaseOfferVal')" id="purchaseOfferRange">
       <input type="number" min="0" step="100" value="${suggested}" oninput="syncFromNumber('purchaseOffer', this.value, 0, ${Math.max(r.wishPrice*1.5, r.car.marketValue*1.5)}, '_purchaseOfferVal')" id="purchaseOfferNumber">
     </div>
     <div class="row-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-      <button class="btn btn-primary" onclick="sendPurchaseOffer('${id}', window._purchaseOfferVal||${suggested})">Angebot senden</button>
+      <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(A.cancel)}</button>
+      <button class="btn btn-primary" onclick="sendPurchaseOffer('${id}', window._purchaseOfferVal||${suggested})">${escapeHtml(A.send_offer)}</button>
     </div>
   `);
   window._purchaseOfferVal = suggested;
@@ -6561,9 +6767,9 @@ function sendPurchaseOffer(id, amount){
     archivePurchaseRequest(id, true);
     showDropoutModal(
       'purchase',
-      'Ankauf abgebrochen',
-      `${r.sellerName} ist abgesprungen und sucht sich einen anderen Käufer.`,
-      `${r.car.brand} ${r.car.model} · Ihr Angebot: ${money(amount)} · Wunschpreis: ${money(r.wishPrice)}`
+      t('acquisition.dropout_title'),
+      t('acquisition.dropout_body',{seller:r.sellerName}),
+      t('acquisition.dropout_meta',{brand:r.car.brand, model:r.car.model, offer:money(amount), wish:money(r.wishPrice)})
     );
     return;
   }
@@ -6576,12 +6782,12 @@ function acceptPurchaseCounterOffer(id, amount){
   const r = state.purchaseRequests.find(x=>x.id===id); if(!r || r.status!=='open') return;
   const active = latestPurchaseCounterOffer(r);
   if(!active || active.amount !== amount){
-    notify('Dieses Gegenangebot ist nicht mehr aktuell.', 'warn');
+    notify(t('acquisition.counter_not_current'), 'warn');
     renderAllOpen();
     return;
   }
   if(state.cash < amount){
-    notify('Nicht genug Kapital für diesen Ankauf.', 'warn');
+    notify(t('acquisition.not_enough_capital'), 'warn');
     return;
   }
   dealerMsg(r, `Einverstanden, wir akzeptieren Ihr Angebot über ${money(amount)}.`);
@@ -6612,15 +6818,15 @@ function archivePurchaseRequest(id, silent){
   state.purchaseRequestArchive.unshift(r);
   state.purchaseRequests = state.purchaseRequests.filter(x=>x.id!==id);
   if(selectedPurchaseRequestId===id) selectedPurchaseRequestId = null;
-  if(!silent) notify(`Ankaufsanfrage ${r.car.brand} ${r.car.model} archiviert.`, 'info');
+  if(!silent) notify(t('acquisition.archived_notify',{brand:r.car.brand, model:r.car.model}), 'info');
   closeModal(); renderAllOpen(); scheduleSave();
 }
 function deletePurchasedRequest(id){
   const r = state.purchaseRequests.find(x=>x.id===id); if(!r || r.status!=='purchased') return;
-  if(!confirm(`Gekauften Ankauf von ${r.sellerName} (${r.car.brand} ${r.car.model}) aus der Ankaufsliste löschen? Das Fahrzeug bleibt im Bestand.`)) return;
+  if(!confirm(t('acquisition.delete_confirm',{seller:r.sellerName, brand:r.car.brand, model:r.car.model}))) return;
   state.purchaseRequests = state.purchaseRequests.filter(x=>x.id!==id);
   if(selectedPurchaseRequestId===id) selectedPurchaseRequestId = null;
-  notify(`Gekaufter Ankauf ${r.car.brand} ${r.car.model} aus der Liste gelöscht.`, 'info');
+  notify(t('acquisition.deleted_notify',{brand:r.car.brand, model:r.car.model}), 'info');
   renderAllOpen(); scheduleSave();
 }
 
@@ -6752,47 +6958,49 @@ function contactSearchOrderCustomer(orderId, carId){
 function renderWishlist(){
   checkSearchOrderMatches();
   const orders = activeSearchOrders();
+  const WL = t('wishlist');
   if(orders.length===0){
-    return `<h2 class="section-title">Wunschliste</h2><div class="empty-state"><div class="ic">🔍</div>Noch keine Suchaufträge. Kunden hinterlassen hier ihre Fahrzeugwünsche, sobald welche eintreffen.</div>`;
+    return `<h2 class="section-title">${escapeHtml(WL.title)}</h2><div class="empty-state"><div class="ic">🔍</div>${escapeHtml(WL.empty)}</div>`;
   }
   const open = orders.filter(o=>o.status==='open');
   return `
-    <h2 class="section-title">Wunschliste</h2>
-    <p class="subtle">${open.length} offene Suchaufträge · Kunden warten auf ein passendes Fahrzeug.</p>
+    <h2 class="section-title">${escapeHtml(WL.title)}</h2>
+    <p class="subtle">${escapeHtml(t('wishlist.summary',{n:open.length}))}</p>
     ${orders.slice().reverse().map(renderSearchOrderCard).join('')}
   `;
 }
 function renderSearchOrderCard(so){
   const matches = activeInventory().filter(c=>matchesOrder(c, so));
   const marketMatches = activeMarket().filter(c=>matchesMarketSearchOrder(c, so));
+  const WL = t('wishlist');
   const statusChip = so.status==='open'
-    ? `<span class="chip" style="color:var(--brass);border-color:rgba(212,175,106,.4);">Offen</span>`
+    ? `<span class="chip" style="color:var(--brass);border-color:rgba(212,175,106,.4);">${escapeHtml(WL.status_open)}</span>`
     : so.status==='contacted'
-      ? `<span class="chip" style="color:var(--teal);border-color:rgba(47,184,124,.4);">Kontaktiert</span>`
-      : `<span class="chip">Geschlossen</span>`;
+      ? `<span class="chip" style="color:var(--teal);border-color:rgba(47,184,124,.4);">${escapeHtml(WL.status_contacted)}</span>`
+      : `<span class="chip">${escapeHtml(WL.status_closed)}</span>`;
   return `<div class="offer-card">
     <div class="offer-head">
-      <span><b>${so.customerName}</b> sucht: ${so.desc}</span>
+      <span>${t('wishlist.searching_for',{name:'<b>'+escapeHtml(so.customerName)+'</b>'})} ${so.desc}</span>
       ${statusChip}
     </div>
     <div class="spec-row" style="margin-bottom:10px;">
       <span class="chip">${so.persona}</span>
       <span class="chip">💼 ${so.job}</span>
-      <span class="chip">Bonität ${so.creditScore}/100</span>
-      <span class="chip">Seit ${gameDateShort(so.createdDay)}</span>
+      <span class="chip">${escapeHtml(t('wishlist.credit_score',{n:so.creditScore}))}</span>
+      <span class="chip">${escapeHtml(t('wishlist.since',{date:gameDateShort(so.createdDay)}))}</span>
     </div>
     ${matches.length ? `
-      <div class="notice good">✅ ${matches.length} passende${matches.length>1?'':'s'} Fahrzeug${matches.length>1?'e':''} in Ihrem Bestand!</div>
+      <div class="notice good">${escapeHtml(t('wishlist.matches_in_stock',{n:matches.length, s:matches.length>1?'':'s', e:matches.length>1?'e':''}))}</div>
       ${matches.map(c=>{
         const blockedByOther = c.reservedFor && c.reservedFor.customerId!==so.customerId && c.reservedFor.expiresDay>state.day;
         return `<div class="row-actions" style="margin-bottom:6px;">
-        <span class="chip" style="flex:1;text-align:left;">${c.brand} ${c.model} · ${money(c.marketValue)}${blockedByOther?' · 🔒 reserviert':''}</span>
-        <button class="btn btn-primary btn-sm" onclick="contactSearchOrderCustomer('${so.id}','${c.id}')" ${so.status!=='open'||blockedByOther?'disabled':''}>Kontaktieren</button>
+        <span class="chip" style="flex:1;text-align:left;">${c.brand} ${c.model} · ${money(c.marketValue)}${blockedByOther?escapeHtml(WL.reserved_tag):''}</span>
+        <button class="btn btn-primary btn-sm" onclick="contactSearchOrderCustomer('${so.id}','${c.id}')" ${so.status!=='open'||blockedByOther?'disabled':''}>${escapeHtml(WL.contact_btn)}</button>
       </div>`;
       }).join('')}
     ` : `
-      <div class="notice">Aktuell kein passendes Fahrzeug in Ihrem Bestand.${marketMatches.length? ` ${marketMatches.length} passende Angebote gerade auf dem Markt verfügbar.`:' Aktuell kein passendes Fahrzeug im Markt. Wird beobachtet.'}</div>
-      ${marketMatches.length? `<button class="btn btn-ghost btn-sm" onclick="applySearchOrderToMarket('${so.id}')">🔍 Im Markt suchen</button>`:''}
+      <div class="notice">${escapeHtml(WL.no_match_stock)}${marketMatches.length? escapeHtml(t('wishlist.market_matches_suffix',{n:marketMatches.length})):escapeHtml(WL.no_market_match)}</div>
+      ${marketMatches.length? `<button class="btn btn-ghost btn-sm" onclick="applySearchOrderToMarket('${so.id}')">${escapeHtml(WL.search_market_btn)}</button>`:''}
     `}
   </div>`;
 }
@@ -10466,33 +10674,34 @@ function renderFinance(){
   const recurringMonthly = receivables.reduce((s,r)=>s+r.monthlyPayment,0) + leases.reduce((s,l)=>s+l.monthlyPayment,0);
   const claims = activeClaims();
   const claimSum = claims.reduce((s,x)=>s+claimTotal(x.claim),0);
+  const FN = t('finance');
   return `
-    <h2 class="section-title">Finanzen</h2>
+    <h2 class="section-title">${escapeHtml(FN.title)}</h2>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Einnahmen (gesamt)</div><div class="num" style="color:var(--teal);">${money(income)}</div></div>
-      <div class="stat-card"><div class="lbl">Ausgaben (gesamt)</div><div class="num" style="color:var(--red);">${money(expense)}</div></div>
-      <div class="stat-card"><div class="lbl">Nettoergebnis</div><div class="num">${money(income+expense)}</div></div>
-      <div class="stat-card"><div class="lbl">💳 Wiederkehrend/Monat</div><div class="num" style="color:var(--brass);">${money(recurringMonthly)}</div></div>
-      <div class="stat-card"><div class="lbl">⚠ Offene Forderungen</div><div class="num" style="color:${claims.length?'var(--crimson)':'var(--teal)'};">${claims.length?money(claimSum):'0 €'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(FN.total_income)}</div><div class="num" style="color:var(--teal);">${money(income)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(FN.total_expense)}</div><div class="num" style="color:var(--red);">${money(expense)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(FN.net_result)}</div><div class="num">${money(income+expense)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(FN.recurring_monthly)}</div><div class="num" style="color:var(--brass);">${money(recurringMonthly)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(FN.open_claims)}</div><div class="num" style="color:${claims.length?'var(--crimson)':'var(--teal)'};">${claims.length?money(claimSum):money(0)}</div></div>
     </div>
     ${claims.length ? `
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:6px 0 10px;">Offene Forderungen <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">→ Mahnwesen öffnen</a></h3>
-    <table class="tbl finance-table"><thead><tr><th>Kunde</th><th>Fahrzeug</th><th>Status</th><th>Gesamt</th><th>Nächster Schritt</th></tr></thead>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:6px 0 10px;">${escapeHtml(FN.open_claims_title)} <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">${escapeHtml(FN.open_claims_link)}</a></h3>
+    <table class="tbl finance-table"><thead><tr><th>${escapeHtml(FN.col_customer)}</th><th>${escapeHtml(FN.col_vehicle)}</th><th>${escapeHtml(FN.col_status)}</th><th>${escapeHtml(FN.col_total)}</th><th>${escapeHtml(FN.col_next_step)}</th></tr></thead>
     <tbody>${claims.map(({contract, claim})=>`<tr><td>${contract.customerName}</td><td>${contractDesc(contract)}</td><td style="color:var(--red);">${claimStatusLabel(claim)}</td><td style="font-family:var(--font-m);">${money(claimTotal(claim))}</td><td>${claimActionLabel(claim)}</td></tr>`).join('')}</tbody></table>
     ` : ''}
     ${receivables.length ? `
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:6px 0 10px;">Offene Finanzierungsverträge <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">→ Details in Verträge</a></h3>
-    <table class="tbl finance-table"><thead><tr><th>Kunde</th><th>Fahrzeug</th><th>Rate/Monat</th><th>Restschuld</th><th>Status</th></tr></thead>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:6px 0 10px;">${escapeHtml(FN.open_financing_title)} <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">${escapeHtml(FN.open_financing_link)}</a></h3>
+    <table class="tbl finance-table"><thead><tr><th>${escapeHtml(FN.col_customer)}</th><th>${escapeHtml(FN.col_vehicle)}</th><th>${escapeHtml(FN.col_rate_month)}</th><th>${escapeHtml(FN.col_remaining_debt)}</th><th>${escapeHtml(FN.col_status)}</th></tr></thead>
     <tbody>${receivables.map(r=>`<tr><td>${r.customerName}</td><td>${r.carDesc}</td><td style="font-family:var(--font-m);">${money(r.monthlyPayment)}</td><td>${money(r.remainingPrincipal)}</td><td style="color:${r.status==='aktuell'?'var(--teal)':'var(--red)'};">${r.status}</td></tr>`).join('')}</tbody></table>
     ` : ''}
     ${leases.length ? `
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">Laufende Leasingverträge <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">→ Details in Verträge</a></h3>
-    <table class="tbl finance-table"><thead><tr><th>Kunde</th><th>Fahrzeug</th><th>Rate/Monat</th><th>Laufzeit</th><th>Mehr-km</th><th>Schäden</th></tr></thead>
-    <tbody>${leases.map(l=>`<tr><td>${l.customerName}</td><td>${l.carSnapshot.brand} ${l.carSnapshot.model}</td><td style="font-family:var(--font-m);">${money(l.monthlyPayment)}</td><td>${l.monthsElapsed}/${l.months} Monate</td><td>${l.mileageOverageKm>0?l.mileageOverageKm.toLocaleString('de-DE')+' km':'–'}</td><td>${l.damageEvents||'–'}</td></tr>`).join('')}</tbody></table>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">${escapeHtml(FN.active_leases_title)} <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">${escapeHtml(FN.open_financing_link)}</a></h3>
+    <table class="tbl finance-table"><thead><tr><th>${escapeHtml(FN.col_customer)}</th><th>${escapeHtml(FN.col_vehicle)}</th><th>${escapeHtml(FN.col_rate_month)}</th><th>${escapeHtml(FN.col_term)}</th><th>${escapeHtml(FN.col_excess_km)}</th><th>${escapeHtml(FN.col_damage)}</th></tr></thead>
+    <tbody>${leases.map(l=>`<tr><td>${l.customerName}</td><td>${l.carSnapshot.brand} ${l.carSnapshot.model}</td><td style="font-family:var(--font-m);">${money(l.monthlyPayment)}</td><td>${l.monthsElapsed}/${l.months} ${currentLanguage()==='de'?'Monate':'months'}</td><td>${l.mileageOverageKm>0?l.mileageOverageKm.toLocaleString(localeMeta().numberLocale||'en-US')+' km':'–'}</td><td>${l.damageEvents||'–'}</td></tr>`).join('')}</tbody></table>
     ` : ''}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">Letzte Transaktionen</h3>
-    <table class="tbl finance-table"><thead><tr><th>Datum</th><th>Beschreibung</th><th>Betrag</th></tr></thead>
-    <tbody>${state.transactions.slice(0,40).map(t=>`<tr><td>${gameDateShort(t.day)}</td><td>${formatStoredDayText(t.desc)}</td><td style="color:${t.amount>=0?'var(--teal)':'var(--red)'};font-family:var(--font-m);">${fmtDelta(t.amount)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--txt-2);">Keine Transaktionen</td></tr>'}</tbody></table>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">${escapeHtml(FN.recent_transactions)}</h3>
+    <table class="tbl finance-table"><thead><tr><th>${escapeHtml(FN.col_date)}</th><th>${escapeHtml(FN.col_description)}</th><th>${escapeHtml(FN.col_amount)}</th></tr></thead>
+    <tbody>${state.transactions.slice(0,40).map(t=>`<tr><td>${gameDateShort(t.day)}</td><td>${formatStoredDayText(t.desc)}</td><td style="color:${t.amount>=0?'var(--teal)':'var(--red)'};font-family:var(--font-m);">${fmtDelta(t.amount)}</td></tr>`).join('') || `<tr><td colspan="3" style="text-align:center;color:var(--txt-2);">${escapeHtml(FN.no_transactions)}</td></tr>`}</tbody></table>
   `;
 }
 
@@ -10561,14 +10770,15 @@ function renderUpgrades(){
   const max = UPGRADE_DEFS.length*3;
   const active = UPGRADE_DEFS.filter(u=>upgradeLevel(u.id)>0).length;
   const totalInvestment = state.upgradeStats.totalInvestment || 0;
+  const UP = t('upgrades');
   return `
-    <h2 class="section-title">Unternehmensausbau</h2>
-    <p class="subtle">Strategische Upgrades verbessern echte Systeme im Autohaus. Jede Investition kostet Liquidit&auml;t und bringt nur dann Vorteile, wenn Preis, Ruf, Fahrzeugqualit&auml;t und Prozesse zusammenpassen.</p>
+    <h2 class="section-title">${escapeHtml(UP.title)}</h2>
+    <p class="subtle">${escapeHtml(UP.subtitle)}</p>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Aktive Upgrades</div><div class="num">${active}</div></div>
-      <div class="stat-card"><div class="lbl">Ausbaustufen</div><div class="num">${owned}/${max}</div></div>
-      <div class="stat-card"><div class="lbl">Investiert</div><div class="num">${money(totalInvestment)}</div></div>
-      <div class="stat-card"><div class="lbl">Legacy-Zugang</div><div class="num">${hasLegacyRun()?legacyLabel():'Noch offen'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(UP.active_upgrades)}</div><div class="num">${active}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(UP.upgrade_levels)}</div><div class="num">${owned}/${max}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(UP.invested)}</div><div class="num">${money(totalInvestment)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(UP.legacy_access)}</div><div class="num">${hasLegacyRun()?legacyLabel():escapeHtml(UP.still_locked)}</div></div>
     </div>
     <div class="upgrade-grid">
       ${UPGRADE_DEFS.map(def=>{
@@ -10580,16 +10790,16 @@ function renderUpgrades(){
         return `<div class="upgrade-card ${unlocked?'':'locked'} ${maxed?'maxed':''}">
           <div class="upgrade-head">
             <span class="upgrade-icon">${escapeHtml(def.icon)}</span>
-            <span><b>${escapeHtml(def.name)}</b><small>Stufe ${level}/3</small></span>
-            <span class="chip">${maxed?'Max':(unlocked?'Bereit':'Gesperrt')}</span>
+            <span><b>${escapeHtml(def.name)}</b><small>${escapeHtml(t('upgrades.level_label',{n:level}))}</small></span>
+            <span class="chip">${maxed?escapeHtml(UP.status_max):(unlocked?escapeHtml(UP.status_ready):escapeHtml(UP.status_locked))}</span>
           </div>
           <p class="upgrade-desc">${escapeHtml(def.desc)}</p>
           <div class="upgrade-levels">${[1,2,3].map(i=>`<span class="${level>=i?'on':''}"></span>`).join('')}</div>
-          <div class="upgrade-effect"><b style="color:var(--ink-0);font-family:var(--font-d);display:block;margin-bottom:4px;">${maxed?'Aktiver Effekt':'N&auml;chster Effekt'}</b>${escapeHtml(upgradeEffectText(def))}</div>
-          <div class="upgrade-req">Voraussetzung: ${escapeHtml(upgradeRequirementText(def))}</div>
+          <div class="upgrade-effect"><b style="color:var(--ink-0);font-family:var(--font-d);display:block;margin-bottom:4px;">${maxed?escapeHtml(UP.active_effect):escapeHtml(UP.next_effect)}</b>${escapeHtml(upgradeEffectText(def))}</div>
+          <div class="upgrade-req">${escapeHtml(UP.requirement)} ${escapeHtml(upgradeRequirementText(def))}</div>
           <div class="upgrade-foot">
-            <span class="upgrade-cost">${maxed?'Vollst&auml;ndig':money(cost)}</span>
-            <button class="btn ${canBuy?'btn-primary':'btn-ghost'} btn-sm" onclick="buyUpgrade('${def.id}')" ${(!canBuy)?'disabled':''}>Upgrade kaufen</button>
+            <span class="upgrade-cost">${maxed?escapeHtml(UP.fully_upgraded):money(cost)}</span>
+            <button class="btn ${canBuy?'btn-primary':'btn-ghost'} btn-sm" onclick="buyUpgrade('${def.id}')" ${(!canBuy)?'disabled':''}>${escapeHtml(UP.buy_upgrade)}</button>
           </div>
         </div>`;
       }).join('')}
@@ -10882,72 +11092,74 @@ function renderBusinessInsights(){
   const freeReviewed = d.completedDeliveries.filter(x=>(x.dealerSharePct||0)>=1 && Number.isFinite(x.reviewStars));
   const paidReviewed = d.completedDeliveries.filter(x=>(x.dealerSharePct||0)<=0 && Number.isFinite(x.reviewStars));
   const freeRepeat = d.completedDeliveries.filter(x=>(x.dealerSharePct||0)>=1 && ((state.customers||{})[x.customerId]?.purchases||[]).length>1);
+  const IN = t('insights');
   return `
-    <h2 class="section-title">Business Insights</h2>
-    <p class="subtle">Alle Aussagen basieren ausschließlich auf Daten dieses Spielstands. Wo Daten fehlen, wird keine Empfehlung erfunden.</p>
-    ${d.sales.length<2 ? `<div class="notice warn" style="display:block;"><b>Datenbasis noch klein</b><br>Für belastbare Unternehmensanalysen werden mindestens mehrere Verkäufe, Bewertungen oder Vertragsereignisse benötigt. Aktuell liegen ${d.sales.length} Verkauf(e), ${d.reviews.length} Bewertung(en) und ${d.contracts.length} Vertrag/Verträge vor.</div>`:''}
+    <h2 class="section-title">${escapeHtml(IN.title)}</h2>
+    <p class="subtle">${escapeHtml(IN.subtitle)}</p>
+    ${d.sales.length<2 ? `<div class="notice warn" style="display:block;"><b>${escapeHtml(IN.small_data_title)}</b><br>${escapeHtml(t('insights.small_data_body',{sales:d.sales.length, reviews:d.reviews.length, contracts:d.contracts.length}))}</div>`:''}
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Umsatz</div><div class="num">${money(d.revenue)}</div></div>
-      <div class="stat-card"><div class="lbl">Gesamtgewinn</div><div class="num" style="color:${d.profit>=0?'var(--teal)':'var(--red)'};">${money(d.profit)}</div></div>
-      <div class="stat-card"><div class="lbl">Unternehmenswert</div><div class="num">${money(d.valuation.value)}</div></div>
-      <div class="stat-card"><div class="lbl">Liquidität</div><div class="num" style="color:${(state.cash||0)>=0?'var(--teal)':'var(--red)'};">${money(state.cash||0)}</div></div>
-      <div class="stat-card"><div class="lbl">Erfolgsquote</div><div class="num">${d.valuation.index.successRate}%</div></div>
-      <div class="stat-card"><div class="lbl">Legacy-Score</div><div class="num">${currentLegacyScore() || '–'}${currentLegacyScore()?'%':''}</div></div>
-      <div class="stat-card"><div class="lbl">Kundenzufriedenheit</div><div class="num">${state.reputation||0}/100</div></div>
-      <div class="stat-card"><div class="lbl">Reklamationsquote</div><div class="num">${d.reviews.length?biPct(biRate(d.complaints,d.reviews.length)):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Finanzierungsquote</div><div class="num">${d.sales.length?biPct(financingRate):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Leasingquote</div><div class="num">${d.sales.length?biPct(leasingRate):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Marge</div><div class="num">${d.sales.length?biPct(d.avgMargin):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Rabatt</div><div class="num">${d.sales.length?biPct(d.avgDiscount):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Standzeit</div><div class="num">${d.sales.length?biNum(d.avgStand,' T'):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Abschlussquote</div><div class="num">${d.sales.length?biPct(closeRate):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Stammkundenquote</div><div class="num">${d.customers.length?biPct(repeatRate):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Aktive Upgrades</div><div class="num">${d.upgrades.length}</div></div>
-      <div class="stat-card"><div class="lbl">Upgrade-Investition</div><div class="num">${money(d.upgradeInvestment)}</div></div>
-      <div class="stat-card"><div class="lbl">Mahnquote offen</div><div class="num">${d.contracts.length?biPct(biRate(d.activeClaims.length,d.contracts.length)):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Lieferkosten</div><div class="num">${avgDeliveryCost?money(Math.round(avgDeliveryCost)):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Kostenlose Lieferungen</div><div class="num">${d.deliveries.length?biPct(freeDeliveryRate):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Lieferentfernung</div><div class="num">${d.deliveries.length?biNum(avgDeliveryDistance,' km'):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Lieferdauer</div><div class="num">${avgDeliveryDuration?biNum(avgDeliveryDuration,' T'):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Kulanzverlust</div><div class="num">${d.deliveries.length?money(Math.round(avgCourtesyLoss)):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Gratislieferung Ø Bewertung</div><div class="num">${freeReviewed.length?biNum(avg(freeReviewed,x=>x.reviewStars),' ★'):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Bezahlte Lieferung Ø Bewertung</div><div class="num">${paidReviewed.length?biNum(avg(paidReviewed,x=>x.reviewStars),' ★'):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Gratislieferung Stammkunden</div><div class="num">${d.freeDeliveries.length?biPct(biRate(freeRepeat.length,d.freeDeliveries.length)):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.revenue)}</div><div class="num">${money(d.revenue)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.total_profit)}</div><div class="num" style="color:${d.profit>=0?'var(--teal)':'var(--red)'};">${money(d.profit)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.company_value)}</div><div class="num">${money(d.valuation.value)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.liquidity)}</div><div class="num" style="color:${(state.cash||0)>=0?'var(--teal)':'var(--red)'};">${money(state.cash||0)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.success_rate)}</div><div class="num">${d.valuation.index.successRate}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.legacy_score)}</div><div class="num">${currentLegacyScore() || '–'}${currentLegacyScore()?'%':''}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.customer_satisfaction)}</div><div class="num">${state.reputation||0}/100</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.complaint_rate)}</div><div class="num">${d.reviews.length?biPct(biRate(d.complaints,d.reviews.length)):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.financing_rate)}</div><div class="num">${d.sales.length?biPct(financingRate):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.leasing_rate)}</div><div class="num">${d.sales.length?biPct(leasingRate):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.avg_margin)}</div><div class="num">${d.sales.length?biPct(d.avgMargin):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.avg_discount)}</div><div class="num">${d.sales.length?biPct(d.avgDiscount):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.avg_standtime)}</div><div class="num">${d.sales.length?biNum(d.avgStand,' T'):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.close_rate)}</div><div class="num">${d.sales.length?biPct(closeRate):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.repeat_rate)}</div><div class="num">${d.customers.length?biPct(repeatRate):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.active_upgrades)}</div><div class="num">${d.upgrades.length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.upgrade_investment)}</div><div class="num">${money(d.upgradeInvestment)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.dunning_open_rate)}</div><div class="num">${d.contracts.length?biPct(biRate(d.activeClaims.length,d.contracts.length)):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.avg_delivery_cost)}</div><div class="num">${avgDeliveryCost?money(Math.round(avgDeliveryCost)):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.free_deliveries)}</div><div class="num">${d.deliveries.length?biPct(freeDeliveryRate):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.avg_delivery_distance)}</div><div class="num">${d.deliveries.length?biNum(avgDeliveryDistance,' km'):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.avg_delivery_duration)}</div><div class="num">${avgDeliveryDuration?biNum(avgDeliveryDuration,' T'):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.avg_courtesy_loss)}</div><div class="num">${d.deliveries.length?money(Math.round(avgCourtesyLoss)):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.free_delivery_avg_review)}</div><div class="num">${freeReviewed.length?biNum(avg(freeReviewed,x=>x.reviewStars),' ★'):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.paid_delivery_avg_review)}</div><div class="num">${paidReviewed.length?biNum(avg(paidReviewed,x=>x.reviewStars),' ★'):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(IN.free_delivery_repeat)}</div><div class="num">${d.freeDeliveries.length?biPct(biRate(freeRepeat.length,d.freeDeliveries.length)):'–'}</div></div>
     </div>
     <div class="grid-cars" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));">
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Gewinnentwicklung</h3>${lineSvg(hist,'avgProfit','var(--teal)')}${biTrendRows(hist,'avgProfit','Ø Gewinn')}</div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Umsatzentwicklung</h3>${lineSvg(hist,'avgSalePrice','var(--brass)')}${biTrendRows(hist,'avgSalePrice','Ø Verkaufspreis')}</div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Nachfrage-Heatmap nach Marke</h3>${biMiniHeatmap(d.brandGroups,'avgMargin','Marken')}</div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Standzeit nach Segment</h3>${biMiniHeatmap(d.tierGroups,'avgStand','Segmente')}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.profit_trend)}</h3>${lineSvg(hist,'avgProfit','var(--teal)')}${biTrendRows(hist,'avgProfit',IN.avg_profit_label)}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.revenue_trend)}</h3>${lineSvg(hist,'avgSalePrice','var(--brass)')}${biTrendRows(hist,'avgSalePrice',IN.avg_price_label)}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.demand_heatmap)}</h3>${biMiniHeatmap(d.brandGroups,'avgMargin',IN.brands_label)}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.standtime_by_segment)}</h3>${biMiniHeatmap(d.tierGroups,'avgStand',IN.segments_label)}</div>
     </div>
     <div class="grid-cars" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:14px;">
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Intelligente Empfehlungen</h3>${recommendations.length?recommendations.map(r=>`<div class="notice ${r.impact==='Hoch'?'warn':'good'}" style="display:block;"><b>${escapeHtml(r.text)}</b><br><span style="color:var(--ink-2);">Datenbasis: ${escapeHtml(r.basis)}</span></div>`).join(''):'<p class="subtle">Noch keine belastbare Empfehlung. Das System wartet auf mehr echte Unternehmensdaten.</p>'}</div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Prognosen</h3>${forecasts.length?forecasts.map(f=>`<div class="notice" style="display:block;"><b>${escapeHtml(f.text)}</b><br><span style="color:var(--ink-2);">Berechnet aus: ${escapeHtml(f.basis)}</span></div>`).join(''):'<p class="subtle">Noch keine Prognose möglich, weil Verlauf oder Trenddaten fehlen.</p>'}</div>
-      ${renderStatTable('Erfolgreichste Marken nach Ø Marge', topBrands, x=>x.key, x=>`${biPct(x.avgMargin)} · ${x.count} Verkäufe`)}
-      ${renderStatTable('Erfolgreichste Modelle nach Gewinn', bestModels, x=>x.key, x=>`${money(x.profit)} · ${x.count} Verkäufe`)}
-      ${renderStatTable('Fahrzeuge mit höchsten Margen', highMarginCars, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${biPct(s.marginPct||0)}`)}
-      ${renderStatTable('Fahrzeuge mit größten Verlusten', lossCars, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${biPct(s.marginPct||0)}`)}
-      ${renderStatTable('Mitarbeiter nach Effizienz', employeesBest, e=>`${e.key} (${e.role})`, e=>`Level ${e.level} · Effizienz ${Math.round(e.efficiency)}% · Fehler ${Math.round(e.errorRate)}% · ${money((e.salary||0)*30)}/Monat`)}
-      ${renderStatTable('Schwächste Mitarbeiterdaten', employeesWeak, e=>`${e.key} (${e.role})`, e=>`Motivation ${Math.round(e.motivation)}% · Effizienz ${Math.round(e.efficiency)}% · ${money((e.salary||0)*30)}/Monat`)}
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Datenabdeckung</h3>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.smart_recommendations)}</h3>${recommendations.length?recommendations.map(r=>`<div class="notice ${r.impact==='Hoch'?'warn':'good'}" style="display:block;"><b>${escapeHtml(r.text)}</b><br><span style="color:var(--ink-2);">${escapeHtml(IN.data_basis)} ${escapeHtml(r.basis)}</span></div>`).join(''):`<p class="subtle">${escapeHtml(IN.no_recommendation)}</p>`}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.forecasts)}</h3>${forecasts.length?forecasts.map(f=>`<div class="notice" style="display:block;"><b>${escapeHtml(f.text)}</b><br><span style="color:var(--ink-2);">${escapeHtml(IN.calculated_from)} ${escapeHtml(f.basis)}</span></div>`).join(''):`<p class="subtle">${escapeHtml(IN.no_forecast)}</p>`}</div>
+      ${renderStatTable(IN.top_brands_margin, topBrands, x=>x.key, x=>`${biPct(x.avgMargin)} · ${x.count} ${IN.sales_suffix}`)}
+      ${renderStatTable(IN.top_models_profit, bestModels, x=>x.key, x=>`${money(x.profit)} · ${x.count} ${IN.sales_suffix}`)}
+      ${renderStatTable(IN.highest_margin_vehicles, highMarginCars, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${biPct(s.marginPct||0)}`)}
+      ${renderStatTable(IN.biggest_loss_vehicles, lossCars, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${biPct(s.marginPct||0)}`)}
+      ${renderStatTable(IN.employees_by_efficiency, employeesBest, e=>`${e.key} (${e.role})`, e=>`${IN.level_label} ${e.level} · ${IN.efficiency_label} ${Math.round(e.efficiency)}% · ${IN.errors_label} ${Math.round(e.errorRate)}% · ${money((e.salary||0)*30)}${IN.per_month}`)}
+      ${renderStatTable(IN.weakest_employee_data, employeesWeak, e=>`${e.key} (${e.role})`, e=>`${IN.motivation_label} ${Math.round(e.motivation)}% · ${IN.efficiency_label} ${Math.round(e.efficiency)}% · ${money((e.salary||0)*30)}${IN.per_month}`)}
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.data_coverage)}</h3>
         <table class="tbl"><tbody>
-          <tr><td>Verkäufe</td><td style="text-align:right;font-family:var(--font-m);">${d.sales.length}</td></tr>
-          <tr><td>Bewertungen</td><td style="text-align:right;font-family:var(--font-m);">${d.reviews.length}</td></tr>
-          <tr><td>Verträge</td><td style="text-align:right;font-family:var(--font-m);">${d.contracts.length}</td></tr>
-          <tr><td>Zahlungsausfälle</td><td style="text-align:right;font-family:var(--font-m);">${d.defaults}</td></tr>
-          <tr><td>Werkstatt laufend / abgeschlossen</td><td style="text-align:right;font-family:var(--font-m);">${(state.workshopJobs||[]).length} / ${state.workshopCompleted||0}</td></tr>
-          <tr><td>Fahrzeugankäufe gekauft / offen</td><td style="text-align:right;font-family:var(--font-m);">${d.purchasedRequests} / ${d.openRequests}</td></tr>
-          <tr><td>Wunschfahrzeug-Aufträge offen</td><td style="text-align:right;font-family:var(--font-m);">${d.openSearchOrders}</td></tr>
-          <tr><td>Lieferungen abgeschlossen / offen</td><td style="text-align:right;font-family:var(--font-m);">${d.completedDeliveries.length} / ${d.deliveries.length-d.completedDeliveries.length}</td></tr>
-          <tr><td>Kulanzkosten Lieferungen gesamt</td><td style="text-align:right;font-family:var(--font-m);">${money(Math.round(d.courtesyDeliveryLoss))}</td></tr>
+          <tr><td>${escapeHtml(IN.row_sales)}</td><td style="text-align:right;font-family:var(--font-m);">${d.sales.length}</td></tr>
+          <tr><td>${escapeHtml(IN.row_reviews)}</td><td style="text-align:right;font-family:var(--font-m);">${d.reviews.length}</td></tr>
+          <tr><td>${escapeHtml(IN.row_contracts)}</td><td style="text-align:right;font-family:var(--font-m);">${d.contracts.length}</td></tr>
+          <tr><td>${escapeHtml(IN.row_defaults)}</td><td style="text-align:right;font-family:var(--font-m);">${d.defaults}</td></tr>
+          <tr><td>${escapeHtml(IN.row_workshop)}</td><td style="text-align:right;font-family:var(--font-m);">${(state.workshopJobs||[]).length} / ${state.workshopCompleted||0}</td></tr>
+          <tr><td>${escapeHtml(IN.row_acquisitions)}</td><td style="text-align:right;font-family:var(--font-m);">${d.purchasedRequests} / ${d.openRequests}</td></tr>
+          <tr><td>${escapeHtml(IN.row_wishlist_orders)}</td><td style="text-align:right;font-family:var(--font-m);">${d.openSearchOrders}</td></tr>
+          <tr><td>${escapeHtml(IN.row_deliveries)}</td><td style="text-align:right;font-family:var(--font-m);">${d.completedDeliveries.length} / ${d.deliveries.length-d.completedDeliveries.length}</td></tr>
+          <tr><td>${escapeHtml(IN.row_courtesy_total)}</td><td style="text-align:right;font-family:var(--font-m);">${money(Math.round(d.courtesyDeliveryLoss))}</td></tr>
         </tbody></table>
-        <p class="subtle" style="margin-top:10px;">Mitarbeiter werden im aktuellen Spielstand nicht einzelnen Verkäufen zugeordnet. Deshalb bewertet Business Insights Mitarbeiter nicht nach Umsatz, sondern nur nach real gespeicherten Mitarbeiterdaten wie Rolle, Skill und Gehalt.</p>
+        <p class="subtle" style="margin-top:10px;">${escapeHtml(IN.employee_note)}</p>
       </div>
     </div>
   `;
 }
 function renderStatTable(title, rows, left, right){
-  return `<div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${title}</h3><table class="tbl"><tbody>${rows.map(r=>`<tr><td>${escapeHtml(left(r))}</td><td style="text-align:right;font-family:var(--font-m);">${escapeHtml(right(r))}</td></tr>`).join('') || '<tr><td colspan="2" style="color:var(--ink-2);">Noch keine Daten</td></tr>'}</tbody></table></div>`;
+  const noDataText = t('insights.no_data_yet');
+  return `<div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(title)}</h3><table class="tbl"><tbody>${rows.map(r=>`<tr><td>${escapeHtml(left(r))}</td><td style="text-align:right;font-family:var(--font-m);">${escapeHtml(right(r))}</td></tr>`).join('') || `<tr><td colspan="2" style="color:var(--ink-2);">${escapeHtml(noDataText)}</td></tr>`}</tbody></table></div>`;
 }
 function setCalcInput(group, key, value){
   state.calcInputs = state.calcInputs || {};
@@ -11284,7 +11496,14 @@ function achievementColor(rarity){
   return ({common:'#d4af6a', rare:'#2fb87c', epic:'#8b7ff0', legendary:'#ef5da8'})[rarity||'common'] || '#d4af6a';
 }
 function achievementRarityLabel(rarity){
-  return ({common:'Meilenstein', rare:'Seltener Erfolg', epic:'Epischer Erfolg', legendary:'Legendär'})[rarity||'common'] || 'Meilenstein';
+  const AC = t('achievements');
+  return ({common:AC.rarity_common, rare:AC.rarity_rare, epic:AC.rarity_epic, legendary:AC.rarity_legendary})[rarity||'common'] || AC.rarity_common;
+}
+// Übersetzter Achievement-Text: nutzt a.en.<field>, wenn Englisch aktiv ist und eine Übersetzung
+// hinterlegt wurde, sonst die deutschen Basisfelder aus data/achievements.js.
+function achievementText(a, field){
+  if(currentLanguage()==='en' && a.en && a.en[field]!==undefined) return a.en[field];
+  return a[field];
 }
 function checkAchievements(){
   if(!state.achievements) state.achievements = [];
@@ -11317,9 +11536,9 @@ function showAchievementPopup(a){
   el.innerHTML = `
     <div class="achievement-icon">${a.icon}</div>
     <div class="achievement-copy">
-      <div class="achievement-kicker">${achievementRarityLabel(a.rarity)} freigeschaltet</div>
-      <div class="achievement-title">${a.label}</div>
-      <div class="achievement-desc">${a.desc}</div>
+      <div class="achievement-kicker">${achievementRarityLabel(a.rarity)} ${escapeHtml(t('achievements.unlocked_suffix'))}</div>
+      <div class="achievement-title">${escapeHtml(achievementText(a,'label'))}</div>
+      <div class="achievement-desc">${escapeHtml(achievementText(a,'desc'))}</div>
       ${a.xp?`<span class="achievement-xp">+${a.xp} XP</span>`:''}
     </div>`;
   stack.appendChild(el);
@@ -11422,33 +11641,34 @@ function ensureCandidates(){
 }
 function employeeImpactSummary(){
   const roles = EMP_ROLES.map(r=>({role:r.role, count:(state.employees||[]).filter(e=>e.role===r.role).length, icon:r.icon}));
-  return roles.filter(r=>r.count).map(r=>`${r.icon} ${r.role}: ${r.count}`).join(' · ') || 'Noch keine Rollen besetzt';
+  return roles.filter(r=>r.count).map(r=>`${r.icon} ${r.role}: ${r.count}`).join(' · ') || t('employees.no_roles_filled');
 }
 function employeeCard(e, candidate){
   normalizeEmployee(e);
   const meta = roleMeta(e.role);
   const xpNeed = Math.max(100, e.level*100);
   const xpPct = clamp(Math.round((e.experience||0)/xpNeed*100),0,100);
+  const EM = t('employees');
   return `<div class="offer-card" style="display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:12px;align-items:start;">
     <div class="avatar">${meta.icon}</div>
     <div style="min-width:0;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <b style="font-size:13.5px;">${escapeHtml(e.name)}</b>
         <span class="chip">${meta.icon} ${e.role}</span>
-        <span class="chip">Level ${e.level}</span>
+        <span class="chip">${escapeHtml(EM.level)} ${e.level}</span>
       </div>
       <p class="subtle" style="margin:6px 0 8px;">${meta.desc}</p>
       <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:0;">
-        <div class="stat-card"><div class="lbl">Gehalt/Monat</div><div class="num" style="font-size:15px;">${money((e.salary||0)*30)}</div></div>
-        <div class="stat-card"><div class="lbl">Motivation</div><div class="num" style="font-size:15px;">${Math.round(e.motivation)}%</div></div>
-        <div class="stat-card"><div class="lbl">Effizienz</div><div class="num" style="font-size:15px;">${Math.round(e.efficiency)}%</div></div>
-        <div class="stat-card"><div class="lbl">Fehlerquote</div><div class="num" style="font-size:15px;color:${e.errorRate>16?'var(--red)':'var(--teal)'};">${Math.round(e.errorRate)}%</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(EM.salary_month)}</div><div class="num" style="font-size:15px;">${money((e.salary||0)*30)}</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(EM.motivation)}</div><div class="num" style="font-size:15px;">${Math.round(e.motivation)}%</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(EM.efficiency)}</div><div class="num" style="font-size:15px;">${Math.round(e.efficiency)}%</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(EM.error_rate)}</div><div class="num" style="font-size:15px;color:${e.errorRate>16?'var(--red)':'var(--teal)'};">${Math.round(e.errorRate)}%</div></div>
       </div>
       <div class="progress" style="margin-top:10px;"><div style="width:${xpPct}%;"></div></div>
-      <div class="subtle" style="margin-top:7px;">${escapeHtml(e.specialization)} · ${escapeHtml(e.personality)} · Stärke: ${escapeHtml(e.strength)} · Schwäche: ${escapeHtml(e.weakness)}</div>
+      <div class="subtle" style="margin-top:7px;">${escapeHtml(e.specialization)} · ${escapeHtml(e.personality)} · ${escapeHtml(EM.strength)}: ${escapeHtml(e.strength)} · ${escapeHtml(EM.weakness)}: ${escapeHtml(e.weakness)}</div>
     </div>
     <div class="row-actions" style="margin:0;justify-content:flex-end;">
-      ${candidate ? `<button class="btn btn-ghost btn-sm" onclick="rejectCandidate('${e.id}')">Ablehnen</button><button class="btn btn-primary btn-sm" onclick="hireEmployee('${e.id}')">Einstellen</button>` : `<button class="btn btn-danger btn-sm" onclick="fireEmployee('${e.id}')">Entlassen</button>`}
+      ${candidate ? `<button class="btn btn-ghost btn-sm" onclick="rejectCandidate('${e.id}')">${escapeHtml(EM.decline)}</button><button class="btn btn-primary btn-sm" onclick="hireEmployee('${e.id}')">${escapeHtml(EM.hire)}</button>` : `<button class="btn btn-danger btn-sm" onclick="fireEmployee('${e.id}')">${escapeHtml(EM.fire)}</button>`}
     </div>
   </div>`;
 }
@@ -11460,22 +11680,23 @@ function renderEmployees(){
   const avgError = Math.round(avg(state.employees||[], e=>e.errorRate||0) || 0);
   const nextPayrollIn = Math.max(0, 30 - ((state.day||1) - (state.lastEmployeePayrollDay||state.day||1)));
   const workload = Math.min(100, Math.round(((state.offers||[]).length + (state.workshopJobs||[]).length + activeClaims().length + (state.deliveries||[]).filter(d=>d.status==='active').length) / Math.max(1,(state.employees||[]).length*2) * 100));
+  const EM = t('employees');
   return `
-    <h2 class="section-title">Mitarbeiter</h2>
-    <p class="subtle">Teamsteuerung mit echten Effekten auf Verkauf, Ankauf, Werkstatt, Finanzierung, Leasing, Marketing, Mahnwesen, Business Insights und Lieferungen.</p>
+    <h2 class="section-title">${escapeHtml(EM.title)}</h2>
+    <p class="subtle">${escapeHtml(EM.subtitle)}</p>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Mitarbeiter</div><div class="num">${(state.employees||[]).length}</div></div>
-      <div class="stat-card"><div class="lbl">Gehaltskosten/Monat</div><div class="num">${money(totalSalary*30)}</div></div>
-      <div class="stat-card"><div class="lbl">Nächste Auszahlung</div><div class="num">${nextPayrollIn} T</div></div>
-      <div class="stat-card"><div class="lbl">Motivation Ø</div><div class="num">${avgMotivation||'–'}%</div></div>
-      <div class="stat-card"><div class="lbl">Effizienz Ø</div><div class="num">${avgEfficiency||'–'}%</div></div>
-      <div class="stat-card"><div class="lbl">Fehlerquote Ø</div><div class="num" style="color:${avgError>16?'var(--red)':'var(--teal)'};">${avgError||'–'}%</div></div>
-      <div class="stat-card"><div class="lbl">Auslastung</div><div class="num">${workload}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(EM.stat_employees)}</div><div class="num">${(state.employees||[]).length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(EM.stat_salary_cost)}</div><div class="num">${money(totalSalary*30)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(EM.stat_next_payout)}</div><div class="num">${escapeHtml(t('employees.days_suffix',{n:nextPayrollIn}))}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(EM.stat_avg_motivation)}</div><div class="num">${avgMotivation||'–'}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(EM.stat_avg_efficiency)}</div><div class="num">${avgEfficiency||'–'}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(EM.stat_avg_error)}</div><div class="num" style="color:${avgError>16?'var(--red)':'var(--teal)'};">${avgError||'–'}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(EM.stat_workload)}</div><div class="num">${workload}%</div></div>
     </div>
-    <div class="offer-card"><b>Rollenverteilung</b><p class="subtle" style="margin:6px 0 0;">${employeeImpactSummary()}</p></div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">Aktuelle Mitarbeiter</h3>
-    ${(state.employees||[]).length? state.employees.map(e=>employeeCard(e,false)).join('') : '<div class="empty-state"><div class="ic">MA</div>Noch keine Mitarbeiter eingestellt.</div>'}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:20px 0 10px;">Offene Bewerbungen</h3>
+    <div class="offer-card"><b>${escapeHtml(EM.role_distribution)}</b><p class="subtle" style="margin:6px 0 0;">${employeeImpactSummary()}</p></div>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">${escapeHtml(EM.current_staff)}</h3>
+    ${(state.employees||[]).length? state.employees.map(e=>employeeCard(e,false)).join('') : `<div class="empty-state"><div class="ic">MA</div>${escapeHtml(EM.no_staff)}</div>`}
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:20px 0 10px;">${escapeHtml(EM.open_applications)}</h3>
     ${(state.candidates||[]).map(c=>employeeCard(c,true)).join('')}
   `;
 }
@@ -11486,7 +11707,7 @@ function hireEmployee(id){
   state.employees.push({...c, id:uid('emp')});
   state.candidates.splice(idx,1);
   ensureCandidates();
-  notify(c.name+' wurde als '+c.role+' eingestellt.', 'good');
+  notify(t('employees.hired_notify',{name:c.name, role:c.role}), 'good');
   renderAllOpen(); scheduleSave();
 }
 function rejectCandidate(id){
@@ -11500,14 +11721,29 @@ function fireEmployee(id){
 }
 
 /* =============================== LEGACY =============================== */
+// Kurze, verständliche Erklärungen je Unternehmensindex-Kategorie für das Hover-Tooltip.
+// Rein informativ - ändert nichts an der Berechnung in legacyIndex().
+function legacyCategoryTips(){
+  return {
+    economy: t('legacy.tip_economy'),
+    sales: t('legacy.tip_sales'),
+    satisfaction: t('legacy.tip_satisfaction'),
+    management: t('legacy.tip_management'),
+    risk: t('legacy.tip_risk'),
+  };
+}
 function renderLegacyScoreBars(index){
-  return `<div class="legacy-bars">${index.categories.map(c=>`
+  const tips = legacyCategoryTips();
+  return `<div class="legacy-bars">${index.categories.map(c=>{
+    const pct = (c.points/c.max*100).toFixed(1);
+    const tip = tips[c.key] || '';
+    return `
     <div class="legacy-score-row">
-      <div class="name">${c.label}</div>
-      <div class="legacy-progress"><span style="--w:${(c.points/c.max*100).toFixed(1)}%;"></span></div>
+      <div class="name" ${tip?`data-tip="${escapeAttr(tip)}"`:''}>${c.label}</div>
+      <div class="legacy-progress"><span style="--w:${pct}%;"></span><em class="legacy-progress-pct">${pct>=8?pct+'%':''}</em></div>
       <div class="pts">${c.points.toFixed(1)}/${c.max}</div>
     </div>
-  `).join('')}</div>`;
+  `;}).join('')}</div>`;
 }
 function renderLegacyExplanation(){
   return `
@@ -11515,54 +11751,57 @@ function renderLegacyExplanation(){
       <div class="legacy-explain-head">
         <span class="legacy-explain-icon">L</span>
         <div>
-          <h3>Was ist Legacy?</h3>
-          <p>Legacy fasst den freiwilligen Unternehmensabschluss zusammen und bewertet den Durchlauf anhand echter Spielstandsdaten.</p>
+          <h3>${escapeHtml(t('legacy.what_is_title'))}</h3>
+          <p>${escapeHtml(t('legacy.what_is_body'))}</p>
         </div>
       </div>
       <div class="legacy-explain">
-        <div class="notice"><b>Was ist eine Legacy?</b><br>Eine neue Unternehmensgründung nach dem freiwilligen Verkauf Ihres Level-30-Autohauses.</div>
-        <div class="notice"><b>Unternehmenswert</b><br>Er entsteht aus realen Spieldaten: Kapital, Gewinn, Bestand, Verträgen, Bewertungen und Organisation.</div>
-        <div class="notice"><b>Startkapital</b><br>Die nächste Gründung startet mit 10% des berechneten Unternehmenswerts.</div>
-        <div class="notice"><b>Erfolgsquote</b><br>Der Unternehmensindex hat maximal 100 Punkte und misst die Qualität dieses Durchlaufs.</div>
-        <div class="notice"><b>Legacy-Score</b><br>Der Durchschnitt aller abgeschlossenen Erfolgsquoten. Er ändert sich nur beim Abschluss.</div>
-        <div class="notice"><b>Fairness</b><br>Zahlungsausfälle werden nicht direkt bestraft. Bewertet wird, ob Mahnwesen und Verträge professionell geführt wurden.</div>
-        <div class="notice"><b>Mahngebühren</b><br>Im Spiel zählen Ihre eingestellten Gebühren. Für Legacy werden Zusatzeinnahmen über Standardgebühren automatisch abgezogen.</div>
+        <div class="notice"><b>${escapeHtml(t('legacy.restart_q'))}</b><br>${escapeHtml(t('legacy.restart_a'))}</div>
+        <div class="notice"><b>${escapeHtml(t('legacy.company_value_word'))}</b><br>${escapeHtml(t('legacy.company_value_body'))}</div>
+        <div class="notice"><b>${escapeHtml(t('legacy.start_capital_word'))}</b><br>${escapeHtml(t('legacy.start_capital_body'))}</div>
+        <div class="notice"><b>${escapeHtml(t('legacy.index_and_rate_word'))}</b><br>${escapeHtml(t('legacy.index_and_rate_body'))}</div>
+        <div class="notice"><b>${escapeHtml(t('legacy.score_word'))}</b><br>${escapeHtml(t('legacy.score_body'))}</div>
+        <div class="notice"><b>${escapeHtml(t('legacy.fairness_word'))}</b><br>${escapeHtml(t('legacy.fairness_body'))}</div>
+        <div class="notice"><b>${escapeHtml(t('legacy.dunning_word'))}</b><br>${escapeHtml(t('legacy.dunning_body'))}</div>
       </div>
+      <p class="legacy-motivate">${escapeHtml(t('legacy.motivate'))}</p>
     </div>
   `;
 }
 function renderLegacyPreview(valuation, legacyReady){
   const level = state.level||1;
   const levelPct = clamp(Math.round(level/30*100),0,100);
+  const LG = t('legacy');
   return `
-    <h2 class="section-title">Legacy-Historie</h2>
-    <p class="subtle">Erste Gr&uuml;ndung &middot; Level ${level} / 30 &middot; Legacy wird ab Level 30 und mit belastbaren Unternehmenskennzahlen freigeschaltet.</p>
-    <div class="offer-card" style="margin:14px 0 16px;padding:18px;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:240px;">
-          <h3 style="margin:0;font-family:var(--font-d);font-size:16px;">Du hast deine erste Legacy noch nicht erreicht.</h3>
-          <p class="subtle" style="margin:8px 0 0;">Baue dein Autohaus bis Level 30 auf und st&auml;rke Unternehmenswert, Gewinn, Verk&auml;ufe, Reputation und operative Leistung. Danach kannst du freiwillig einen Legacy-Neustart starten und mit einem Teil deines Unternehmenswerts in die n&auml;chste Generation gehen.</p>
-        </div>
-        ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">Legacy starten</button>` : `<span class="chip">Level 30 + Unternehmenserfolg</span>`}
+    <h2 class="section-title">${escapeHtml(LG.legacy_history)}</h2>
+    <p class="subtle">${escapeHtml(LG.first_founding)} &middot; Level ${level} / 30 &middot; ${escapeHtml(LG.unlocks_at_30)}</p>
+    <div class="offer-card legacy-page-hero" style="margin:14px 0 16px;padding:0;">
+      <div class="legacy-hero" style="padding:22px 24px 18px;">
+        <div class="legacy-kicker">${escapeHtml(LG.milestone)}</div>
+        <h2 class="legacy-title" style="font-size:22px;">${escapeHtml(LG.on_the_way_title)}</h2>
+        <p class="legacy-sub">${escapeHtml(LG.on_the_way_body)}</p>
       </div>
-      <div style="margin-top:18px;">
-        <div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--ink-1);font-weight:700;">
-          <span>Aktueller Fortschritt</span>
-          <span>Level ${level} / 30</span>
+      <div style="padding:0 24px 22px;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:240px;">
+          <div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--ink-1);font-weight:700;">
+            <span>${escapeHtml(LG.current_progress)}</span>
+            <span>Level ${level} / 30</span>
+          </div>
+          <div class="progress legacy-milestone-bar" style="height:12px;margin-top:10px;"><div style="width:${levelPct}%;background:linear-gradient(90deg,var(--dash-blue),var(--brass));"></div></div>
         </div>
-        <div class="progress" style="height:12px;margin-top:10px;"><div style="width:${levelPct}%;background:linear-gradient(90deg,var(--dash-blue),var(--brass));"></div></div>
+        ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">${escapeHtml(LG.start_legacy_btn)}</button>` : `<span class="chip">${escapeHtml(LG.unlock_requirement)}</span>`}
       </div>
     </div>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Aktueller Unternehmenswert</div><div class="num">${money(valuation.value)}</div></div>
-      <div class="stat-card"><div class="lbl">Aktuelle Erfolgsquote</div><div class="num">${valuation.index.successRate}%</div></div>
-      <div class="stat-card"><div class="lbl">M&ouml;gliches Startkapital</div><div class="num">${money(valuation.nextCapital)}</div></div>
-      <div class="stat-card"><div class="lbl">Freischaltung</div><div class="num">${legacyReady ? 'Bereit' : 'Leistung'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.current_company_value)}</div><div class="num">${money(valuation.value)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.current_success_rate)}</div><div class="num">${valuation.index.successRate}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.possible_start_capital)}</div><div class="num">${money(valuation.nextCapital)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.unlock_status)}</div><div class="num">${legacyReady ? escapeHtml(LG.ready) : escapeHtml(LG.performance)}</div></div>
     </div>
     <div class="offer-card" style="margin:14px 0;">
-      <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Aktueller Unternehmensindex</h3>
+      <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(LG.current_index)}</h3>
       ${renderLegacyScoreBars(valuation.index)}
-      <p class="subtle">Diese Werte basieren bereits auf deinem echten Spielstand. Sie werden erst beim freiwilligen Legacy-Neustart dauerhaft in der Historie gespeichert.</p>
+      <p class="subtle">${escapeHtml(LG.based_on_live_data)}</p>
     </div>
     ${renderLegacyExplanation()}
   `;
@@ -11575,77 +11814,84 @@ function renderLegacyHistory(){
   const legacyStarted = hasLegacyRun();
   const legacyReady = isLegacySaleAvailable();
   if(!legacyStarted) return renderLegacyPreview(valuation, legacyReady);
-  const pageTitle = 'Legacy-Historie';
-  const scoreLabel = legacyStarted ? 'Legacy-Score' : 'Gr&uuml;ndungsindex';
-  const nextCapitalLabel = legacyStarted || legacyReady ? 'Startkapital n&auml;chste Legacy' : 'Startkapital n&auml;chste Gr&uuml;ndung';
+  const LG = t('legacy');
+  const pageTitle = LG.legacy_history;
+  const scoreLabel = legacyStarted ? LG.business_index : LG.founding_index;
+  const nextCapitalLabel = legacyStarted || legacyReady ? LG.next_capital_legacy : LG.next_capital_founding;
   return `
-    <h2 class="section-title">${pageTitle}</h2>
-    <p class="subtle">${legacyLabel()} &middot; Level ${state.level||1} &middot; aktuelle Erfolgsquote ${valuation.index.successRate}% &middot; ${scoreLabel} ${legacyStarted ? (projectedScore||'--')+'%' : Math.round(valuation.index.total||0)+'%'}</p>
+    <div class="offer-card legacy-page-hero" style="margin-bottom:16px;padding:0;">
+      <div class="legacy-hero" style="padding:20px 24px 16px;">
+        <div class="legacy-kicker">${escapeHtml(pageTitle)}</div>
+        <h2 class="legacy-title" style="font-size:22px;">${escapeHtml(legacyLabel())}</h2>
+        <p class="legacy-sub">Level ${state.level||1} &middot; ${escapeHtml(LG.current_success_rate)} <b style="color:var(--brass);">${valuation.index.successRate}%</b> &middot; ${escapeHtml(scoreLabel)} <b style="color:var(--brass);">${legacyStarted ? (projectedScore||'--')+'%' : Math.round(valuation.index.total||0)+'%'}</b> &middot; ${escapeHtml(t('legacy.founding_count',{n:done.length, s:done.length===1?'':'s'}))}</p>
+      </div>
+    </div>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Wert vor Bereinigung</div><div class="num">${money(valuation.rawValue)}</div></div>
-      <div class="stat-card"><div class="lbl">Nicht bewertete Mahngebühren</div><div class="num" style="color:${valuation.dunningFeeAdjustment>0?'var(--red)':'var(--ink-1)'};">${negativeMoney(valuation.dunningFeeAdjustment)}</div></div>
-      <div class="stat-card"><div class="lbl">Bewertungsrelevanter Wert</div><div class="num">${money(valuation.value)}</div></div>
-      <div class="stat-card"><div class="lbl">${nextCapitalLabel}</div><div class="num">${money(valuation.nextCapital)}</div></div>
-      <div class="stat-card"><div class="lbl">Unternehmensindex</div><div class="num">${valuation.index.successRate}%</div></div>
-      <div class="stat-card"><div class="lbl">${scoreLabel}</div><div class="num">${legacyStarted ? (projectedScore?projectedScore+'%':'--') : Math.round(valuation.index.total||0)+'%'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.value_before_adjustment)}</div><div class="num">${money(valuation.rawValue)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.unrated_dunning_fees)}</div><div class="num" style="color:${valuation.dunningFeeAdjustment>0?'var(--red)':'var(--ink-1)'};">${negativeMoney(valuation.dunningFeeAdjustment)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.rated_value)}</div><div class="num">${money(valuation.value)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(nextCapitalLabel)}</div><div class="num">${money(valuation.nextCapital)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.business_index)}</div><div class="num">${valuation.index.successRate}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(scoreLabel)}</div><div class="num">${legacyStarted ? (projectedScore?projectedScore+'%':'--') : Math.round(valuation.index.total||0)+'%'}</div></div>
     </div>
     <div class="offer-card" style="margin:14px 0;">
-      <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Aktueller Unternehmensindex</h3>
+      <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(LG.current_index)}</h3>
       ${renderLegacyScoreBars(valuation.index)}
-      ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">Legacy starten</button>` : `<p class="subtle">${legacyStarted ? 'Legacy kann ab Level 30 freiwillig gestartet werden.' : 'Der freiwillige Unternehmensverkauf wird ab Level 30 freigeschaltet.'}</p>`}
+      ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">${escapeHtml(LG.start_legacy_btn)}</button>` : `<p class="subtle">${legacyStarted ? escapeHtml(LG.can_start) : escapeHtml(LG.unlocks_at_30)}</p>`}
     </div>
     ${done.length ? `
       <div class="offer-card">
-        <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Abgeschlossene Unternehmensgründungen</h3>
+        <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(LG.completed_foundings)}</h3>
         <table class="tbl legacy-history-table">
-          <thead><tr><th>Legacy</th><th>Wert</th><th>Mahn-Abzug</th><th>Startkapital</th><th>Quote</th><th>Score</th><th>Gewinn</th><th>Verkäufe</th><th>Marge</th><th>Zufriedenheit</th><th>Spielzeit</th></tr></thead>
+          <thead><tr><th>${escapeHtml(LG.col_legacy)}</th><th>${escapeHtml(LG.col_value)}</th><th>${escapeHtml(LG.col_dunning_deduction)}</th><th>${escapeHtml(LG.col_start_capital)}</th><th>${escapeHtml(LG.col_rate)}</th><th>${escapeHtml(LG.col_score)}</th><th>${escapeHtml(LG.col_profit)}</th><th>${escapeHtml(LG.col_sales)}</th><th>${escapeHtml(LG.col_margin)}</th><th>${escapeHtml(LG.col_satisfaction)}</th><th>${escapeHtml(LG.col_playtime)}</th></tr></thead>
           <tbody>${done.map(x=>`<tr>
             <td>${x.label}</td><td>${money(x.companyValue)}</td><td>${negativeMoney(x.dunningFeeAdjustment||0)}</td><td>${money(x.nextCapital)}</td><td>${x.successRate}%</td><td>${x.legacyScore}%</td>
-            <td>${money(x.totalProfit)}</td><td>${x.salesCount}</td><td>${(x.avgMargin||0).toFixed(1)}%</td><td>${x.reputation}/100</td><td>${x.daysPlayed} Tage</td>
+            <td>${money(x.totalProfit)}</td><td>${x.salesCount}</td><td>${(x.avgMargin||0).toFixed(1)}%</td><td>${x.reputation}/100</td><td>${t('legacy.days_suffix',{n:x.daysPlayed})}</td>
           </tr>`).join('')}</tbody>
         </table>
-      </div>` : `<div class="empty-state"><div class="ic">L</div>Noch kein Unternehmensverkauf abgeschlossen.</div>`}
+      </div>` : `<div class="empty-state"><div class="ic">L</div>${escapeHtml(LG.no_sale_yet)}</div>`}
     ${(legacyStarted || legacyReady) ? renderLegacyExplanation() : ''}
   `;
 }
 function openLegacyReview(){
-  if((state.level||1) >= 30 && !isLegacySaleAvailable()){ notify('Legacy braucht neben Level 30 auch belastbare Unternehmenskennzahlen: Wert, Gewinn, Verkäufe, Reputation oder abgeschlossene Aufträge.', 'warn'); return; }
-  if((state.level||1) < 30){ notify('Legacy ist ab Level 30 verfügbar.', 'warn'); return; }
+  if((state.level||1) >= 30 && !isLegacySaleAvailable()){ notify(t('legacy.need_more_than_level'), 'warn'); return; }
+  if((state.level||1) < 30){ notify(t('legacy.available_from_30'), 'warn'); return; }
   const l = legacyState();
   const v = companyValuation();
   const nextScore = legacyScoreAfter(v.index.successRate);
   const firstExplain = !l.explained ? renderLegacyExplanation() : '';
+  const LG = t('legacy');
   showModal(`
     <div class="legacy-hero">
-      <div class="legacy-kicker">Unternehmensverkauf vorbereitet</div>
-      <h2 class="legacy-title">${legacyLabel()} abschließen</h2>
-      <p class="legacy-sub">Sie verkaufen Ihr aufgebautes Autohaus und gründen mit Ihrer Erfahrung ein neues Unternehmen. Der Neustart erfolgt freiwillig und basiert vollständig auf Ihren aktuellen Kennzahlen.</p>
+      <div class="legacy-kicker">${escapeHtml(LG.legacy_ready_title)}</div>
+      <h2 class="legacy-title">${escapeHtml(t('legacy.complete_legacy',{label:legacyLabel()}))}</h2>
+      <p class="legacy-sub">${escapeHtml(LG.sell_intro)}</p>
     </div>
     <div class="legacy-body">
       <div class="legacy-grid">
-        <div class="legacy-metric"><div class="lbl">Wert vor Bereinigung</div><div class="val">${money(v.rawValue)}</div></div>
-        <div class="legacy-metric"><div class="lbl">Nicht bewertete Mahngebühren</div><div class="val" style="color:${v.dunningFeeAdjustment>0?'var(--red)':'var(--ink-1)'};">${negativeMoney(v.dunningFeeAdjustment)}</div></div>
-        <div class="legacy-metric"><div class="lbl">Bewertungsrelevanter Wert</div><div class="val" id="legacyValue">0 €</div></div>
-        <div class="legacy-metric"><div class="lbl">Startkapital nächste Gründung</div><div class="val">${money(v.nextCapital)}</div></div>
-        <div class="legacy-metric"><div class="lbl">Abschluss-Erfolgsquote</div><div class="val">${v.index.successRate}%</div></div>
-        <div class="legacy-metric"><div class="lbl">Legacy-Score danach</div><div class="val">${nextScore}%</div></div>
+        <div class="legacy-metric"><div class="lbl">${escapeHtml(LG.value_before_adjustment)}</div><div class="val">${money(v.rawValue)}</div></div>
+        <div class="legacy-metric"><div class="lbl">${escapeHtml(LG.unrated_dunning_fees)}</div><div class="val" style="color:${v.dunningFeeAdjustment>0?'var(--red)':'var(--ink-1)'};">${negativeMoney(v.dunningFeeAdjustment)}</div></div>
+        <div class="legacy-metric"><div class="lbl">${escapeHtml(LG.rated_value)}</div><div class="val" id="legacyValue">${money(0)}</div></div>
+        <div class="legacy-metric"><div class="lbl">${escapeHtml(LG.next_capital_founding)}</div><div class="val">${money(v.nextCapital)}</div></div>
+        <div class="legacy-metric"><div class="lbl">${escapeHtml(LG.current_success_rate)}</div><div class="val">${v.index.successRate}%</div></div>
+        <div class="legacy-metric"><div class="lbl">${escapeHtml(LG.score_word)} ${currentLanguage()==='de'?'danach':'after'}</div><div class="val">${nextScore}%</div></div>
       </div>
       <div class="notice" style="display:block;">
-        Für die Legacy-Bewertung werden immer die Standard-Mahngebühren verwendet. Zusatzeinnahmen aus höheren Gebühren bleiben im normalen Spiel erhalten, erhöhen aber Unternehmenswert, Erfolgsquote und Legacy-Score nicht.
+        ${escapeHtml(LG.dunning_fee_note)}
       </div>
       ${renderLegacyScoreBars(v.index)}
       <div class="stat-grid">
-        <div class="stat-card"><div class="lbl">Eigenkapital</div><div class="num">${money(v.equity)}</div></div>
-        <div class="stat-card"><div class="lbl">Gesamtgewinn</div><div class="num">${money(state.totalProfit||0)}</div></div>
-        <div class="stat-card"><div class="lbl">Fahrzeugverkäufe</div><div class="num">${state.salesCount||0}</div></div>
-        <div class="stat-card"><div class="lbl">Ø Marge</div><div class="num">${(v.avgMargin||0).toFixed(1)}%</div></div>
-        <div class="stat-card"><div class="lbl">Ø Standzeit</div><div class="num">${Math.round(v.avgStand||0)} Tage</div></div>
-        <div class="stat-card"><div class="lbl">Kundenzufriedenheit</div><div class="num">${state.reputation||0}/100</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(LG.equity)}</div><div class="num">${money(v.equity)}</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(LG.total_profit)}</div><div class="num">${money(state.totalProfit||0)}</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(LG.vehicle_sales)}</div><div class="num">${state.salesCount||0}</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(LG.avg_margin)}</div><div class="num">${(v.avgMargin||0).toFixed(1)}%</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(LG.avg_standtime)}</div><div class="num">${t('legacy.days_suffix',{n:Math.round(v.avgStand||0)})}</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(LG.customer_satisfaction)}</div><div class="num">${state.reputation||0}/100</div></div>
       </div>
       ${firstExplain}
       <div class="row-actions" style="margin-top:16px;justify-content:flex-end;">
-        <button class="btn btn-ghost" onclick="closeModal()">Noch nicht verkaufen</button>
-        <button class="btn btn-primary" onclick="confirmLegacyStart()">Unternehmen verkaufen</button>
+        <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(LG.not_yet)}</button>
+        <button class="btn btn-primary" onclick="confirmLegacyStart()">${escapeHtml(LG.sell_business)}</button>
       </div>
     </div>
   `, 'legacy-modal');
@@ -11670,6 +11916,7 @@ async function confirmLegacyStart(){
   const keepTheme = state.themeMode;
   const keepBackground = getAppBackground(state.backgroundId).id;
   const keepDesign = {...designSettings()};
+  const keepLanguage = state.language;
   const completed = (l.completed||[]).concat(entry);
   const nextLegacy = (l.current||0) + 1;
   const masterUnlocked = nextLegacy > 10;
@@ -11677,6 +11924,7 @@ async function confirmLegacyStart(){
   state.themeMode = keepTheme;
   state.backgroundId = keepBackground;
   state.designSettings = keepDesign;
+  state.language = keepLanguage || DEFAULT_LANGUAGE;
   state.cash = masterUnlocked ? Math.max(v.nextCapital, 1000000) : v.nextCapital;
   state.level = masterUnlocked ? 1000 : 1;
   state.legacy = {
@@ -11692,12 +11940,12 @@ async function confirmLegacyStart(){
   refreshMarketPool();
   seedInitialInventory();
   state.cashHistory.push({day:1, cash:state.cash, net:0});
-  notify(masterUnlocked ? 'Master-Modus freigeschaltet. Level 1000 ist spielbar.' : `${completedLabel} abgeschlossen. Neues Unternehmen gegründet.`, 'good');
+  notify(masterUnlocked ? t('legacy.master_unlocked') : t('legacy.legacy_completed',{label:completedLabel}), 'good');
   await saveNow();
   closeModal();
   renderAllOpen();
   navigateTo('legacy');
-  showToast('L', `<b>${completedLabel} abgeschlossen</b><br>Unternehmenswert: ${money(entry.companyValue)}<br>Neues Startkapital: ${money(entry.nextCapital)}<br>Legacy-Score: ${entry.legacyScore}%`, 'Historie', ()=>navigateTo('legacy'));
+  showToast('L', t('legacy.legacy_completed_toast',{label:completedLabel, value:money(entry.companyValue), capital:money(entry.nextCapital), score:entry.legacyScore}), t('legacy.history_btn'), ()=>navigateTo('legacy'));
 }
 
 /* =============================== SETTINGS =============================== */
@@ -11794,28 +12042,40 @@ function sortedChangelog(){
 function updateTypeMeta(type){
   return UPDATE_TYPES[type] || UPDATE_TYPES.normal;
 }
+function updateTypeLabel(type){
+  const key = UPDATE_TYPES[type] ? type : 'normal';
+  return t('updates.type_'+key);
+}
+// Liest ein Changelog-Feld (title/headline/sections) sprachabhängig: nutzt entry.en.<field>,
+// wenn Englisch aktiv ist und eine Übersetzung hinterlegt wurde, sonst die deutschen Basisfelder.
+// Bestehende Einträge ohne .en bleiben dadurch unverändert nutzbar.
+function localizedChangelogField(entry, field){
+  if(currentLanguage()==='en' && entry.en && entry.en[field]!==undefined) return entry.en[field];
+  return entry[field];
+}
 function fmtUpdateDate(iso){
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? escapeHtml(iso||'') : d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+  return Number.isNaN(d.getTime()) ? escapeHtml(iso||'') : d.toLocaleDateString(localeMeta().numberLocale||'en-US', {day:'2-digit', month:'2-digit', year:'numeric'});
 }
 function renderUpdateColumns(entry, showEmpty){
-  const s = entry.sections || {};
+  const s = localizedChangelogField(entry,'sections') || {};
+  const U = t('updates');
   const cols = [
-    {kind:'new',      label:'Neu',        icon:UPD_SVG.plus,    items:s.new,      empty:'Keine neuen Inhalte'},
-    {kind:'improved', label:'Verbessert', icon:UPD_SVG.arrowUp, items:s.improved, empty:'Keine Verbesserungen'},
-    {kind:'prepared', label:'Vorbereitet', icon:UPD_SVG.gear,    items:s.prepared, empty:'Keine vorbereiteten Systeme'},
-    {kind:'fixed',    label:'Behoben',    icon:UPD_SVG.wrench,  items:s.fixed,    empty:'Keine Fehlerbehebungen'},
+    {kind:'new',      label:U.col_new,      icon:UPD_SVG.plus,    items:s.new,      empty:U.col_new_empty},
+    {kind:'improved', label:U.col_improved, icon:UPD_SVG.arrowUp, items:s.improved, empty:U.col_improved_empty},
+    {kind:'prepared', label:U.col_prepared, icon:UPD_SVG.gear,    items:s.prepared, empty:U.col_prepared_empty},
+    {kind:'fixed',    label:U.col_fixed,    icon:UPD_SVG.wrench,  items:s.fixed,    empty:U.col_fixed_empty},
   ];
   const rendered = cols
     .filter(c=>showEmpty || (c.items && c.items.length))
     .map(c=>`<div class="upd-col ${c.kind}">
-      <div class="upd-col-head"><span class="cic">${c.icon}</span><b>${c.label}</b></div>
+      <div class="upd-col-head"><span class="cic">${c.icon}</span><b>${escapeHtml(c.label)}</b></div>
       <div class="upd-col-line"></div>
       <ul>${(c.items && c.items.length)
-        ? c.items.map(t=>`<li>${escapeHtml(t)}</li>`).join('')
-        : `<li class="none">${c.empty}</li>`}</ul>
+        ? c.items.map(txt=>`<li>${escapeHtml(txt)}</li>`).join('')
+        : `<li class="none">${escapeHtml(c.empty)}</li>`}</ul>
     </div>`).join('');
-  return rendered ? `<div class="upd-cols">${rendered}</div>` : '<div class="upd-empty">Keine Details zu dieser Version hinterlegt.</div>';
+  return rendered ? `<div class="upd-cols">${rendered}</div>` : `<div class="upd-empty">${escapeHtml(U.no_details)}</div>`;
 }
 // Kompakte Variante für das Willkommensfenster (leere Spalten ausgeblendet).
 function renderChangelogSections(entry){
@@ -11828,25 +12088,29 @@ function updateCardArt(index){
 }
 function renderUpdateCard(entry, index){
   const meta = updateTypeMeta(entry.type);
+  const typeLabel = updateTypeLabel(entry.type);
   const isMajor = entry.type === 'major';
   const isPinned = !!entry.pinned;
   const art = entry.image || updateCardArt(index);
-  const sub = entry.headline || (!isMajor && entry.title ? entry.title : '');
+  const title = localizedChangelogField(entry,'title');
+  const headline = localizedChangelogField(entry,'headline');
+  const sub = headline || (!isMajor && title ? title : '');
   const artStyle = art ? ` style="background-image:url('${escapeAttr(art)}')"` : '';
+  const U = t('updates');
   return `<div class="upd-card ${isMajor?'upd-major':''} ${isPinned?'upd-pinned':''}" style="--i:${Math.min(index,8)};--upd-accent:${meta.accent}">
     <div class="upd-art"${artStyle}>
-      <span class="upd-ribbon">${escapeHtml(isPinned ? 'Highlight' : meta.ribbon)}</span>
+      <span class="upd-ribbon">${escapeHtml(isPinned ? U.highlight_badge : meta.ribbon)}</span>
     </div>
     <div class="upd-body">
       <div class="upd-head">
         <span class="upd-type-ic">${UPD_SVG[meta.icon] || UPD_SVG.gear}</span>
         <div class="upd-head-title">
-          <b>${escapeHtml(entry.title || meta.label)}</b>
+          <b>${escapeHtml(title || typeLabel)}</b>
           <small>${fmtUpdateDate(entry.date)}</small>
         </div>
-        <span class="upd-badge">${escapeHtml(isPinned ? 'Highlight' : meta.badge)}</span>
+        <span class="upd-badge">${escapeHtml(isPinned ? U.highlight_badge : typeLabel)}</span>
       </div>
-      ${isMajor && entry.headline?`<div class="upd-major-line"><span class="spark">✦</span>${escapeHtml(meta.label)}</div>`:''}
+      ${isMajor && headline?`<div class="upd-major-line"><span class="spark">✦</span>${escapeHtml(typeLabel)}</div>`:''}
       ${sub?`<p class="upd-headline">${escapeHtml(sub)}</p>`:''}
       ${renderUpdateColumns(entry, true)}
     </div>
@@ -11858,39 +12122,40 @@ function renderUpdates(){
   const regular = entries.filter(e=>!e.pinned);
   const newest = regular.slice(0, 3);
   const older = regular.slice(3);
+  const U = t('updates');
   const statusLabel = (!updateUiState || updateUiState.status==='idle' || updateUiState.status==='current')
-    ? 'Alles ist aktuell'
-    : (updateUiState.label || 'Alles ist aktuell');
+    ? U.all_current
+    : (updateUiState.label || U.all_current);
   return `
     <div class="upd-hero">
       <div class="upd-hero-main">
         <span class="upd-hero-icon">${refIcon('updates')}</span>
         <div>
-          <h1>Updates &amp; News</h1>
-          <p class="upd-hero-sub">Alle Neuigkeiten, Updates und Verbesserungen auf einen Blick.</p>
+          <h1>${escapeHtml(U.page_title)}</h1>
+          <p class="upd-hero-sub">${escapeHtml(U.page_sub)}</p>
         </div>
       </div>
       <div class="upd-hero-side">
         <div class="upd-brand"><img src="assets/logos/app-logo.png" alt=""><span class="b1">Automotive</span><span class="b2">EMPIRE</span></div>
         <div class="upd-version-panel">
-          <small>Status</small>
-          <div class="vnum">Aktuell</div>
+          <small>${escapeHtml(U.status_label)}</small>
+          <div class="vnum">${escapeHtml(U.status_current)}</div>
           <span class="vstatus" id="updateStatusText">${escapeHtml(statusLabel)}</span>
           <span class="upd-version-check">${UPD_SVG.check}</span>
         </div>
       </div>
     </div>
     <div class="upd-section-row">
-      <h2 class="upd-section-label"><span class="star">★</span>Highlight &amp; aktuelle Updates</h2>
-      <button class="upd-check-btn" onclick="checkForUpdatesManual()">${UPD_SVG.refresh} Nach Updates suchen</button>
+      <h2 class="upd-section-label"><span class="star">★</span>${escapeHtml(U.highlight_section)}</h2>
+      <button class="upd-check-btn" onclick="checkForUpdatesManual()">${UPD_SVG.refresh} ${escapeHtml(U.check_btn)}</button>
     </div>
     ${pinned.map((e,i)=>renderUpdateCard(e,i)).join('')}
-    ${newest.length?`<div class="upd-section-row upd-subsection"><h2 class="upd-section-label"><span class="star">•</span>Weitere Updates</h2></div>`:''}
+    ${newest.length?`<div class="upd-section-row upd-subsection"><h2 class="upd-section-label"><span class="star">•</span>${escapeHtml(U.more_updates)}</h2></div>`:''}
     ${newest.map((e,i)=>renderUpdateCard(e,i+pinned.length)).join('')}
     ${older.length?`
       <div class="upd-older" id="olderUpdates">${older.map((e,i)=>renderUpdateCard(e,i+newest.length+pinned.length)).join('')}</div>
       <button class="upd-older-toggle" id="olderUpdatesToggle" onclick="toggleOlderUpdates()">
-        <span class="chev">${UPD_SVG.chevron}</span><span id="olderUpdatesLbl">Ältere Updates anzeigen</span>
+        <span class="chev">${UPD_SVG.chevron}</span><span id="olderUpdatesLbl">${escapeHtml(U.older_show)}</span>
       </button>
     `:''}
   `;
@@ -11902,95 +12167,103 @@ function toggleOlderUpdates(){
   if(!box || !btn || !lbl) return;
   const open = box.classList.toggle('open');
   btn.classList.toggle('open', open);
-  lbl.textContent = open ? 'Ältere Updates ausblenden' : 'Ältere Updates anzeigen';
+  lbl.textContent = open ? t('updates.older_hide') : t('updates.older_show');
 }
 
 function formatDayDuration(ms){
   ms = clamp(Math.round(Number(ms)||DEFAULT_DAY_DURATION_MS), MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
   const seconds = Math.round(ms/1000);
-  if(seconds < 60) return `${seconds} Sekunden`;
+  if(seconds < 60) return `${seconds} ${t('settings.seconds')}`;
   const minutes = seconds / 60;
-  return Number.isInteger(minutes) ? `${minutes} ${minutes===1?'Minute':'Minuten'}` : `${minutes.toFixed(1)} Minuten`;
+  return Number.isInteger(minutes) ? `${minutes} ${minutes===1?t('settings.minute'):t('settings.minutes')}` : `${minutes.toFixed(1)} ${t('settings.minutes')}`;
 }
 
 function renderSettings(){
   const fees = state.dunningFees || defaultState().dunningFees;
+  const S = t('settings');
+  const lang = currentLanguage();
   return `
-    <h2 class="section-title">Einstellungen</h2>
-    <div class="notice">Der Spielstand wird automatisch nach jeder Aktion gespeichert.</div>
-    <div class="notice">Die Spielzeit läuft automatisch weiter. Ein Kalendertag dauert so lange, wie du es unten einstellst, und pausiert, solange ein Dialogfenster geöffnet ist.</div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">App-Updates</h3>
+    <h2 class="section-title">${escapeHtml(S.title)}</h2>
+    <div class="notice">${escapeHtml(S.autosave_notice)}</div>
+    <div class="notice">${escapeHtml(S.dayflow_notice)}</div>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">${escapeHtml(S.section_language)}</h3>
     <div class="offer-card">
-      <p class="subtle" style="margin:0 0 6px;">Automotive Empire prüft nach dem Login automatisch auf Updates — niemals während einer laufenden Spielsitzung.</p>
-      <div class="row-actions" style="max-width:520px;">
-        <button class="btn btn-primary" onclick="checkForUpdatesManual()">Nach Updates suchen</button>
-        <button class="btn btn-ghost" onclick="navigateTo('updates')">📰 Updates &amp; News öffnen</button>
-      </div>
-      <p class="subtle" id="updateStatusText" style="margin:10px 0 0;">${escapeHtml(updateUiState.label || 'Noch nicht geprüft')}</p>
-    </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">Darstellung</h3>
-    <div class="offer-card">
-      <p class="subtle" style="margin:0 0 10px;">Die Oberfläche nutzt ein ruhiges Dark-Design mit klaren Akzentfarben für Gewinn, Verlust, Warnungen, Legacy und Erfolge. Alternativ steht ein helles Design zur Verfügung.</p>
+      <p class="subtle" style="margin:0 0 10px;">${escapeHtml(S.language_desc)}</p>
       <div class="row-actions" style="max-width:420px;">
-        <button class="btn ${state.themeMode!=='light'?'btn-primary':'btn-ghost'}" onclick="setThemeMode('dark')">Dunkles Design</button>
-        <button class="btn ${state.themeMode==='light'?'btn-primary':'btn-ghost'}" onclick="setThemeMode('light')">Helles Design</button>
+        <button class="btn ${lang==='en'?'btn-primary':'btn-ghost'}" onclick="setLanguage('en')">🇺🇸 ${escapeHtml(S.language_en)}</button>
+        <button class="btn ${lang==='de'?'btn-primary':'btn-ghost'}" onclick="setLanguage('de')">🇩🇪 ${escapeHtml(S.language_de)}</button>
       </div>
     </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">Debug</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">${escapeHtml(S.section_updates)}</h3>
     <div class="offer-card">
-      <p class="subtle" style="margin:0 0 10px;">Zeigt im Kundenchat die interne Antwort-Pipeline mit erkanntem Intent, Gesprächszustand, offenen Fragen und empfohlener nächster Reaktion.</p>
+      <p class="subtle" style="margin:0 0 6px;">${escapeHtml(S.updates_desc)}</p>
+      <div class="row-actions" style="max-width:520px;">
+        <button class="btn btn-primary" onclick="checkForUpdatesManual()">${escapeHtml(S.check_updates_btn)}</button>
+        <button class="btn btn-ghost" onclick="navigateTo('updates')">${escapeHtml(S.open_updates_btn)}</button>
+      </div>
+      <p class="subtle" id="updateStatusText" style="margin:10px 0 0;">${escapeHtml(updateUiState.label || S.not_checked_yet)}</p>
+    </div>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">${escapeHtml(S.section_appearance)}</h3>
+    <div class="offer-card">
+      <p class="subtle" style="margin:0 0 10px;">${escapeHtml(S.appearance_desc)}</p>
+      <div class="row-actions" style="max-width:420px;">
+        <button class="btn ${state.themeMode!=='light'?'btn-primary':'btn-ghost'}" onclick="setThemeMode('dark')">${escapeHtml(S.dark_btn)}</button>
+        <button class="btn ${state.themeMode==='light'?'btn-primary':'btn-ghost'}" onclick="setThemeMode('light')">${escapeHtml(S.light_btn)}</button>
+      </div>
+    </div>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">${escapeHtml(S.section_debug)}</h3>
+    <div class="offer-card">
+      <p class="subtle" style="margin:0 0 10px;">${escapeHtml(S.debug_desc)}</p>
       <button class="btn ${state.chatDebug?'btn-primary':'btn-ghost'}" onclick="toggleChatDebug()">
-        ${state.chatDebug?'Chat-Debug aktiv':'Chat-Debug aktivieren'}
+        ${escapeHtml(state.chatDebug?S.debug_on:S.debug_off)}
       </button>
     </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">Zeit & Spielfluss</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">${escapeHtml(S.section_timeflow)}</h3>
     <div class="offer-card">
       <div class="field">
-        <label>Kalendertag-Dauer: <span id="dayDurationLbl" style="color:var(--brass);font-family:var(--font-m);">${formatDayDuration(state.dayDurationMs||DEFAULT_DAY_DURATION_MS)}</span></label>
+        <label>${escapeHtml(S.day_duration_label)} <span id="dayDurationLbl" style="color:var(--brass);font-family:var(--font-m);">${formatDayDuration(state.dayDurationMs||DEFAULT_DAY_DURATION_MS)}</span></label>
         <input type="range" min="${MIN_DAY_DURATION_MS}" max="${MAX_DAY_DURATION_MS}" step="30000" value="${state.dayDurationMs||DEFAULT_DAY_DURATION_MS}" oninput="setDayDuration(+this.value)">
       </div>
       <div class="field">
-        <label>Max. neue Kaufanfragen pro Tag</label>
+        <label>${escapeHtml(S.max_offers_label)}</label>
         <input type="number" min="0" max="3" value="${state.maxNewOffersPerDay||1}" oninput="setMaxNewOffers(+this.value)">
       </div>
       <div class="field">
-        <label>Zahlungsverzug bei Raten: <span id="paymentDelayLbl" style="color:var(--brass);font-family:var(--font-m);">${state.paymentDelayPercent ?? 18}%</span></label>
+        <label>${escapeHtml(S.payment_delay_label)} <span id="paymentDelayLbl" style="color:var(--brass);font-family:var(--font-m);">${state.paymentDelayPercent ?? 18}%</span></label>
         <input type="range" min="0" max="100" step="1" value="${state.paymentDelayPercent ?? 18}" oninput="setPaymentDelayPercent(+this.value)">
       </div>
-      <p class="subtle" style="margin:8px 0 0;">Neue Anfragen werden automatisch zurückgehalten, wenn bereits offene Gespräche, ungelesene Nachrichten oder fällige Mahnungen Aufmerksamkeit brauchen.</p>
+      <p class="subtle" style="margin:8px 0 0;">${escapeHtml(S.timeflow_note)}</p>
     </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">Mahngebühren</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">${escapeHtml(S.section_dunning)}</h3>
     <div class="offer-card">
       <div class="notice ${state.greedyDunningMode?'warn':''}" style="display:block;margin-bottom:14px;">
-        <b>GEIZIG-Modus ${state.greedyDunningMode?'aktiv':'inaktiv'}</b><br>
-        ${state.greedyDunningMode
-          ? 'Sie fahren eine harte Gebührenpolitik: hohe Mahngebühren erzeugen etwas mehr Zahlungsdruck, senken aber Kundenzufriedenheit stärker und können Ihrem Ruf schaden.'
-          : 'Normale Gebührenpolitik: Mahnungen wirken moderat. Sie können die Gebühren trotzdem frei setzen; extrem hohe Werte sind spielerisch riskant.'}
+        <b>${escapeHtml(state.greedyDunningMode?S.greedy_active_title:S.greedy_inactive_title)}</b><br>
+        ${escapeHtml(state.greedyDunningMode ? S.greedy_active_desc : S.greedy_inactive_desc)}
       </div>
       <button class="btn ${state.greedyDunningMode?'btn-danger':'btn-ghost'}" onclick="toggleGreedyDunningMode()">
-        ${state.greedyDunningMode?'GEIZIG-Modus deaktivieren':'GEIZIG-Modus aktivieren'}
+        ${escapeHtml(state.greedyDunningMode?S.greedy_toggle_on:S.greedy_toggle_off)}
       </button>
       <div class="stat-grid" style="margin-bottom:0;">
-        ${[['reminder','Erinnerung'],['level1','Mahnstufe 1'],['level2','Mahnstufe 2'],['level3','Mahnstufe 3'],['collection','Inkasso/Rücknahme'],['legal','Gericht']].map(([key,label])=>`
+        ${[['reminder',S.dunning_reminder],['level1',S.dunning_level1],['level2',S.dunning_level2],['level3',S.dunning_level3],['collection',S.dunning_collection],['legal',S.dunning_legal]].map(([key,label])=>`
           <div class="field" style="margin:12px 0 0;">
-            <label>${label}</label>
+            <label>${escapeHtml(label)}</label>
             <input type="number" min="0" step="5" value="${fees[key]}" oninput="setDunningFee('${key}', +this.value)">
           </div>
         `).join('')}
       </div>
     </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">Finanzierungsmodell</h3>
+    <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">${escapeHtml(S.section_financing)}</h3>
     <div class="offer-card">
       <p class="subtle" style="margin:0 0 10px;">
-        <b>Erweitert – Autohaus als Kreditgeber (Standard):</b> Bei Finanzierung erhalten Sie nur die Anzahlung sofort, den Rest über monatliche Raten direkt vom Kunden – mit echtem Tilgungsplan, Mahnstufen und Ausfallrisiko bis hin zu Fahrzeugrücknahme oder Forderungsausfall.<br><br>
-        <b>Realistisch:</b> Bei genehmigter Finanzierung erhalten Sie den vollen Kaufpreis sofort von der Partnerbank ausgezahlt, ohne eigenes Risiko.<br><br>
-        <span style="color:var(--ink-2);">Hinweis: Leasingverträge laufen unabhängig von dieser Einstellung immer als mehrmonatiges Vertragsverhältnis mit monatlichen Raten.</span>
+        <b>${escapeHtml(S.financing_extended_label)}</b> ${escapeHtml(S.financing_extended_desc)}<br><br>
+        <b>${escapeHtml(S.financing_realistic_label)}</b> ${escapeHtml(S.financing_realistic_desc)}<br><br>
+        <span style="color:var(--ink-2);">${escapeHtml(S.financing_lease_note)}</span>
       </p>
       <button class="btn ${state.extendedFinancingMode?'btn-primary':'btn-ghost'}" onclick="toggleExtendedFinancing()">
-        ${state.extendedFinancingMode? '✅ Erweitertes Modell aktiv' : 'Realistisches Modell aktiv – umschalten auf Erweitert'}
+        ${escapeHtml(state.extendedFinancingMode? S.financing_toggle_extended : S.financing_toggle_realistic)}
       </button>
     </div>
-    <button class="btn btn-danger" style="margin-top:18px;" onclick="resetGame()">Spielstand zurücksetzen</button>
+    <button class="btn btn-danger" style="margin-top:18px;" onclick="resetGame()">${escapeHtml(S.reset_btn)}</button>
   `;
 }
 function setDayDuration(v){
@@ -12020,17 +12293,18 @@ function setDunningFee(key, value){
 }
 function toggleGreedyDunningMode(){
   state.greedyDunningMode = !state.greedyDunningMode;
-  notify(state.greedyDunningMode ? 'GEIZIG-Modus aktiviert: mehr Zahlungsdruck, aber stärkerer Zufriedenheits- und Rufverlust.' : 'GEIZIG-Modus deaktiviert.', state.greedyDunningMode?'warn':'info');
+  notify(state.greedyDunningMode ? t('settings.greedy_notify_on') : t('settings.greedy_notify_off'), state.greedyDunningMode?'warn':'info');
   renderApp('settings');
   scheduleSave();
 }
 function toggleExtendedFinancing(){
   state.extendedFinancingMode = !state.extendedFinancingMode;
-  notify(state.extendedFinancingMode? 'Erweitertes Finanzierungsmodell aktiviert.' : 'Realistisches Finanzierungsmodell aktiviert.', 'info');
+  notify(state.extendedFinancingMode? t('settings.financing_notify_extended') : t('settings.financing_notify_realistic'), 'info');
   renderAllOpen(); scheduleSave();
 }
 async function resetGame(){
-  if(!confirm(`Spielstand für "${activeProfileName||'dieses Profil'}" wirklich zurücksetzen? Dieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
+  const keepLanguage = state && state.language;
+  if(!confirm(t('settings.reset_confirm',{profile:activeProfileName||'this profile'}))) return;
   const keepTheme = state && state.themeMode === 'light' ? 'light' : 'dark';
   const keepBackground = getAppBackground(state && state.backgroundId).id;
   const keepDesign = state ? {...designSettings()} : {...DEFAULT_DESIGN_SETTINGS};
@@ -12038,6 +12312,7 @@ async function resetGame(){
   state.themeMode = keepTheme;
   state.backgroundId = keepBackground;
   state.designSettings = keepDesign;
+  state.language = keepLanguage || DEFAULT_LANGUAGE;
   dayElapsedMs = 0;
   priceElapsedMs = 0;
   refreshMarketPool();

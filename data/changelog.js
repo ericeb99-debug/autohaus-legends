@@ -1,5 +1,46 @@
 const CHANGELOG = [
   {
+    version:'1.1.1', date:'2026-07-08', type:'major', pinned:true,
+    title:'🌍 Vollständige Englisch-Lokalisierung',
+    headline:'Automotive Empire unterstützt jetzt vollständig Deutsch und Englisch. Das gesamte Spiel – inklusive Benutzeroberfläche, Menüs, Benachrichtigungen, Tooltips, Kalender sowie Währungs- und Zahlenformatierung – passt sich automatisch der gewählten Sprache an. In der englischen Version werden alle Geldbeträge und Formate professionell auf US-Dollar und internationale Schreibweise umgestellt. Das neue Lokalisierungssystem ist außerdem für weitere Sprachen in zukünftigen Updates vorbereitet.',
+    sections:{
+      new:[
+        'Neuer Sprachbereich unter Einstellungen: Wechsel zwischen 🇺🇸 English und 🇩🇪 Deutsch, sofort und ohne Neustart.',
+        'Standardsprache für neue Spielstände ist jetzt Englisch.',
+        'Automatische Währungsumstellung: Deutsch zeigt Euro (€) im deutschen Zahlenformat, Englisch zeigt US-Dollar ($) im englischen Zahlenformat.',
+        'Kalender, Wochentage und Monatsnamen werden vollständig in der gewählten Sprache angezeigt.',
+      ],
+      improved:[
+        'Dashboard, Programme-Fenster, Navigation, Einstellungen und Updates & News sind vollständig in beide Sprachen übersetzt.',
+        'Die gewählte Sprache wird dauerhaft im Spielstand gespeichert und beim nächsten Start automatisch geladen.',
+      ],
+      prepared:[
+        'Das Lokalisierungssystem ist so aufgebaut, dass weitere Sprachen wie Französisch, Spanisch oder Italienisch später ergänzt werden können, ohne bestehende Spielbereiche zu verändern.',
+        'Weitere Spielbereiche (Fahrzeugbörse, Werkstatt, Verträge, Finanzen u.a.) werden in kommenden Updates vollständig in beide Sprachen übersetzt.',
+      ],
+    },
+    en:{
+      title:'🌍 Full English Localization',
+      headline:'Automotive Empire now fully supports both English and German. The entire game—including the user interface, menus, notifications, tooltips, calendar, currency, and number formatting—automatically adapts to the selected language. The English version uses U.S. Dollar formatting and professional international localization throughout the game. The new localization system is also designed to support additional languages in future updates.',
+      sections:{
+        new:[
+          'New Language section under Settings: switch between 🇺🇸 English and 🇩🇪 Deutsch instantly, no restart required.',
+          'New save games now default to English.',
+          'Automatic currency switching: German shows Euro (€) in German number format, English shows US Dollar ($) in English number format.',
+          'The calendar, weekdays and month names now display fully in the selected language.',
+        ],
+        improved:[
+          'Dashboard, Programs window, navigation, Settings and Updates & News are now fully translated into both languages.',
+          'The selected language is saved permanently with your save data and loaded automatically next time you play.',
+        ],
+        prepared:[
+          'The localization system is built so additional languages such as French, Spanish or Italian can be added later without changing existing game areas.',
+          'Further game areas (Vehicle Marketplace, Workshop, Finance Contracts and others) will be fully translated into both languages in upcoming updates.',
+        ],
+      },
+    },
+  },
+  {
     version:'1.1.1', date:'2026-07-07', type:'major', pinned:true,
     title:'Performance Center Update',
     headline:'Das neue Performance Center erweitert Automotive Empire um einen interaktiven ECU- und Softwareoptimierungsbereich mit Fahrzeuganalyse, Drag & Drop, Kompatibilitätsprüfung und realistischem Kundenablauf.',
@@ -28,7 +69,37 @@ const CHANGELOG = [
         'Fälle ohne mögliche Optimierung können jetzt sauber über Kunde informieren abgeschlossen werden.',
         'Das Layout bleibt ohne Scrollen bedienbar, ohne wichtige Aktionsbuttons zu verstecken.'
       ]
-    }
+    },
+    en:{
+      title:'Performance Center Update',
+      headline:'The new Performance Center adds an interactive ECU and software optimization area to Automotive Empire, with vehicle analysis, drag & drop, compatibility checks and a realistic customer flow.',
+      sections:{
+        new:[
+          'New Performance Center area for ECU and software optimization.',
+          'Customers can request Stage 1, Stage 2, Stage 3, ECO, pops & bangs, top-speed limiter removal, launch control and other optimizations.',
+          'Vehicles can be brought into the Performance Center via drag & drop.',
+          'Analysis and compatibility checks review vehicle, drivetrain, power, transmission, prerequisite stages and required hardware.',
+          'After the analysis, customers automatically decide which possible optimizations should be carried out.'
+        ],
+        improved:[
+          'Performance Center layout made clearer and more focused on the dyno bay.',
+          'Vehicle cards, customer requests and analysis notes are easier to read.',
+          'Multiple ECU jobs are shown as a more compact, selectable list.',
+          'Notifications show open ECU jobs directly on the ECU tab.',
+          'Analysis, diagnostics, customer decision and programming now visibly take place in the Performance Center.',
+          'The full customer request is readable via an elegant hover overlay.',
+          'The virtual dyno bay can be collapsed and expanded to save space.',
+          'Completed software optimizations are billed cleanly, affect reviews and reputation, and appear in their own job history.'
+        ],
+        fixed:[
+          'Incorrect or truncated customer request texts were corrected.',
+          'Accented characters and broken text rendering in the ECU area were cleaned up.',
+          'Issues with invisible or hard-to-grab vehicles during drag & drop were fixed.',
+          'Cases with no possible optimization can now be closed cleanly via "Inform customer".',
+          'The layout stays fully usable without scrolling, without hiding important action buttons.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-08', type:'major',
@@ -63,7 +134,41 @@ const CHANGELOG = [
         'Saisonale Nachfrage, Events und wirtschaftliche Entwicklungen.',
         'Zeitabhängige Systeme wie Leasing, Versicherungen, Termine und Kampagnen.'
       ]
-    }
+    },
+    en:{
+      title:'Realistic Calendar System',
+      headline:'Automotive Empire now uses a full calendar and time system with a fixed start date, real months, year transitions and a stable foundation for long-term business simulation.',
+      sections:{
+        new:[
+          'New save games always start on January 1, 2027 with a fixed calendar start.',
+          'Existing save games are automatically migrated to the new calendar system based on their previous day progress.',
+          'Months, month lengths, leap years, weekdays and year transitions are now calculated centrally.',
+          'New Legacy runs start again with a fresh calendar at the fixed start date.'
+        ],
+        improved:[
+          'The top game display now shows the weekday and real date instead of just an endless day number.',
+          'The calendar day duration now clearly controls how long a calendar day lasts in real time.',
+          'Daily limits for new purchase inquiries still align cleanly with the current calendar day.',
+          'Legacy progress now depends more on company value, profit, reputation, sales and completed jobs rather than on days passing quickly.',
+          'The entire game now shows real calendar dates instead of day numbers: finance, contracts, financing, leasing, collections, the vehicle marketplace, customer chats, reviews, deliveries, reservations, search requests and recent transactions.',
+          'All future dates such as installment due dates, bank responses, delivery arrivals and reminder deadlines are calculated using the real calendar and account for month lengths, leap years and year transitions.',
+          'Revenue and profit charts on the dashboard now label their time ranges with real calendar dates and month names.',
+          'Level progress from passive experience is now independent of the configured calendar day duration: shorter calendar days no longer speed up Legacy progress.'
+        ],
+        fixed:[
+          'Migration of existing save games was corrected: previous progress is now plausibly mapped onto the calendar based on the earlier, much faster day duration, instead of jumping months or years too far into the future.',
+          'Lightly played save games no longer start later on the calendar than much more developed companies.',
+          'Older stored entries such as notifications, collection histories and customer messages now show their timestamps as real calendar dates.',
+          'All histories and logs remain strictly chronological: newest events on top, older ones below, with no date jumps.'
+        ],
+        prepared:[
+          'Month-end closings and monthly costs.',
+          'Annual statistics and long-term business reports.',
+          'Seasonal demand, events and economic developments.',
+          'Time-based systems such as leasing, insurance, appointments and campaigns.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'normal',
@@ -74,7 +179,17 @@ const CHANGELOG = [
         'Hintergründe werden weiterhin automatisch erkannt, bleiben in der Auswahl aber optisch sauber ohne sichtbare Bildnamen.',
         'Die aktive Auswahl wird neutral angezeigt und wirkt dadurch aufgeräumter.'
       ]
-    }
+    },
+    en:{
+      title:'Refined Background Selection',
+      headline:'The background picker now shows only the image preview, with no file names displayed.',
+      sections:{
+        improved:[
+          'Backgrounds are still detected automatically, but the picker now stays visually clean with no visible file names.',
+          'The active selection is highlighted neutrally, giving the picker a tidier look.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'normal',
@@ -85,7 +200,17 @@ const CHANGELOG = [
         'Bild 1 aus dem Hintergrundordner ist jetzt der Standardhintergrund für neue Spieler und neue Profile.',
         'Falls ein gespeicherter Hintergrund nicht mehr vorhanden ist, wählt das Spiel automatisch wieder einen passenden vorhandenen Hintergrund.'
       ]
-    }
+    },
+    en:{
+      title:'Improved Default Background',
+      headline:'New profiles now start directly with the first background image.',
+      sections:{
+        improved:[
+          'Image 1 from the backgrounds folder is now the default background for new players and new profiles.',
+          'If a saved background no longer exists, the game automatically selects another available background instead.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'normal',
@@ -97,7 +222,18 @@ const CHANGELOG = [
         'Entfernte Hintergrundbilder verschwinden beim nächsten Start auch aus der Auswahl.',
         'Dateinamen werden intern automatisch verarbeitet, ohne in der Auswahl sichtbar zu sein.'
       ]
-    }
+    },
+    en:{
+      title:'Automatic Background Detection',
+      headline:'The Design area now automatically updates its background selection based on the images in the backgrounds folder.',
+      sections:{
+        improved:[
+          'New images placed in assets/backgrounds automatically appear in the picker.',
+          'Removed background images disappear from the picker on the next launch as well.',
+          'File names are processed internally without being shown in the picker.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'normal',
@@ -109,7 +245,18 @@ const CHANGELOG = [
         'Wichtige Bereiche wie Login, Fahrzeuge, Kunden, Werkstatt, Design, Updates & News und Build-Systeme lassen sich schneller finden.',
         'Neue Systeme und verschobene Dateien werden künftig in der Dokumentation mitgepflegt.'
       ]
-    }
+    },
+    en:{
+      title:'Technical Improvements',
+      headline:'The project now has permanent technical documentation.',
+      sections:{
+        improved:[
+          'The project structure is now clearly described in its own documentation.',
+          'Key areas such as login, vehicles, customers, workshop, design, Updates & News and build systems can be found more quickly.',
+          'New systems and moved files will be kept up to date in the documentation going forward.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'normal',
@@ -121,7 +268,18 @@ const CHANGELOG = [
         'Automotive Empire bleibt unverändert spielbar und nutzt weiterhin dieselben Spielstände, Profile und Systeme.',
         'Die neue Struktur erleichtert zukünftige Erweiterungen und Updates.'
       ]
-    }
+    },
+    en:{
+      title:'Improved Technical Foundation',
+      headline:'The project structure was split across multiple files without changing the gameplay experience.',
+      sections:{
+        improved:[
+          'Styles, app script and Updates & News data are now separated more cleanly.',
+          'Automotive Empire remains playable exactly as before and still uses the same save games, profiles and systems.',
+          'The new structure makes future extensions and updates easier.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'hotfix',
@@ -136,7 +294,21 @@ const CHANGELOG = [
         'Die Logo-Flächen wurden weiter bereinigt, damit kein gelber Rand mehr an den Logos erscheint.',
         'Das Logo oberhalb der seitlichen Tableiste wurde entfernt, damit die Tabs höher und direkter erreichbar sind.'
       ]
-    }
+    },
+    en:{
+      title:'Branding & Interaction Polish',
+      headline:'The new app icon now also applies inside the desktop app, and click-and-drag interaction feels cleaner.',
+      sections:{
+        improved:[
+          'The Windows app now uses the new Automotive Empire identity, so the desktop, taskbar and window icons correctly match the new branding.',
+          'Dragging with the left mouse button held down no longer accidentally selects UI text and fields.',
+          'Logos now appear calmer without a yellow glow effect, and the colored window dots in the top bar were removed.',
+          'New updates are now shown as a clear info card so important notices stand out better.',
+          'Logo areas were further cleaned up so no yellow border appears around the logos anymore.',
+          'The logo above the side tab bar was removed so the tabs sit higher and are reached more directly.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'normal',
@@ -148,7 +320,18 @@ const CHANGELOG = [
         'Die bisherigen Hintergründe wurden vollständig durch drei neue Premium-Hintergründe ersetzt.',
         'Updates & News, Dashboard und Navigationsbereiche greifen das neue Branding sauber im bestehenden Premium-Design auf.'
       ]
-    }
+    },
+    en:{
+      title:'New Branding',
+      headline:'Automotive Empire now appears with its new official brand identity.',
+      sections:{
+        new:[
+          'The new Automotive Empire logo is now used on the login screen, throughout the app interface, and in window, taskbar and installer icons.',
+          'The previous backgrounds have been fully replaced with three new premium backgrounds.',
+          'Updates & News, the Dashboard and navigation areas now reflect the new branding cleanly within the existing premium design.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'normal',
@@ -160,7 +343,18 @@ const CHANGELOG = [
         'Die DEV-Version ist ebenfalls passend benannt und erscheint als Automotive Empire DEV.',
         'Das bestehende Logo bleibt erhalten, damit sich das Spiel weiterhin vertraut anfühlt.'
       ]
-    }
+    },
+    en:{
+      title:'New Name',
+      headline:'The game now goes by the name Automotive Empire.',
+      sections:{
+        improved:[
+          'App name, window title, installer and visible UI text were updated to Automotive Empire.',
+          'The DEV build is named accordingly and appears as Automotive Empire DEV.',
+          'The existing logo was kept so the game still feels familiar.'
+        ]
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-07', type:'hotfix',
@@ -174,6 +368,19 @@ const CHANGELOG = [
       fixed:[
         'Das Notizblock-Icon und das zugehörige Widget erscheinen nicht mehr im Spiel.',
       ],
+    },
+    en:{
+      title:'Interface Cleanup',
+      headline:'The experimental notepad widget was removed again, keeping the interface lean and distraction-free.',
+      sections:{
+        improved:[
+          'The bottom bar is refocused on the proven game areas.',
+          'The extra floating notepad layer was removed so no overlay sits on top of the Dashboard, Programs or other pages.',
+        ],
+        fixed:[
+          'The notepad icon and its widget no longer appear in the game.',
+        ],
+      },
     },
   },
   {
@@ -190,6 +397,20 @@ const CHANGELOG = [
         'Das störende Neuladen der aktuellen Seite während der laufenden Spielzeit wurde behoben.',
       ],
     },
+    en:{
+      title:'Stability Improvements',
+      headline:'Open pages now stay calmly in place while game time keeps running.',
+      sections:{
+        improved:[
+          'When a new game day begins, your current view stays open and no longer keeps jumping back to the top.',
+          'Reading, scrolling or editing stays noticeably more stable, even while time, the market and customers keep progressing in the background.',
+          'Updates & News now presents new content more clearly as player-facing news instead of a technical version list.',
+        ],
+        fixed:[
+          'The disruptive reloading of the current page during active game time was fixed.',
+        ],
+      },
+    },
   },
   {
     version:'1.1.1', date:'2026-07-06', type:'hotfix',
@@ -203,6 +424,19 @@ const CHANGELOG = [
         'Im Willkommensfenster nach einem Update erschien der Text „rocket“ statt des eigentlichen Icons.',
         'Das Willkommensfenster zeigte nach einem Update veraltete Update-Informationen.',
       ],
+    },
+    en:{
+      title:'Update & Icon Polish',
+      sections:{
+        improved:[
+          'Update notices, login, settings and the welcome window now look more consistent and tidy.',
+        ],
+        fixed:[
+          'Update installation failed the signature check on development builds ("not signed by the application owner").',
+          'The welcome window showed the text "rocket" instead of the actual icon after an update.',
+          'The welcome window showed outdated update information after an update.',
+        ],
+      },
     },
   },
   {
@@ -225,6 +459,26 @@ const CHANGELOG = [
         'Der Update-Dialog konnte bisher mitten in einer laufenden Spielsitzung erscheinen und das Spiel unterbrechen.',
       ],
     },
+    en:{
+      title:'Updates & News Center',
+      headline:'Automotive Empire gets its own permanent update center — all the latest news, clearly presented in the game from now on.',
+      sections:{
+        new:[
+          'New "Updates & News" program in the Programs menu: all new content, improvements and bug fixes as modern update cards.',
+          'Welcome window after every update: new content is presented once the first time a new release is launched.',
+          'A subtle notification in the top right if a new update appears during a play session — without interrupting you.',
+          'Update types with their own look: major content update, content, feature, balance, bugfix update and hotfix.',
+        ],
+        improved:[
+          'Updates are never installed mid-session anymore — only after login or on explicit request.',
+          '"Check for updates" is quieter now: if everything is current, only a short notice appears with no technical details.',
+          'Update information is now easier to reach in the update center, in settings and on the login screen.',
+        ],
+        fixed:[
+          'The update dialog could previously appear in the middle of an active play session and interrupt the game.',
+        ],
+      },
+    },
   },
   {
     version:'1.0.5', date:'2026-07-06', type:'bugfix',
@@ -233,6 +487,13 @@ const CHANGELOG = [
       improved:['Neues App-Logo für Fenster, Taskleiste und Installer.'],
       fixed:['Anmeldung am Profil funktioniert wieder zuverlässig.'],
     },
+    en:{
+      title:'Login Fix & New App Logo',
+      sections:{
+        improved:['New app logo for window, taskbar and installer.'],
+        fixed:['Profile login works reliably again.'],
+      },
+    },
   },
   {
     version:'1.0.2', date:'2026-07-06', type:'feature',
@@ -240,6 +501,13 @@ const CHANGELOG = [
     sections:{
       new:['Spielstände werden als echte Dateien im Benutzerordner gespeichert — inklusive automatischer Backups bei jedem Speichern.'],
       improved:['Speichern ist dadurch robuster gegen Datenverlust und unabhängig vom Browser-Speicher.'],
+    },
+    en:{
+      title:'Native Save System',
+      sections:{
+        new:['Save games are now stored as real files in the user folder — including automatic backups on every save.'],
+        improved:['Saving is now more robust against data loss and independent of browser storage.'],
+      },
     },
   },
   {
@@ -252,6 +520,17 @@ const CHANGELOG = [
         'Automatische Update-Prüfung über GitHub Releases.',
         'UI 3.0: komplett neu aufgebaute Oberfläche mit Dock, KPI-Leiste, Programm-Launcher und Glasoptik.',
       ],
+    },
+    en:{
+      title:'Automotive Empire as a Desktop App',
+      headline:'The browser game becomes a full Windows application.',
+      sections:{
+        new:[
+          'Automotive Empire now runs as a standalone desktop app with an installer and a portable version.',
+          'Automatic update checks via GitHub Releases.',
+          'UI 3.0: a completely rebuilt interface with a dock, KPI bar, program launcher and glass look.',
+        ],
+      },
     },
   },
 ];
