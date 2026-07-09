@@ -1,5 +1,44 @@
 const CHANGELOG = [
   {
+    version:'1.1.1', date:'2026-07-09', type:'improved',
+    title:'Lokalisierung vervollständigt',
+    headline:'Alle verbleibenden Spielbereiche sind jetzt vollständig auf Englisch und Deutsch lokalisiert.',
+    sections:{
+      improved:[
+        'Fahrzeugbörse und Angebotskarten zeigen alle Labels, Buttons und Statusmeldungen in der gewählten Sprache.',
+        'Bankentscheidungs-Modal und Finanzierungsangebots-Karten nutzen übersetzte Ergebnis-Labels.',
+        'Finanzierungskonditionen-Drehrad und Finanzierungsabgelehnt-Modal sind vollständig übersetzt.',
+        'Kunden-Abbruch-Benachrichtigungen erscheinen in der gewählten Sprache.',
+        'Lieferungsseite: Übersicht, Karten, Statusanzeigen und alle Aktionen sind übersetzt.',
+        'Vorzeitige Rückgabe und Leasing-Abschluss-Modal nutzen die gewählte Sprache.',
+        'Kaufbedingungen-Modals und Rabattdialog sind übersetzt.',
+        'Bank-Bereich zeigt alle Labels und Aktionen in der gewählten Sprache.',
+        'Taschenrechner und km-Angaben passen sich der Sprache und Zahlenformatierung an.',
+        'Gegenseitiges Verhandlungs-Modal (fest bleibendes Angebot) ist übersetzt.',
+        'Finanzierungsprioritäts-Panel und Zahlungsart-Beschreibungen sind übersetzt.',
+      ],
+    },
+    en:{
+      title:'Localization Completed',
+      headline:'All remaining game areas are now fully localized in both English and German.',
+      sections:{
+        improved:[
+          'Vehicle listings and offer cards now show all labels, buttons and status messages in the selected language.',
+          'Bank decision modal and financing offer cards use translated result labels.',
+          'Financing conditions wheel and financing rejected modal are fully translated.',
+          'Customer dropout notifications appear in the selected language.',
+          'Deliveries page: overview, cards, status labels and all actions are translated.',
+          'Early return and lease end modal use the selected language.',
+          'Sale condition modals and discount dialog are translated.',
+          'Bank panel shows all labels and actions in the selected language.',
+          'Calculator and kilometer figures adapt to the language and number format.',
+          'Counter "firm offer" modal is translated.',
+          'Financing priority panel and payment method descriptions are translated.',
+        ],
+      },
+    },
+  },
+  {
     version:'1.1.1', date:'2026-07-08', type:'major', pinned:true,
     title:'🌍 Vollständige Englisch-Lokalisierung',
     headline:'Automotive Empire unterstützt jetzt vollständig Deutsch und Englisch. Das gesamte Spiel – inklusive Benutzeroberfläche, Menüs, Benachrichtigungen, Tooltips, Kalender sowie Währungs- und Zahlenformatierung – passt sich automatisch der gewählten Sprache an. In der englischen Version werden alle Geldbeträge und Formate professionell auf US-Dollar und internationale Schreibweise umgestellt. Das neue Lokalisierungssystem ist außerdem für weitere Sprachen in zukünftigen Updates vorbereitet.',
@@ -11,12 +50,14 @@ const CHANGELOG = [
         'Kalender, Wochentage und Monatsnamen werden vollständig in der gewählten Sprache angezeigt.',
       ],
       improved:[
-        'Dashboard, Programme-Fenster, Navigation, Einstellungen und Updates & News sind vollständig in beide Sprachen übersetzt.',
+        'Alle Spielbereiche sind jetzt vollständig in beide Sprachen übersetzt: Fahrzeugbörse, Bestand, Ankauf, Kunden, Werkstatt, ECU-Center, Verträge, Finanzen, Business Insights, Wunschliste, Mitarbeiter, Unternehmensausbau, Legacy, Login-Bildschirm, Achievements und Marktstatistik.',
+        'Verkaufsabschluss-Modal, Finanzierungsblock, Kundenzufriedenheitsanzeige und alle Erfolge werden in der gewählten Sprache angezeigt.',
+        'Willkommensfenster nach Updates und Login-Meldungen erscheinen jetzt in der korrekten Sprache.',
+        'Dezimaltrennzeichen in Business Insights und Marktstatistik passen sich der Sprache an.',
         'Die gewählte Sprache wird dauerhaft im Spielstand gespeichert und beim nächsten Start automatisch geladen.',
       ],
       prepared:[
         'Das Lokalisierungssystem ist so aufgebaut, dass weitere Sprachen wie Französisch, Spanisch oder Italienisch später ergänzt werden können, ohne bestehende Spielbereiche zu verändern.',
-        'Weitere Spielbereiche (Fahrzeugbörse, Werkstatt, Verträge, Finanzen u.a.) werden in kommenden Updates vollständig in beide Sprachen übersetzt.',
       ],
     },
     en:{
@@ -30,12 +71,14 @@ const CHANGELOG = [
           'The calendar, weekdays and month names now display fully in the selected language.',
         ],
         improved:[
-          'Dashboard, Programs window, navigation, Settings and Updates & News are now fully translated into both languages.',
+          'All game areas are now fully translated into both languages: Vehicle Marketplace, Inventory, Acquisition, Customers, Workshop, ECU Center, Finance Contracts, Finance, Business Insights, Wishlist, Staff, Business Upgrades, Legacy, Login screen, Achievements and Market Statistics.',
+          'Sale celebration modal, financing block, customer reaction display and all achievements now show in the selected language.',
+          'Post-update welcome dialog and login notifications now appear in the correct language.',
+          'Decimal separators in Business Insights and Market Statistics adapt to the active language.',
           'The selected language is saved permanently with your save data and loaded automatically next time you play.',
         ],
         prepared:[
           'The localization system is built so additional languages such as French, Spanish or Italian can be added later without changing existing game areas.',
-          'Further game areas (Vehicle Marketplace, Workshop, Finance Contracts and others) will be fully translated into both languages in upcoming updates.',
         ],
       },
     },

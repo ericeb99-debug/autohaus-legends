@@ -1866,6 +1866,10 @@ async function renderProfileLogin(){
   document.body.classList.remove('has-app-bg');
   const profiles = await loadProfiles();
   const lastPlayed = profiles.length ? profiles.reduce((latest,p)=>Math.max(latest, p.lastPlayed||0),0) : 0;
+  const LI = t('login');
+  const nloc = localeMeta().numberLocale || 'de-DE';
+  const profilesChip = profiles.length===1 ? t('login.profiles_chip_s',{n:profiles.length}) : t('login.profiles_chip_p',{n:profiles.length});
+  const lastPlayedChip = lastPlayed ? t('login.last_played_chip',{date:new Date(lastPlayed).toLocaleDateString(nloc)}) : LI.no_save_chip;
   document.getElementById('app').innerHTML = `
     <div class="profile-screen">
       <div class="login-bg-cars" id="loginBgCars" aria-hidden="true"></div>
@@ -1876,31 +1880,31 @@ async function renderProfileLogin(){
               <div class="login-mark"><img src="assets/logos/app-logo.png" alt=""></div>
               <div>
                 <h1>Automotive Empire</h1>
-                <small>Premium Autohaus Management</small>
+                <small>${escapeHtml(LI.tagline)}</small>
               </div>
             </div>
             <div class="login-copy">
-              <p>Steuere Bestand, Kunden, Finanzierung, Werkstatt, Verträge und Reputation in einer Oberfläche.</p>
+              <p>${escapeHtml(LI.copy)}</p>
             </div>
           </div>
           <div>
             <div class="login-feature-grid">
-              <div class="login-feature"><b>Bestand & Inserate</b><span>Fahrzeuge bewerten, vorbereiten und verkaufen.</span></div>
-              <div class="login-feature"><b>Finanzierung & Leasing</b><span>Bankprüfung, Raten, Verträge und Forderungen.</span></div>
-              <div class="login-feature"><b>Reputation & Legacy</b><span>Wachse vom kleinen Händler zur Premium-Adresse.</span></div>
+              <div class="login-feature"><b>${escapeHtml(LI.feat_inventory_title)}</b><span>${escapeHtml(LI.feat_inventory_body)}</span></div>
+              <div class="login-feature"><b>${escapeHtml(LI.feat_finance_title)}</b><span>${escapeHtml(LI.feat_finance_body)}</span></div>
+              <div class="login-feature"><b>${escapeHtml(LI.feat_reputation_title)}</b><span>${escapeHtml(LI.feat_reputation_body)}</span></div>
             </div>
             <div class="login-version-row" style="margin-top:14px;">
               <span class="chip">Automotive Empire</span>
-              <span class="chip">${profiles.length} Profil${profiles.length===1?'':'e'}</span>
-              <span class="chip">${lastPlayed?'Letzter Speicherstand '+new Date(lastPlayed).toLocaleDateString('de-DE'):'Noch kein Speicherstand'}</span>
+              <span class="chip">${escapeHtml(profilesChip)}</span>
+              <span class="chip">${escapeHtml(lastPlayedChip)}</span>
             </div>
           </div>
         </section>
         <section class="profile-panel">
           <div class="profile-panel-head">
             <div>
-              <h2>Willkommen zurück</h2>
-              <p>Profil auswählen, Spielstand laden oder ein neues Autohaus starten.</p>
+              <h2>${escapeHtml(LI.welcome_back)}</h2>
+              <p>${escapeHtml(LI.select_profile)}</p>
             </div>
             <div class="profile-panel-badge">Secure Save</div>
           </div>
@@ -1908,26 +1912,26 @@ async function renderProfileLogin(){
           <div class="profile-grid">
             ${profiles.map(p=>`<div class="profile-card">
               <div class="name">${escapeHtml(p.name)}</div>
-              <div class="meta">Zuletzt gespielt: ${p.lastPlayed?new Date(p.lastPlayed).toLocaleString('de-DE'):'noch nie'}${p.migratedLegacy?'<br>Alter Spielstand: kein Passwort gesetzt':''}</div>
+              <div class="meta">${escapeHtml(t('login.last_played_label',{date:p.lastPlayed?new Date(p.lastPlayed).toLocaleString(nloc):LI.last_played_never}))}${p.migratedLegacy?'<br>'+escapeHtml(LI.migrated_note):''}</div>
               <div class="unlock">
-                <input type="password" id="pw_${p.id}" data-profile-login-control="1" placeholder="${p.password?'Passwort':'Kein Passwort'}" onkeydown="if(event.key==='Enter'){selectProfile('${p.id}');}">
-                <button class="btn btn-primary btn-sm" id="loginBtn_${p.id}" data-profile-login-control="1" onclick="selectProfile('${p.id}')">Fortsetzen</button>
+                <input type="password" id="pw_${p.id}" data-profile-login-control="1" placeholder="${escapeAttr(p.password?LI.password_placeholder:LI.no_password_placeholder)}" onkeydown="if(event.key==='Enter'){selectProfile('${p.id}');}">
+                <button class="btn btn-primary btn-sm" id="loginBtn_${p.id}" data-profile-login-control="1" onclick="selectProfile('${p.id}')">${escapeHtml(LI.continue_btn)}</button>
               </div>
-              <button class="btn btn-danger btn-sm" data-profile-login-control="1" style="margin-top:10px;" onclick="event.stopPropagation(); deleteProfileFromLogin('${p.id}')">Löschen</button>
-            </div>`).join('') || '<div class="notice">Noch kein Profil vorhanden.</div>'}
+              <button class="btn btn-danger btn-sm" data-profile-login-control="1" style="margin-top:10px;" onclick="event.stopPropagation(); deleteProfileFromLogin('${p.id}')">${escapeHtml(LI.delete_btn)}</button>
+            </div>`).join('') || `<div class="notice">${escapeHtml(LI.no_profiles)}</div>`}
           </div>
           <div class="login-new-game">
-            <h3>Neues Spiel starten</h3>
+            <h3>${escapeHtml(LI.new_game_title)}</h3>
             <div class="field">
-              <label>Spielstand-Name</label>
-              <input type="text" id="newProfileName" placeholder="z.B. Eric Autohaus">
+              <label>${escapeHtml(LI.save_name_label)}</label>
+              <input type="text" id="newProfileName" placeholder="${escapeAttr(LI.save_name_placeholder)}">
             </div>
             <div class="field">
-              <label>Passwort</label>
-              <input type="password" id="newProfilePassword" placeholder="Passwort für diesen Spielstand" onkeydown="if(event.key==='Enter'){createProfileFromLogin();}">
+              <label>${escapeHtml(LI.password_label)}</label>
+              <input type="password" id="newProfilePassword" placeholder="${escapeAttr(LI.password_input_placeholder)}" onkeydown="if(event.key==='Enter'){createProfileFromLogin();}">
             </div>
             <div class="row-actions">
-              <button class="btn btn-primary" onclick="createProfileFromLogin()">Neues Spiel starten</button>
+              <button class="btn btn-primary" onclick="createProfileFromLogin()">${escapeHtml(LI.start_btn)}</button>
             </div>
           </div>
         </section>
@@ -2388,7 +2392,7 @@ async function createProfileFromLogin(){
     refreshMarketPool();
     seedInitialInventory();
     state.cashHistory.push({day:1, cash:state.cash, net:0});
-    notify('Willkommen bei Automotive Empire! Bauen Sie Ihr Autohaus-Imperium auf.', 'good');
+    notify(t('login.welcome_notify'), 'good');
 
     // Schritt 2: State speichern und Erfolg per Read-back verifizieren
     const payload = JSON.stringify(state);
@@ -2793,16 +2797,17 @@ async function maybeShowVersionWelcome(){
     setLastSeenVersion(GAME_VERSION);
     const entry = CHANGELOG.find(e=>cmpVersion(e.version, GAME_VERSION)===0);
     const meta = updateTypeMeta(entry ? entry.type : 'normal');
+    const UPD = t('updates');
     showModal(`
-      <div class="welcome-version-head">
-        <div class="wv-icon">${UPD_SVG[meta.icon] || UPD_SVG.gear}</div>
-        <h2>Willkommen zurück</h2>
-        <p>${entry && entry.title ? escapeHtml(entry.title) + ' — ' : ''}Das ist neu in Automotive Empire:</p>
+      <div class=”welcome-version-head”>
+        <div class=”wv-icon”>${UPD_SVG[meta.icon] || UPD_SVG.gear}</div>
+        <h2>${escapeHtml(UPD.welcome_heading)}</h2>
+        <p>${entry && entry.title ? escapeHtml(localizedChangelogField(entry,'title') || entry.title) + ' — ' : ''}${escapeHtml(UPD.welcome_intro_suffix)}</p>
       </div>
-      <div class="welcome-changelog">${entry ? renderChangelogSections(entry) : '<div class="upd-empty">Details findest du unter „Updates &amp; News“.</div>'}</div>
-      <div class="row-actions">
-        <button class="btn btn-ghost" onclick="closeModal();navigateTo('updates')">Alle Updates ansehen</button>
-        <button class="btn btn-primary" onclick="closeModal()">Verstanden</button>
+      <div class=”welcome-changelog”>${entry ? renderChangelogSections(entry) : `<div class=”upd-empty”>${escapeHtml(UPD.welcome_fallback)}</div>`}</div>
+      <div class=”row-actions”>
+        <button class=”btn btn-ghost” onclick=”closeModal();navigateTo('updates')”>${escapeHtml(UPD.welcome_all_btn)}</button>
+        <button class=”btn btn-primary” onclick=”closeModal()”>${escapeHtml(UPD.welcome_ok_btn)}</button>
       </div>
     `, 'modal-welcome');
   }catch(e){ console.error('[Updates] Willkommensfenster fehlgeschlagen:', e); }
@@ -4205,8 +4210,8 @@ function renderAchievementsPanel(){
         return `<div class="ach-card ${done?'':'locked'}" style="--ach:${achievementColor(a.rarity)};">
           <div class="ach-ico">${a.icon}</div>
           <div>
-            <div class="ach-name">${a.label}</div>
-            <div class="ach-desc">${done ? a.desc : escapeHtml(t('dashboard.achievement_locked_prefix'))+a.desc}</div>
+            <div class="ach-name">${escapeHtml(achievementText(a,'label'))}</div>
+            <div class="ach-desc">${done ? escapeHtml(achievementText(a,'desc')) : escapeHtml(t('dashboard.achievement_locked_prefix'))+escapeHtml(achievementText(a,'desc'))}</div>
             <div class="ach-rarity">${achievementRarityLabel(a.rarity)}${a.xp?` · ${a.xp} XP`:''}</div>
           </div>
         </div>`;
@@ -6835,17 +6840,17 @@ function renderReviews(){
   const reviews = state.reviews || [];
   const m = reviewMetrics();
   return `
-    <h2 class="section-title">Bewertungen</h2>
-    <p class="subtle">Bewertungen beeinflussen neue Kunden, Vertrauen, Abschlusschancen, Ruf und hochwertige Ankaufsangebote.</p>
+    <h2 class="section-title">${escapeHtml(t('reviews.title'))}</h2>
+    <p class="subtle">${escapeHtml(t('reviews.subtitle'))}</p>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Durchschnitt</div><div class="num" style="color:var(--brass);">${m.count?m.avg.toFixed(1):'–'} ★</div></div>
-      <div class="stat-card"><div class="lbl">Bewertungen</div><div class="num">${m.count}</div></div>
-      <div class="stat-card"><div class="lbl">Weiterempfehlung</div><div class="num">${Math.round(m.recommend)}%</div></div>
-      <div class="stat-card"><div class="lbl">Antwortquote</div><div class="num">${Math.round(m.response)}%</div></div>
-      <div class="stat-card"><div class="lbl">Reklamationsquote</div><div class="num" style="color:${m.complaint>25?'var(--crimson)':'var(--emerald)'};">${Math.round(m.complaint)}%</div></div>
-      <div class="stat-card"><div class="lbl">Suchplatzierung</div><div class="num">${m.influence>=0?'Top':'Schwach'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('reviews.avg'))}</div><div class="num" style="color:var(--brass);">${m.count?m.avg.toFixed(1):'–'} ★</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('reviews.count'))}</div><div class="num">${m.count}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('reviews.recommend'))}</div><div class="num">${Math.round(m.recommend)}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('reviews.response_rate'))}</div><div class="num">${Math.round(m.response)}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('reviews.complaint_rate'))}</div><div class="num" style="color:${m.complaint>25?'var(--crimson)':'var(--emerald)'};">${Math.round(m.complaint)}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('reviews.search_rank'))}</div><div class="num">${m.influence>=0?t('reviews.rank_top'):t('reviews.rank_weak')}</div></div>
     </div>
-    ${reviews.length?reviews.map(renderReviewCard).join(''):`<div class="empty-state"><div class="ic">⭐</div>Noch keine Bewertungen. Nach abgeschlossenen Geschäften entstehen automatisch echte Kundenbewertungen.</div>`}
+    ${reviews.length?reviews.map(renderReviewCard).join(''):`<div class="empty-state"><div class="ic">⭐</div>${escapeHtml(t('reviews.empty'))}</div>`}
   `;
 }
 function renderReviewCard(r){
@@ -6857,10 +6862,10 @@ function renderReviewCard(r){
     </div>
     <div class="spec-row">${cat}</div>
     <p style="font-size:13px;line-height:1.55;margin:10px 0;">"${escapeHtml(r.text)}"</p>
-    ${r.reply?`<div class="notice good" style="display:block;"><b>Ihre öffentliche Antwort</b><br>${escapeHtml(r.reply)}</div>`:`
+    ${r.reply?`<div class="notice good" style="display:block;"><b>${escapeHtml(t('reviews.public_reply'))}</b><br>${escapeHtml(r.reply)}</div>`:`
       <div style="display:flex;gap:8px;align-items:center;">
-        <input type="text" id="reply_${r.id}" placeholder="Öffentlich antworten..." style="flex:1;padding:9px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--ink-0);font-size:12.5px;" onkeydown="if(event.key==='Enter'){event.preventDefault();replyToReview('${r.id}');}">
-        <button class="btn btn-primary btn-sm" onclick="replyToReview('${r.id}')">Antworten</button>
+        <input type="text" id="reply_${r.id}" placeholder="${escapeAttr(t('reviews.reply_placeholder'))}" style="flex:1;padding:9px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--ink-0);font-size:12.5px;" onkeydown="if(event.key==='Enter'){event.preventDefault();replyToReview('${r.id}');}">
+        <button class="btn btn-primary btn-sm" onclick="replyToReview('${r.id}')">${escapeHtml(t('reviews.reply_btn'))}</button>
       </div>`}
   </div>`;
 }
@@ -6872,7 +6877,7 @@ function replyToReview(id){
   state.reviewsAnswered = (state.reviewsAnswered||0)+1;
   const friendly = /(danke|vielen dank|entschuld|freut|gerne|bedauern|melden)/i.test(text);
   state.reputation = clamp(state.reputation + (friendly?1:-1), 0, 100);
-  notify(friendly?'Professionelle Antwort veröffentlicht. Vertrauen steigt leicht.':'Antwort veröffentlicht. Ton wirkt riskant für den Ruf.', friendly?'good':'warn');
+  notify(friendly?t('reviews.notify_professional'):t('reviews.notify_risky'), friendly?'good':'warn');
   renderAllOpen(); scheduleSave();
 }
 
@@ -7136,7 +7141,7 @@ function renderMailbox(){
   const offers = activeOffers();
   if(offers.length===0){
     selectedOfferId = null;
-    return `<h2 class="section-title">Postfach</h2><div class="empty-state"><div class="ic">📧</div>Keine aktiven Unterhaltungen. Sobald Kunden auf Ihre Inserate reagieren, erscheinen sie hier.</div>`;
+    return `<h2 class="section-title">${escapeHtml(t('mailbox.title'))}</h2><div class="empty-state"><div class="ic">📧</div>${escapeHtml(t('mailbox.empty'))}</div>`;
   }
   if(!selectedOfferId || !offers.find(o=>o.id===selectedOfferId)){
     selectedOfferId = offers[0].id;
@@ -7144,8 +7149,8 @@ function renderMailbox(){
   const listHtml = renderMailboxListHtml(offers);
   const thread = renderConversationThread(selectedOfferId);
   return `
-    <h2 class="section-title">Postfach</h2>
-    <p class="subtle">${offers.length} aktive Unterhaltung(en)</p>
+    <h2 class="section-title">${escapeHtml(t('mailbox.title'))}</h2>
+    <p class="subtle">${escapeHtml(t('mailbox.subtitle',{n:offers.length}))}</p>
     <div class="mailbox-layout">
       <div class="convo-list">${listHtml}</div>
       <div class="chat-thread">${thread}</div>
@@ -7154,27 +7159,27 @@ function renderMailbox(){
 }
 function chatVehicleStatus(o, c, listing, saleConditions){
   const workshopJob = (state.workshopJobs||[]).find(j=>j.carId===c.id);
-  if(o.bankDecision) return 'Bankentscheidung liegt vor';
-  if(o.applicationPending) return o.paymentMethod==='leasing' ? 'Leasingantrag läuft' : 'Finanzierungsantrag läuft';
-  if(workshopJob) return 'Werkstattauftrag aktiv';
-  if(saleConditions && saleConditions.length) return 'Kundenwünsche offen';
-  if(c.reservedFor && c.reservedFor.expiresDay>state.day) return 'Reserviert';
+  if(o.bankDecision) return t('chat.status_bank_decision');
+  if(o.applicationPending) return o.paymentMethod==='leasing' ? t('chat.status_lease_pending') : t('chat.status_fin_pending');
+  if(workshopJob) return t('chat.status_workshop');
+  if(saleConditions && saleConditions.length) return t('chat.status_wishes_open');
+  if(c.reservedFor && c.reservedFor.expiresDay>state.day) return t('chat.status_reserved');
   if(o.chatMemory?.conversationState) return o.chatMemory.conversationState;
-  if(listing) return 'Inserat aktiv';
-  return 'Im Bestand';
+  if(listing) return t('chat.status_listed');
+  return t('chat.status_in_stock');
 }
 function chatVehicleHints(o, c, saleConditions){
   normalizeVehicleIssues(c);
   const hints = [];
   const workshopJob = (state.workshopJobs||[]).find(j=>j.carId===c.id);
   const openIssues = (c.issues||[]).filter(i=>!i.repaired);
-  if(saleConditions && saleConditions.length) hints.push({tone:'warn', text:`Offener Kundenwunsch: ${saleConditionText(saleConditions[0])}${saleConditions.length>1?` +${saleConditions.length-1}`:''}`});
-  if(c.inspected && openIssues.length) hints.push({tone:'warn', text:`${openIssues.length} bekannte Mängel`});
-  if(o.chatMemory?.testDrivePlanned) hints.push({tone:'', text:'Probefahrt geplant'});
-  if(o.applicationPending && o.financingApp) hints.push({tone:'', text:`Bank: Rückmeldung am ${gameDateShort(o.financingApp.resolveDay)}`});
-  if(o.bankDecision) hints.push({tone:o.bankDecision.bankResult?.approved?'good':'warn', text:`Bank: ${o.bankDecision.bankResult?o.bankDecision.bankResult.label:o.bankDecision.risk?.label||'Entscheidung'}`});
-  if(c.reservedFor && c.reservedFor.expiresDay>state.day) hints.push({tone:'', text:`Reserviert bis ${gameDateShort(c.reservedFor.expiresDay)}`});
-  if(workshopJob) hints.push({tone:'', text:`Werkstatt: ${workshopJob.label||'Auftrag'} (${workshopJob.daysLeft} T)`});
+  if(saleConditions && saleConditions.length) hints.push({tone:'warn', text:`${t('chat.hint_open_wish')}: ${saleConditionText(saleConditions[0])}${saleConditions.length>1?` +${saleConditions.length-1}`:''}`});
+  if(c.inspected && openIssues.length) hints.push({tone:'warn', text:t('chat.hint_known_issues',{n:openIssues.length})});
+  if(o.chatMemory?.testDrivePlanned) hints.push({tone:'', text:t('chat.hint_test_drive')});
+  if(o.applicationPending && o.financingApp) hints.push({tone:'', text:t('chat.hint_bank_response',{date:gameDateShort(o.financingApp.resolveDay)})});
+  if(o.bankDecision) hints.push({tone:o.bankDecision.bankResult?.approved?'good':'warn', text:t('chat.hint_bank_result',{label:o.bankDecision.bankResult?o.bankDecision.bankResult.label:o.bankDecision.risk?.label||'–'})});
+  if(c.reservedFor && c.reservedFor.expiresDay>state.day) hints.push({tone:'', text:t('chat.hint_reserved_until',{date:gameDateShort(c.reservedFor.expiresDay)})});
+  if(workshopJob) hints.push({tone:'', text:t('chat.hint_workshop',{job:workshopJob.label||'–',days:workshopJob.daysLeft})});
   return hints.slice(0,4);
 }
 function renderChatVehicleCard(o, c, profile, listing, saleConditions){
@@ -7186,27 +7191,27 @@ function renderChatVehicleCard(o, c, profile, listing, saleConditions){
   const canFinance = o.paymentMethod==='finanzierung' || desired==='finanzierung';
   const canLease = o.paymentMethod==='leasing' || desired==='leasing';
   const actions = [
-    `<button class="btn btn-ghost btn-sm" onclick="navigateTo('inventory')">Fahrzeug öffnen</button>`,
-    `<button class="btn btn-ghost btn-sm" onclick="navigateTo('workshop')">Werkstatt</button>`,
-    listing ? `<button class="btn btn-ghost btn-sm" onclick="openListModal('${c.id}')">Inserat</button>` : '',
-    canFinance ? `<button class="btn btn-ghost btn-sm" onclick="openSaleFinancingModal('${o.id}')">Finanzierung</button>` : '',
-    canLease ? `<button class="btn btn-ghost btn-sm" onclick="openSaleLeasingModal('${o.id}')">Leasing</button>` : '',
-    saleConditions.length ? `<button class="btn btn-primary btn-sm" onclick="showOpenSaleConditionModal('${o.id}','${saleConditions[0].id}')">Kundenwünsche</button>` : '',
+    `<button class="btn btn-ghost btn-sm" onclick="navigateTo('inventory')">${escapeHtml(t('chat.vehicle_open_btn'))}</button>`,
+    `<button class="btn btn-ghost btn-sm" onclick="navigateTo('workshop')">${escapeHtml(t('chat.vehicle_workshop_btn'))}</button>`,
+    listing ? `<button class="btn btn-ghost btn-sm" onclick="openListModal('${c.id}')">${escapeHtml(t('chat.vehicle_listing_btn'))}</button>` : '',
+    canFinance ? `<button class="btn btn-ghost btn-sm" onclick="openSaleFinancingModal('${o.id}')">${escapeHtml(t('chat.vehicle_fin_btn'))}</button>` : '',
+    canLease ? `<button class="btn btn-ghost btn-sm" onclick="openSaleLeasingModal('${o.id}')">${escapeHtml(t('chat.vehicle_lease_btn'))}</button>` : '',
+    saleConditions.length ? `<button class="btn btn-primary btn-sm" onclick="showOpenSaleConditionModal('${o.id}','${saleConditions[0].id}')">${escapeHtml(t('chat.vehicle_wishes_btn'))}</button>` : '',
   ].filter(Boolean).join('');
   return `<div class="chat-vehicle-card" id="chatVehicleCard" data-offer-id="${escapeAttr(o.id)}">
     <div class="chat-vehicle-visual">${renderCarPhoto(c)}</div>
     <div class="chat-vehicle-main">
       <div class="chat-vehicle-title">${escapeHtml(c.brand)} ${escapeHtml(c.model)}</div>
-      <div class="chat-vehicle-meta">${c.year} · ${(c.mileage||0).toLocaleString('de-DE')} km · ${escapeHtml(c.engine||'')}</div>
-      <div class="chat-vehicle-price">Inseratspreis: <b>${money(listPrice||0)}</b> · Angebot: <b>${money(o.amount||0)}</b></div>
-      <div class="chat-vehicle-meta">Interessent: ${escapeHtml(o.name)} · Phase: ${escapeHtml(phase)}</div>
+      <div class="chat-vehicle-meta">${c.year} · ${(c.mileage||0).toLocaleString(localeMeta().numberLocale)} km · ${escapeHtml(c.engine||'')}</div>
+      <div class="chat-vehicle-price">${escapeHtml(t('chat.vehicle_list_price'))}: <b>${money(listPrice||0)}</b> · ${escapeHtml(t('chat.vehicle_offer'))}: <b>${money(o.amount||0)}</b></div>
+      <div class="chat-vehicle-meta">${escapeHtml(t('chat.prospect_label'))}: ${escapeHtml(o.name)} · ${escapeHtml(t('chat.phase_label'))}: ${escapeHtml(phase)}</div>
     </div>
     <div class="chat-vehicle-side">
       <div class="chat-vehicle-chips">
-        <span class="chip">Kunde möchte: ${saleMethodLabel(desired)}</span>
+        <span class="chip">${escapeHtml(t('chat.vehicle_customer_wants'))}: ${saleMethodLabel(desired)}</span>
         ${listing?paymentMethodBadges(listing.allowedPaymentMethods):''}
         <span class="chip">${escapeHtml(status)}</span>
-        <span class="chip">Zustand ${Math.round(c.condition||0)}/100</span>
+        <span class="chip">${escapeHtml(t('chat.vehicle_condition',{n:Math.round(c.condition||0)}))}</span>
       </div>
       ${hints.length?`<div class="chat-vehicle-hints">${hints.map(h=>`<span class="chat-vehicle-hint ${h.tone||''}">${escapeHtml(h.text)}</span>`).join('')}</div>`:''}
       <div class="chat-vehicle-actions">${actions}</div>
@@ -7218,37 +7223,36 @@ function renderChatVehicleCard(o, c, profile, listing, saleConditions){
 function renderChatConditionNotice(o, c, saleConditions){
   const conds = saleConditions || openSaleConditions(o, c);
   if(!conds.length) return '';
-  return `<div class="notice warn" style="margin-top:8px;display:block;"><b>Offener Kundenwunsch</b><br>${conds.map(cond=>escapeHtml(saleConditionText(cond))).join('<br>')}<br><button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="showOpenSaleConditionModal('${o.id}','${conds[0].id}')">Kundenwunsch bearbeiten</button></div>`;
+  return `<div class="notice warn" style="margin-top:8px;display:block;"><b>${escapeHtml(t('chat.condition_notice_title'))}</b><br>${conds.map(cond=>escapeHtml(saleConditionText(cond))).join('<br>')}<br><button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="showOpenSaleConditionModal('${o.id}','${conds[0].id}')">${escapeHtml(t('chat.condition_notice_btn'))}</button></div>`;
 }
 function renderConversationThread(offerId){
   const o = state.offers.find(x=>x.id===offerId);
-  if(!o) return `<div class="empty-state"><div class="ic">📧</div>Unterhaltung auswählen</div>`;
+  if(!o) return `<div class="empty-state"><div class="ic">📧</div>${escapeHtml(t('mailbox.select_conversation'))}</div>`;
   const c = findCar(o.carId);
   if(!c) return '';
   const profile = ensureOfferAi(o, c);
   const l = state.listings[o.carId];
   const pmIcon = o.paymentMethod==='bar'?'💵':(o.paymentMethod==='finanzierung'?'🏦':'📄');
-  const pmLabel = o.paymentMethod==='bar'?'Barzahlung':(o.paymentMethod==='finanzierung'?'Finanzierung':'Leasing');
   const desiredSaleMethod = ensureSaleMethodPreference(o);
-  const speedLabel = profile.replySpeed>=72 ? 'antwortet schnell' : (profile.replySpeed>=48 ? 'antwortet normal' : 'antwortet eher langsam');
+  const speedLabel = profile.replySpeed>=72 ? t('chat.speed_fast') : (profile.replySpeed>=48 ? t('chat.speed_normal') : t('chat.speed_slow'));
   const bubbles = (o.messages||[]).map((m,idx)=>renderChatBubble(m, idx)).join('');
   const liveStatus = renderChatStatus(o);
   const waitingText = o.pendingReply && o.pendingReply.kind==='ai'
-    ? `${o.chatStatus || 'Kunde meldet sich später ...'} voraussichtlich am ${gameDateShort(o.pendingReply.dueDay)}`
-    : `${o.name} antwortet voraussichtlich am ${gameDateShort(o.pendingReply?.dueDay)}`;
+    ? t('chat.waiting_ai', {status: o.chatStatus||'...', date: gameDateShort(o.pendingReply.dueDay)})
+    : t('chat.waiting_reply', {name: o.name, date: gameDateShort(o.pendingReply?.dueDay)});
   const waiting = o.pendingReply ? `<div class="notice" style="margin-top:8px;">⏳ ${escapeHtml(waitingText)}</div>` : '';
   const debug = state.chatDebug && o.lastChatDebug ? `<div class="notice" style="display:block;margin-top:8px;border-color:rgba(92,134,255,.32);">
-    <b>Chat-Debug</b><br>
-    Intent: ${escapeHtml(o.lastChatDebug.intent)} · Zustand: ${escapeHtml(o.lastChatDebug.conversationState)}<br>
-    Offene Frage: ${escapeHtml(o.lastChatDebug.openQuestion ? o.lastChatDebug.openQuestion.text : 'keine')}<br>
-    Vertrauen: ${o.lastChatDebug.trust}% · Geduld: ${o.lastChatDebug.patience}<br>
-    Empfehlung: ${escapeHtml(o.lastChatDebug.nextRecommendedReaction)}
+    <b>${escapeHtml(t('chat.debug_title'))}</b><br>
+    ${escapeHtml(t('chat.debug_intent'))}: ${escapeHtml(o.lastChatDebug.intent)} · ${escapeHtml(t('chat.debug_state'))}: ${escapeHtml(o.lastChatDebug.conversationState)}<br>
+    ${escapeHtml(t('chat.debug_question'))}: ${escapeHtml(o.lastChatDebug.openQuestion ? o.lastChatDebug.openQuestion.text : t('chat.debug_none'))}<br>
+    ${escapeHtml(t('chat.debug_trust'))}: ${o.lastChatDebug.trust}% · ${escapeHtml(t('chat.debug_patience'))}: ${o.lastChatDebug.patience}<br>
+    ${escapeHtml(t('chat.debug_recommendation'))}: ${escapeHtml(o.lastChatDebug.nextRecommendedReaction)}
   </div>` : '';
-  const selectedFinancing = o.financingOffer ? `<div class="notice" style="margin-top:8px;display:block;">🏦 <b>Ausgewähltes Finanzierungsangebot</b><br>${financingOfferLabel(o.financingOffer)} · Gesamtzahlung ${money(o.financingOffer.totalCost)} · Zinsen ${money(o.financingOffer.totalInterest)}</div>` : '';
+  const selectedFinancing = o.financingOffer ? `<div class="notice" style="margin-top:8px;display:block;">🏦 <b>${escapeHtml(t('chat.financing_offer_banner'))}</b><br>${financingOfferLabel(o.financingOffer)} · ${escapeHtml(t('chat.financing_total'))} ${money(o.financingOffer.totalCost)} · ${escapeHtml(t('chat.financing_interest'))} ${money(o.financingOffer.totalInterest)}</div>` : '';
   const saleConditions = openSaleConditions(o, c);
   const conditionNotice = `<div id="chatConditionNotice" data-offer-id="${escapeAttr(o.id)}">${renderChatConditionNotice(o, c, saleConditions)}</div>`;
-  const appPending = o.applicationPending && o.financingApp ? `<div class="notice" style="margin-top:8px;border-color:rgba(139,127,240,.4);">🏦 Antrag bei der Bank – Rückmeldung voraussichtlich am ${gameDateLong(o.financingApp.resolveDay)}. Fahrzeug ist bis dahin reserviert.${o.financingApp.financingOffer?`<br>${financingOfferLabel(o.financingApp.financingOffer)}`:''}</div>` : '';
-  const bankDecision = o.bankDecision ? `<div class="notice warn" style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">🏦 Bankprüfung liegt vor: Zahlungsausfall-Risiko <b style="color:${riskColor(o.bankDecision.risk.delayRiskPct)};">${o.bankDecision.risk.delayRiskPct}%</b> · ${o.bankDecision.bankResult?o.bankDecision.bankResult.label:o.bankDecision.risk.label}<button class="btn btn-primary btn-sm" onclick="showBankDecisionModal('${o.id}')">Entscheidung öffnen</button></div>` : '';
+  const appPending = o.applicationPending && o.financingApp ? `<div class="notice" style="margin-top:8px;border-color:rgba(139,127,240,.4);">${escapeHtml(t('chat.bank_pending_notice',{date:gameDateLong(o.financingApp.resolveDay)}))}${o.financingApp.financingOffer?`<br>${financingOfferLabel(o.financingApp.financingOffer)}`:''}</div>` : '';
+  const bankDecision = o.bankDecision ? `<div class="notice warn" style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${escapeHtml(t('chat.bank_decision_risk'))} <b style="color:${riskColor(o.bankDecision.risk.delayRiskPct)};">${o.bankDecision.risk.delayRiskPct}%</b> · ${o.bankDecision.bankResult?o.bankDecision.bankResult.label:o.bankDecision.risk.label}<button class="btn btn-primary btn-sm" onclick="showBankDecisionModal('${o.id}')">${escapeHtml(t('chat.bank_decision_btn'))}</button></div>` : '';
   const reserved = c.reservedFor && c.reservedFor.expiresDay>state.day;
   const vehicleCard = renderChatVehicleCard(o, c, profile, l, saleConditions);
   const draft = escapeAttr(o.draftText||'');
@@ -7260,34 +7264,34 @@ function renderConversationThread(offerId){
         <div class="customer-profile-strip">
           <span class="chip">${escapeHtml(profile.aiType)}</span>
           <span class="chip">Budget ${money(profile.budget)}</span>
-          <span class="chip">Vertrauen ${Math.round(profile.trust)}%</span>
-          <span class="chip">Verhandlung ${Math.round(profile.negotiation)}%</span>
+          <span class="chip">${escapeHtml(t('chat.trust_chip'))} ${Math.round(profile.trust)}%</span>
+          <span class="chip">${escapeHtml(t('chat.negotiation_chip'))} ${Math.round(profile.negotiation)}%</span>
         </div>
       </div>
       <div class="spec-row" style="margin:0;">
-        <span class="chip">${pmIcon} ${pmLabel}</span>
-        <span class="chip">✔ Wunsch: ${saleMethodLabel(desiredSaleMethod)}</span>
+        <span class="chip">${pmIcon} ${saleMethodLabel(o.paymentMethod)}</span>
+        <span class="chip">✔ ${escapeHtml(t('chat.wish_chip'))}: ${saleMethodLabel(desiredSaleMethod)}</span>
         <span class="chip">💼 ${o.job||'—'}</span>
-        <span class="chip">Bonität ${o.creditScore!=null?o.creditScore:'–'}/100</span>
-        ${reserved?`<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">🔒 Reserviert bis ${gameDateShort(c.reservedFor.expiresDay)}</span>`:''}
+        <span class="chip">${escapeHtml(t('chat.credit_chip'))} ${o.creditScore!=null?o.creditScore:'–'}/100</span>
+        ${reserved?`<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">🔒 ${escapeHtml(t('chat.reserved_chip',{date:gameDateShort(c.reservedFor.expiresDay)}))}</span>`:''}
       </div>
     </div>
     ${vehicleCard}
     <div class="chat-messages" id="chatMessages" data-offer-id="${escapeAttr(o.id)}" data-message-count="${(o.messages||[]).length}">${bubbles}${liveStatus}</div>
     ${waiting}${debug}${conditionNotice}${selectedFinancing}${appPending}${bankDecision}
-    <p class="subtle" style="margin:10px 0 4px;">Aktuelles Angebot: <b style="color:var(--brass);font-family:var(--font-m);">${money(o.amount)}</b> (Listenpreis ${money(l?l.price:c.marketValue)})</p>
+    <p class="subtle" style="margin:10px 0 4px;">${escapeHtml(t('chat.current_offer'))}: <b style="color:var(--brass);font-family:var(--font-m);">${money(o.amount)}</b> (${escapeHtml(t('chat.list_price_ref'))} ${money(l?l.price:c.marketValue)})</p>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <input type="text" id="freeTextInput" value="${draft}" placeholder="Nachricht an ${escapeAttr(o.name)} schreiben..." style="flex:1;padding:9px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--ink-0);font-size:12.5px;" oninput="updateOfferDraft('${o.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();sendFreeText('${o.id}');}">
-      <button class="btn btn-primary btn-sm" onclick="sendFreeText('${o.id}')">Senden</button>
+      <input type="text" id="freeTextInput" value="${draft}" placeholder="${escapeAttr(t('chat.msg_placeholder',{name:o.name}))}" style="flex:1;padding:9px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--ink-0);font-size:12.5px;" oninput="updateOfferDraft('${o.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();sendFreeText('${o.id}');}">
+      <button class="btn btn-primary btn-sm" onclick="sendFreeText('${o.id}')">${escapeHtml(t('chat.send_btn'))}</button>
     </div>
     <div class="chat-actions" style="margin-top:0;padding-top:10px;">
-      <button class="btn btn-ghost btn-sm" onclick="respondOffer('${o.id}','counter')">💬 Gegenangebot</button>
-      <button class="btn btn-ghost btn-sm" onclick="proposePaymentMethod('${o.id}','finanzierung')">🏦 Finanzierung vorschlagen</button>
-      <button class="btn btn-ghost btn-sm" onclick="proposePaymentMethod('${o.id}','leasing')">📄 Leasing vorschlagen</button>
-      <button class="btn btn-ghost btn-sm" onclick="scheduleAppointment('${o.id}')">📅 Probefahrt-Termin</button>
-      <button class="btn btn-ghost btn-sm" onclick="confirmReservation('${o.id}')" ${reserved?'disabled':''}>🔒 Reservierung bestätigen</button>
-      <button class="btn btn-danger btn-sm" onclick="respondOffer('${o.id}','reject')" ${(o.applicationPending||o.bankDecision)?'disabled':''}>Ablehnen</button>
-      <button class="btn btn-primary btn-sm" onclick="respondOffer('${o.id}','accept')" ${(o.applicationPending||o.bankDecision)?'disabled':''}>✅ Angebot akzeptieren</button>
+      <button class="btn btn-ghost btn-sm" onclick="respondOffer('${o.id}','counter')">${escapeHtml(t('chat.counter_btn'))}</button>
+      <button class="btn btn-ghost btn-sm" onclick="proposePaymentMethod('${o.id}','finanzierung')">${escapeHtml(t('chat.propose_fin_btn'))}</button>
+      <button class="btn btn-ghost btn-sm" onclick="proposePaymentMethod('${o.id}','leasing')">${escapeHtml(t('chat.propose_lease_btn'))}</button>
+      <button class="btn btn-ghost btn-sm" onclick="scheduleAppointment('${o.id}')">${escapeHtml(t('chat.test_drive_btn'))}</button>
+      <button class="btn btn-ghost btn-sm" onclick="confirmReservation('${o.id}')" ${reserved?'disabled':''}>${escapeHtml(t('chat.reservation_btn'))}</button>
+      <button class="btn btn-danger btn-sm" onclick="respondOffer('${o.id}','reject')" ${(o.applicationPending||o.bankDecision)?'disabled':''}>${escapeHtml(t('chat.reject_btn'))}</button>
+      <button class="btn btn-primary btn-sm" onclick="respondOffer('${o.id}','accept')" ${(o.applicationPending||o.bankDecision)?'disabled':''}>${escapeHtml(t('chat.accept_btn'))}</button>
     </div>
   `;
 }
@@ -7757,7 +7761,7 @@ function customerIssueWish(o, c){
   return '';
 }
 function saleConditionText(condition){
-  return condition ? (condition.label || condition.issueLabel || 'Kundenwunsch') : 'Kundenwunsch';
+  return condition ? (condition.label || condition.issueLabel || t('salecondition.open_modal_title')) : t('salecondition.open_modal_title');
 }
 function createSaleCondition(o, c, issue, source){
   if(!o || !c || !issue) return null;
@@ -7919,14 +7923,14 @@ function handleFreeTextReply(offerId, text){
 
 function renderListings(){
   const ids = Object.keys(state.listings);
-  let html = `<h2 class="section-title">Inserate</h2><p class="subtle">${ids.length} aktive Inserate · ${state.offers.length} offene Kundenangebote</p>`;
+  let html = `<h2 class="section-title">${escapeHtml(t('listings.title'))}</h2><p class="subtle">${escapeHtml(t('listings.subtitle', {n:ids.length, m:state.offers.length}))}</p>`;
   if(state.offers.length){
-    html += `<h3 style="font-family:var(--font-d);font-size:13px;margin:6px 0 10px;">Eingehende Angebote</h3>`;
+    html += `<h3 style="font-family:var(--font-d);font-size:13px;margin:6px 0 10px;">${escapeHtml(t('listings.incoming_title'))}</h3>`;
     html += state.offers.map(offerCard).join('');
   }
-  html += `<h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">Alle Inserate</h3>`;
+  html += `<h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">${escapeHtml(t('listings.all_title'))}</h3>`;
   if(ids.length===0){
-    html += `<div class="empty-state"><div class="ic">📄</div>Noch keine Inserate. Erstellen Sie eines über den Fahrzeugbestand.</div>`;
+    html += `<div class="empty-state"><div class="ic">📄</div>${escapeHtml(t('listings.empty'))}</div>`;
   } else {
     html += `<div class="grid-cars">` + ids.map(id=>{
       const c = findCar(id); const l = state.listings[id];
@@ -7934,12 +7938,12 @@ function renderListings(){
       return `<div class="card">
         ${renderCarPhoto(c)}
         <div class="car-name">${c.brand} ${c.model}</div>
-        <div class="car-sub">Seit ${gameDateShort(l.createdDay)} · ${l.views} Aufrufe</div>
+        <div class="car-sub">${escapeHtml(t('listings.since_label', {date:gameDateShort(l.createdDay)}))} · ${escapeHtml(t('listings.views_label', {n:l.views}))}</div>
         <div class="spec-row">${paymentMethodBadges(l.allowedPaymentMethods)}${reservationChip(c)}</div>
-        <div class="price-row"><span class="price">${money(l.price)}</span><span class="mval">Marktwert ${money(c.marketValue)}</span></div>
+        <div class="price-row"><span class="price">${money(l.price)}</span><span class="mval">${escapeHtml(t('listings.market_val_label'))} ${money(c.marketValue)}</span></div>
         <div class="row-actions">
-          <button class="btn btn-ghost btn-sm" onclick="openListModal('${id}')">Bearbeiten</button>
-          <button class="btn btn-danger btn-sm" onclick="unlistCar('${id}')">Inserat entfernen</button>
+          <button class="btn btn-ghost btn-sm" onclick="openListModal('${id}')">${escapeHtml(t('listings.edit_btn'))}</button>
+          <button class="btn btn-danger btn-sm" onclick="unlistCar('${id}')">${escapeHtml(t('listings.remove_btn'))}</button>
         </div>
       </div>`;
     }).join('') + `</div>`;
@@ -7951,7 +7955,6 @@ function offerCard(o){
   if(!c) return '';
   const l = state.listings[o.carId];
   const pmIcon = o.paymentMethod==='bar'?'💵':(o.paymentMethod==='finanzierung'?'🏦':'📄');
-  const pmLabel = o.paymentMethod==='bar'?'Barzahlung':(o.paymentMethod==='finanzierung'?'Finanzierung':'Leasing');
   const desiredSaleMethod = ensureSaleMethodPreference(o);
   const conditions = openSaleConditions(o, c);
   return `<div class="offer-card">
@@ -7959,19 +7962,19 @@ function offerCard(o){
       <span><b>${o.name}</b> — ${c.brand} ${c.model}</span>
       <span class="persona">${o.persona}</span>
     </div>
-    <p class="subtle" style="margin:0 0 6px;">Angebot: <b style="color:var(--amber);font-family:var(--font-m);">${money(o.amount)}</b> (Listenpreis ${money(l?l.price:c.marketValue)}) · Geduld: ${o.patience} Tag(e)</p>
+    <p class="subtle" style="margin:0 0 6px;">${escapeHtml(t('listings.offer_label'))}: <b style="color:var(--amber);font-family:var(--font-m);">${money(o.amount)}</b> (${escapeHtml(t('listings.list_price_ref'))} ${money(l?l.price:c.marketValue)}) · ${escapeHtml(t('listings.patience_label', {n:o.patience}))}</p>
     <div class="spec-row" style="margin-bottom:10px;">
-      <span class="chip">${pmIcon} ${pmLabel}</span>
-      <span class="chip">Wunsch: ${saleMethodLabel(desiredSaleMethod)}</span>
+      <span class="chip">${pmIcon} ${escapeHtml(saleMethodLabel(o.paymentMethod))}</span>
+      <span class="chip">${escapeHtml(t('listings.payment_wish_chip'))}: ${escapeHtml(saleMethodLabel(desiredSaleMethod))}</span>
       ${l?paymentMethodBadges(l.allowedPaymentMethods):''}
-      ${o.job?`<span class="chip">💼 ${o.job}</span>`:''}
-      ${o.creditScore!=null?`<span class="chip">Bonität ${o.creditScore}/100</span>`:''}
-      ${conditions.length?`<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.42);">Offener Kundenwunsch: ${escapeHtml(saleConditionText(conditions[0]))}</span>`:''}
+      ${o.job?`<span class="chip">💼 ${escapeHtml(o.job)}</span>`:''}
+      ${o.creditScore!=null?`<span class="chip">${escapeHtml(t('listings.credit_chip'))} ${o.creditScore}/100</span>`:''}
+      ${conditions.length?`<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.42);">${escapeHtml(t('listings.open_wish_chip'))}: ${escapeHtml(saleConditionText(conditions[0]))}</span>`:''}
     </div>
     <div class="row-actions">
-      <button class="btn btn-danger btn-sm" onclick="respondOffer('${o.id}','reject')">Ablehnen</button>
-      <button class="btn btn-ghost btn-sm" onclick="respondOffer('${o.id}','counter')">Gegenangebot</button>
-      <button class="btn btn-primary btn-sm" onclick="respondOffer('${o.id}','accept')">Angebot akzeptieren</button>
+      <button class="btn btn-danger btn-sm" onclick="respondOffer('${o.id}','reject')">${escapeHtml(t('listings.reject_btn'))}</button>
+      <button class="btn btn-ghost btn-sm" onclick="respondOffer('${o.id}','counter')">${escapeHtml(t('listings.counter_btn'))}</button>
+      <button class="btn btn-primary btn-sm" onclick="respondOffer('${o.id}','accept')">${escapeHtml(t('listings.accept_btn'))}</button>
     </div>
   </div>`;
 }
@@ -8007,19 +8010,19 @@ function openCounterModal(offerId){
   const round = o.round||1;
   const suggested = clamp(Math.round((o.amount+askPrice)/2/10)*10, o.amount, askPrice);
   showModal(`
-    <h2 class="section-title">Gegenangebot an ${o.name} ${round>1?'· Runde '+round+'/3':''}</h2>
-    <p class="subtle">Kundenangebot: ${money(o.amount)} · Ihr Listenpreis: ${money(askPrice)}</p>
+    <h2 class="section-title">${escapeHtml(t('counter.title',{name:o.name}))}${round>1?escapeHtml(t('counter.title_round',{n:round})):''}</h2>
+    <p class="subtle">${escapeHtml(t('counter.subtitle',{customer:money(o.amount),list:money(askPrice)}))}</p>
     <div class="field">
-      <label>Ihr Gegenangebot: <span id="counterlbl" style="color:var(--amber);font-family:var(--font-m);">${money(suggested)}</span></label>
+      <label>${escapeHtml(t('counter.your_offer_label'))}: <span id="counterlbl" style="color:var(--amber);font-family:var(--font-m);">${money(suggested)}</span></label>
       <div style="display:flex;gap:10px;align-items:center;">
         <input type="range" min="${o.amount}" max="${askPrice}" value="${suggested}" oninput="syncFromRange('counter', this.value, ${o.amount}, ${askPrice}, '_counterVal')" id="counterRange" style="flex:1;">
         <input type="number" min="${o.amount}" max="${askPrice}" step="10" value="${suggested}" oninput="syncFromNumber('counter', this.value, ${o.amount}, ${askPrice}, '_counterVal')" onblur="snapNumberField('counter', ${o.amount}, ${askPrice}, '_counterVal')" id="counterNumber" style="width:130px;flex:0 0 auto;">
       </div>
     </div>
-    <div class="notice">Je näher Ihr Preis am Kundenangebot liegt, desto wahrscheinlicher wird er akzeptiert. Ein zu hoher Preis kann den Kunden verärgern.</div>
+    <div class="notice">${escapeHtml(t('counter.note'))}</div>
     <div class="row-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-      <button class="btn btn-primary" onclick="sendCounter('${offerId}')">Gegenangebot senden</button>
+      <button class="btn btn-ghost" onclick="closeModal()">${escapeHtml(t('counter.cancel_btn'))}</button>
+      <button class="btn btn-primary" onclick="sendCounter('${offerId}')">${escapeHtml(t('counter.send_btn'))}</button>
     </div>
   `);
   window._counterVal = suggested;
@@ -8043,11 +8046,11 @@ function sendCounter(offerId){
     // letzte Runde: Kunde bleibt bei seinem zuletzt genannten Angebot – keine weitere Verhandlung mehr
     addMsg(o, 'customer', `Ich bleibe bei ${money(o.amount)}, mehr Verhandlungsspielraum habe ich leider nicht.`);
     showModal(`
-      <h2 class="section-title">${o.name} bleibt hart</h2>
-      <p class="subtle">Nach mehreren Runden bietet ${o.name} nicht mehr als <b>${money(o.amount)}</b> und ist nicht weiter verhandlungsbereit.</p>
+      <h2 class="section-title">${escapeHtml(t('counter.firm_title', {name:o.name}))}</h2>
+      <p class="subtle">${escapeHtml(t('counter.firm_subtitle', {name:o.name, amount:money(o.amount)}))}</p>
       <div class="row-actions">
-        <button class="btn btn-ghost" onclick="closeModal();respondOffer('${offerId}','reject')">Ablehnen</button>
-        <button class="btn btn-primary" onclick="closeModal();respondOffer('${offerId}','accept')">Angebot akzeptieren (${money(o.amount)})</button>
+        <button class="btn btn-ghost" onclick="closeModal();respondOffer('${offerId}','reject')">${escapeHtml(t('listings.reject_btn'))}</button>
+        <button class="btn btn-primary" onclick="closeModal();respondOffer('${offerId}','accept')">${escapeHtml(t('listings.accept_btn'))} (${money(o.amount)})</button>
       </div>
     `);
     renderAllOpen(); scheduleSave();
@@ -8070,8 +8073,8 @@ function sendCounter(offerId){
     notify(`${o.name} lehnt Ihr Gegenangebot von ${money(price)} ab und springt ab.`,'warn');
     showDropoutModal(
       'sale',
-      'Kunde abgesprungen',
-      `${o.name} hat die Verhandlung abgebrochen.`,
+      t('dropout.customer_walked'),
+      t('dropout.walked_away', {name:o.name}),
       `Grund: Gegenangebot ${money(price)} war zu weit vom Kundenrahmen entfernt.`
     );
     renderAllOpen(); scheduleSave();
@@ -8085,7 +8088,11 @@ function preferredSaleMethod(o){
   return o.paymentMethod || 'bar';
 }
 function saleMethodLabel(method){
-  return method==='bar' ? 'Barzahlung' : method==='finanzierung' ? 'Finanzierung' : 'Leasing';
+  return method==='bar' ? t('chat.payment_bar') : method==='finanzierung' ? t('chat.payment_fin') : t('chat.payment_lease');
+}
+function bankDecisionLabel(result){
+  const map = {approved:'bankdecision.result_approved', rejected:'bankdecision.result_rejected', higher_down:'bankdecision.result_higher_down', shorter_term:'bankdecision.result_shorter_term', higher_rate:'bankdecision.result_higher_rate'};
+  return map[result] ? t(map[result]) : result;
 }
 function ensureSaleMethodPreference(o){
   if(!o) return 'bar';
@@ -8146,21 +8153,21 @@ function saleMethodCard(offerId, method, title, text, selected, allowed, offered
   const meta = {
     bar: {
       icon:'💶', accent:'#3ecf7f',
-      pros:['Sofortiger Zahlungseingang','Keine Bankprüfung'],
-      cons:['Keine laufenden Einnahmen']
+      pros:[t('salemethod.bar_pro')],
+      cons:[t('salemethod.bar_con')]
     },
     finanzierung: {
       icon:'🏦', accent:'#5c86ff',
-      pros:['Ratenzahlung mit Bankprüfung','Laufende Einnahmen möglich'],
-      cons:['Genehmigung abhängig von Bonität']
+      pros:[t('salemethod.fin_pro_1'),t('salemethod.fin_pro_2')],
+      cons:[t('salemethod.fin_con')]
     },
     leasing: {
       icon:'📄', accent:'#8b7ff0',
-      pros:['Monatliche Leasingraten','Klare Vertragslaufzeit'],
-      cons:['Rückgabe und Vertragsende beachten']
+      pros:[t('salemethod.lease_pro_1'),t('salemethod.lease_pro_2')],
+      cons:[t('salemethod.lease_con')]
     }
   }[method] || {icon:'✓', accent:'var(--brass)', pros:[], cons:[]};
-  const tag = selected ? 'Kundenwunsch' : (!offered && !allowed ? 'nicht inseriert' : (allowed ? 'zugestimmt' : 'Zustimmung nötig'));
+  const tag = selected ? t('salemethod.tag_wish') : (!offered && !allowed ? t('salemethod.tag_not_listed') : (allowed ? t('salemethod.tag_approved') : t('salemethod.tag_needs_approval')));
   return `<button class="sale-method-card ${selected?'selected':''} ${(allowed && offered) || selected?'':'blocked'}" style="--sale-a:${meta.accent};" onclick="chooseSaleMethod('${offerId}','${method}')">
     <span class="sale-icon">${meta.icon}</span>
     <div>
@@ -8183,18 +8190,18 @@ function openSaleMethodModal(offerId){
   showModal(`
     <div class="sale-method-hero">
       <div>
-        <h2>Verkaufsart wählen</h2>
-        <p>${o.name} hat den Preis von <b>${money(o.amount)}</b> für ${c.brand} ${c.model} akzeptiert. Wählen Sie bewusst, welcher Abschlussprozess gestartet wird.</p>
+        <h2>${escapeHtml(t('salemethod.title'))}</h2>
+        <p>${escapeHtml(t('salemethod.hero_p',{name:o.name,price:money(o.amount),brand:c.brand,model:c.model}))}</p>
       </div>
-      <div class="sale-method-preference">Wunsch: ${saleMethodLabel(preferred)}</div>
+      <div class="sale-method-preference">${escapeHtml(t('salemethod.preference'))}: ${saleMethodLabel(preferred)}</div>
     </div>
     <div class="sale-method-grid">
-      ${saleMethodCard(offerId,'bar','Barzahlung','Sofortiger Zahlungseingang, keine Bankprüfung.', preferred==='bar', isSaleMethodAllowed(o,'bar'), listingMethods.includes('bar'))}
-      ${saleMethodCard(offerId,'finanzierung','Finanzierung','Ratenzahlung mit Bankprüfung und laufenden Einnahmen.', preferred==='finanzierung', isSaleMethodAllowed(o,'finanzierung'), listingMethods.includes('finanzierung'))}
-      ${saleMethodCard(offerId,'leasing','Leasing','Monatliche Leasingraten mit Vertragslaufzeit.', preferred==='leasing', isSaleMethodAllowed(o,'leasing'), listingMethods.includes('leasing'))}
+      ${saleMethodCard(offerId,'bar',t('salemethod.bar_title'),t('salemethod.bar_desc'), preferred==='bar', isSaleMethodAllowed(o,'bar'), listingMethods.includes('bar'))}
+      ${saleMethodCard(offerId,'finanzierung',t('salemethod.fin_title'),t('salemethod.fin_desc'), preferred==='finanzierung', isSaleMethodAllowed(o,'finanzierung'), listingMethods.includes('finanzierung'))}
+      ${saleMethodCard(offerId,'leasing',t('salemethod.lease_title'),t('salemethod.lease_desc'), preferred==='leasing', isSaleMethodAllowed(o,'leasing'), listingMethods.includes('leasing'))}
     </div>
-    <div class="notice" style="display:block;">Im Inserat angeboten: ${paymentMethodBadges(listingMethods)}<br>Wenn eine Alternative nicht dem Kundenwunsch oder dem Inserat entspricht, wird zuerst eine Zustimmung im Chat eingeholt.</div>
-    <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeModal()">Abbrechen</button>
+    <div class="notice" style="display:block;">${escapeHtml(t('salemethod.offered_notice'))}: ${paymentMethodBadges(listingMethods)}<br>${escapeHtml(t('salemethod.if_switch'))}</div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeModal()">${escapeHtml(t('salemethod.cancel_btn'))}</button>
   `, 'sale-method-modal');
 }
 function chooseSaleMethod(offerId, method){
@@ -8548,21 +8555,21 @@ function openSaleFinancingModal(offerId){
   const initialCalc = solved.possible ? solved.calc : calc;
   setPendingSaleFinancingOffer(o, initialCalc, 'open');
   showModal(`
-    <h2 class="section-title">Finanzierung konfigurieren</h2>
-    <p class="subtle">${o.name} · ${c.brand} ${c.model} · Fahrzeugpreis ${money(o.amount)}</p>
+    <h2 class="section-title">${escapeHtml(t('salefinancing.modal_title'))}</h2>
+    <p class="subtle">${escapeHtml(t('salefinancing.modal_p',{name:o.name,brand:c.brand,model:c.model,price:money(o.amount)}))}</p>
     <div class="notice" style="display:block;">
-      <b>Finanzierungs-Konfigurator</b><br>
-      Erstellen Sie ein Angebot, das Bankvorgaben und Kundenanforderungen möglichst gut zusammenbringt.
-      <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="applyOptimalSaleFinancing('${offerId}')">✨ Optimales Angebot berechnen</button>
+      <b>${escapeHtml(t('salefinancing.configurator_title'))}</b><br>
+      ${escapeHtml(t('salefinancing.configurator_note'))}
+      <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="applyOptimalSaleFinancing('${offerId}')">${escapeHtml(t('salefinancing.optimal_btn'))}</button>
     </div>
-    <div class="field"><label>Anzahlung: <span id="saleFinDownLbl" style="color:var(--brass);font-family:var(--font-m);">${money(down)}</span></label>
+    <div class="field"><label>${escapeHtml(t('salefinancing.down_label'))}: <span id="saleFinDownLbl" style="color:var(--brass);font-family:var(--font-m);">${money(down)}</span></label>
       <input id="saleFinDown" type="range" min="0" max="${financingMaxDownPayment(o)}" step="10" value="${down}" oninput="updateSaleFinancingPreview('${offerId}','target')">
     </div>
-    <div class="field"><label>Laufzeit</label>
-      <select id="saleFinMonths" onchange="updateSaleFinancingPreview('${offerId}','manual')">${FINANCING_TERMS.map(m=>`<option value="${m}" ${m===initialCalc.months?'selected':''}>${m} Monate</option>`).join('')}</select>
+    <div class="field"><label>${escapeHtml(t('salefinancing.term_label'))}</label>
+      <select id="saleFinMonths" onchange="updateSaleFinancingPreview('${offerId}','manual')">${FINANCING_TERMS.map(m=>`<option value="${m}" ${m===initialCalc.months?'selected':''}>${escapeHtml(t('salefinancing.months_option',{m}))}</option>`).join('')}</select>
     </div>
     <div class="field">
-      <label>Gewünschte Monatsrate: <span id="saleFinTargetLbl" style="color:var(--brass);font-family:var(--font-m);">${money(target)}</span></label>
+      <label>${escapeHtml(t('salefinancing.target_label'))}: <span id="saleFinTargetLbl" style="color:var(--brass);font-family:var(--font-m);">${money(target)}</span></label>
       <div style="display:flex;gap:10px;align-items:center;">
         <input id="saleFinTargetRate" type="range" min="${targetBounds.min}" max="${targetBounds.max}" step="10" value="${target}" oninput="syncSaleFinancingTarget('${offerId}','range')" style="flex:1;">
         <input id="saleFinTargetNumber" type="number" min="${targetBounds.min}" max="${targetBounds.max}" step="10" value="${target}" oninput="syncSaleFinancingTarget('${offerId}','number')" style="width:120px;flex:0 0 auto;">
@@ -8570,7 +8577,7 @@ function openSaleFinancingModal(offerId){
     </div>
     <div id="saleFinPreview">${renderSaleFinancingPreviewForOffer(o, initialCalc, solved)}</div>
     <div id="saleFinConfirmWarning"></div>
-    <div class="row-actions"><button class="btn btn-ghost" onclick="openSaleMethodModal('${offerId}')">Zurück</button><button class="btn btn-primary" onclick="confirmSaleFinancing('${offerId}')">Finanzierungsangebot bestätigen</button></div>
+    <div class="row-actions"><button class="btn btn-ghost" onclick="openSaleMethodModal('${offerId}')">${escapeHtml(t('salefinancing.back_btn'))}</button><button class="btn btn-primary" onclick="confirmSaleFinancing('${offerId}')">${escapeHtml(t('salefinancing.confirm_btn'))}</button></div>
   `);
 }
 function syncSaleFinancingTarget(offerId, source){
@@ -8646,7 +8653,7 @@ function applyOptimalSaleFinancing(offerId){
     setPendingSaleFinancingOffer(o, current, 'optimal-none');
     const preview = document.getElementById('saleFinPreview');
     if(preview) preview.innerHTML = renderSaleFinancingPreviewForOffer(o, current, null, []);
-    notify('Keine bankfähige Finanzierung möglich.', 'warn');
+    notify(t('salefinancing.no_bankable_notify'), 'warn');
     return;
   }
   setPendingSaleFinancingOffer(o, best, 'optimal');
@@ -8685,46 +8692,44 @@ function renderFinancingTargetResult(o, calc, solved){
   if(solved.mode==='fixed-term'){
     if(solved.possible && solved.requiredDownPayment>calc.downPayment){
       return `<div class="notice warn" style="display:block;">
-        <b>Laufzeit fixiert: ${calc.months} Monate</b><br>
-        Mit ${calc.months} Monaten ist eine Rate von ${money(solved.targetRate)} nur möglich, wenn die Anzahlung auf <b>${money(solved.requiredDownPayment)}</b> erhöht wird.
-        Aktuell ergibt diese Laufzeit <b>${money(calc.monthlyPayment)}/Monat</b>.
+        <b>${escapeHtml(t('salefinancing.target_fixed_possible',{months:calc.months,rate:money(solved.targetRate),current:money(calc.monthlyPayment)}))}</b>
         <div class="row-actions" style="margin-top:10px;">
-          <button class="btn btn-primary btn-sm" onclick="applyRequiredDownForTarget('${o.id}',${solved.requiredDownPayment})">Anzahlung automatisch erhöhen</button>
-          <button class="btn btn-ghost btn-sm" onclick="unlockSaleFinancingTerm('${o.id}')">Laufzeit wieder verlängern</button>
-          <button class="btn btn-ghost btn-sm" onclick="keepSaleFinancingCurrentRate('${o.id}')">Aktuelle Rate behalten</button>
+          <button class="btn btn-primary btn-sm" onclick="applyRequiredDownForTarget('${o.id}',${solved.requiredDownPayment})">${escapeHtml(t('salefinancing.target_auto_down_btn'))}</button>
+          <button class="btn btn-ghost btn-sm" onclick="unlockSaleFinancingTerm('${o.id}')">${escapeHtml(t('salefinancing.target_unlock_btn'))}</button>
+          <button class="btn btn-ghost btn-sm" onclick="keepSaleFinancingCurrentRate('${o.id}')">${escapeHtml(t('salefinancing.target_keep_btn'))}</button>
         </div>
       </div>`;
     }
     if(solved.possible){
-      return `<div class="notice" style="display:block;border-color:rgba(62,207,127,.35);"><b>Laufzeit fixiert: ${calc.months} Monate</b><br>${money(solved.targetRate)} ist mit der aktuellen Anzahlung erreichbar. Aktuelle Rate: <b>${money(calc.monthlyPayment)}/Monat</b>.</div>`;
+      return `<div class="notice" style="display:block;border-color:rgba(62,207,127,.35);">${escapeHtml(t('salefinancing.target_fixed_possible',{months:calc.months,rate:money(solved.targetRate),current:money(calc.monthlyPayment)}))}</div>`;
     }
     return `<div class="notice warn" style="display:block;">
-      <b>Kombination nicht möglich</b><br>
-      Mit fixierten ${calc.months} Monaten ist ${money(solved.targetRate)} selbst bei maximaler Anzahlung nicht erreichbar. Niedrigste Rate bei dieser Laufzeit: <b>${money(solved.maxed.monthlyPayment)}</b>.
+      <b>${escapeHtml(t('salefinancing.target_fixed_impossible_title'))}</b><br>
+      ${escapeHtml(t('salefinancing.target_fixed_impossible',{months:calc.months,rate:money(solved.targetRate),lowest:money(solved.maxed.monthlyPayment)}))}
       <div class="row-actions" style="margin-top:10px;">
-        <button class="btn btn-ghost btn-sm" onclick="unlockSaleFinancingTerm('${o.id}')">Laufzeit wieder verlängern</button>
-        <button class="btn btn-ghost btn-sm" onclick="keepSaleFinancingCurrentRate('${o.id}')">Aktuelle Rate behalten</button>
+        <button class="btn btn-ghost btn-sm" onclick="unlockSaleFinancingTerm('${o.id}')">${escapeHtml(t('salefinancing.target_unlock_btn'))}</button>
+        <button class="btn btn-ghost btn-sm" onclick="keepSaleFinancingCurrentRate('${o.id}')">${escapeHtml(t('salefinancing.target_keep_btn'))}</button>
       </div>
     </div>`;
   }
   if(solved.possible){
-    const alternatives = solved.alternatives.length>1 ? `<br>Weitere mögliche Laufzeiten: ${solved.alternatives.map(x=>`${x.months} Monate (${money(x.monthlyPayment)}/Monat)`).join(', ')}` : '';
-    return `<div class="notice" style="display:block;border-color:rgba(62,207,127,.35);"><b>Zielrate erreichbar</b><br>${money(solved.targetRate)} ist möglich. Sinnvoll gewählt: <b>${calc.months} Monate</b> mit ${money(calc.monthlyPayment)}/Monat.${alternatives}</div>`;
+    const alternatives = solved.alternatives.length>1 ? escapeHtml(t('salefinancing.target_further_terms',{options:solved.alternatives.map(x=>`${x.months} ${t('salefinancing.months_option',{m:''})||''}(${money(x.monthlyPayment)}/month)`).join(', ')})) : '';
+    return `<div class="notice" style="display:block;border-color:rgba(62,207,127,.35);"><b>${escapeHtml(t('salefinancing.target_achievable_title'))}</b><br>${escapeHtml(t('salefinancing.target_achievable_detail',{rate:money(solved.targetRate),months:calc.months,current:money(calc.monthlyPayment)}))}${alternatives}</div>`;
   }
-  return `<div class="notice warn" style="display:block;"><b>Zielrate nicht erreichbar</b><br>Mit den aktuellen Bankkonditionen ist eine Monatsrate von ${money(solved.targetRate)} nicht möglich. Die niedrigstmögliche Rate beträgt <b>${money(solved.lowest.monthlyPayment)}</b> bei <b>${solved.lowest.months} Monaten</b>.</div>`;
+  return `<div class="notice warn" style="display:block;"><b>${escapeHtml(t('salefinancing.target_not_achievable_title'))}</b><br>${escapeHtml(t('salefinancing.target_not_achievable_detail',{rate:money(solved.targetRate),lowest:money(solved.lowest.monthlyPayment),months:solved.lowest.months}))}</div>`;
 }
 function renderFinancingAlternatives(offerId, options, current){
   const rows = (options||[]).filter(Boolean).slice(0,3);
   if(!rows.length) return '';
   return `<div class="notice" style="display:block;">
-    <b>Verhandlungsvorschläge</b><br>
+    <b>${escapeHtml(t('salefinancing.proposals_title'))}</b><br>
     <div class="stat-grid" style="margin-top:8px;">${rows.map((opt,idx)=>{
       const active = current && opt.downPayment===current.downPayment && opt.months===current.months;
       return `<div class="stat-card" style="display:flex;flex-direction:column;gap:7px;border-color:${active?'rgba(62,207,127,.45)':'var(--line)'};">
-        <div class="lbl">Option ${String.fromCharCode(65+idx)}${active?' · aktiv':''}</div>
+        <div class="lbl">${escapeHtml(t('salefinancing.option_label',{letter:String.fromCharCode(65+idx)}))}${active?escapeHtml(t('salefinancing.option_active')):''}</div>
         <div class="num" style="font-size:16px;">${opt.months} Monate</div>
         <div class="subtle" style="margin:0;line-height:1.45;">${money(opt.monthlyPayment)}/Monat<br>${money(opt.downPayment)} Anzahlung<br>${money(opt.totalInterest)} Zinsen<br>${opt.bankCheck?.result==='rejected'?'Nicht darstellbar':'Erfolg'} ${Math.round((opt.approvalChance||opt.chance||0)*100)}%</div>
-        <button class="btn btn-ghost btn-sm" onclick="applySaleFinancingOption('${offerId}',${opt.downPayment},${opt.months})">Übernehmen</button>
+        <button class="btn btn-ghost btn-sm" onclick="applySaleFinancingOption('${offerId}',${opt.downPayment},${opt.months})">${escapeHtml(t('salefinancing.take_option_btn'))}</button>
       </div>`;
     }).join('')}</div>
   </div>`;
@@ -8737,38 +8742,38 @@ function renderFinancingLiveAnalysis(o, calc, bank, fit){
   const suggestions = financingSuggestionTexts(o, calc, bank, fit);
   const customerRows = fit.results.filter(r=>r.priority!=='pref' || r.status!=='fulfilled').slice(0,6);
   return `<div class="notice" style="display:block;">
-    <b>Live-Analyse</b>
+    <b>${escapeHtml(t('salefinancing.live_title'))}</b>
     <div class="stat-grid" style="margin-top:8px;">
-      <div class="stat-card"><div class="lbl">Bank</div><div class="num" style="font-size:16px;color:${bankOk?'var(--teal)':bank.result==='rejected'?'var(--crimson)':'var(--brass)'};">${bankOk?'Genehmigungsfähig':bank.label}</div><p class="subtle" style="margin:6px 0 0;">${escapeHtml(bank.note||'')}</p></div>
-      <div class="stat-card"><div class="lbl">Kunde</div><div class="num" style="font-size:16px;color:${customerOk?'var(--teal)':'var(--crimson)'};">${customerOk?'Muss erfüllt':'Muss verletzt'}</div><p class="subtle" style="margin:6px 0 0;line-height:1.45;">${customerRows.map(r=>`${financingRequirementStatusIcon(r.status)} ${escapeHtml(r.label)}`).join('<br>')}</p></div>
-      <div class="stat-card"><div class="lbl">Erfolgschance</div><div class="num">${Math.round(chance*100)}%</div><p class="subtle" style="margin:6px 0 0;">inkl. Bank, Kunde und Konditionen</p></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('salefinancing.bank_card'))}</div><div class="num" style="font-size:16px;color:${bankOk?'var(--teal)':bank.result==='rejected'?'var(--crimson)':'var(--brass)'};">${bankOk?escapeHtml(t('salefinancing.bank_approvable')):bank.label}</div><p class="subtle" style="margin:6px 0 0;">${escapeHtml(bank.note||'')}</p></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('salefinancing.customer_card'))}</div><div class="num" style="font-size:16px;color:${customerOk?'var(--teal)':'var(--crimson)'};">${customerOk?escapeHtml(t('salefinancing.customer_must_ok')):escapeHtml(t('salefinancing.customer_must_violated'))}</div><p class="subtle" style="margin:6px 0 0;line-height:1.45;">${customerRows.map(r=>`${financingRequirementStatusIcon(r.status)} ${escapeHtml(r.label)}`).join('<br>')}</p></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('salefinancing.success_card'))}</div><div class="num">${Math.round(chance*100)}%</div><p class="subtle" style="margin:6px 0 0;">${escapeHtml(t('salefinancing.success_note'))}</p></div>
     </div>
-    ${suggestions.length?`<div style="margin-top:10px;"><b>Hinweise</b><br>${suggestions.map(s=>`<span style="display:block;line-height:1.55;">${escapeHtml(s)}</span>`).join('')}</div>`:''}
+    ${suggestions.length?`<div style="margin-top:10px;"><b>${escapeHtml(t('salefinancing.notes_title'))}</b><br>${suggestions.map(s=>`<span style="display:block;line-height:1.55;">${escapeHtml(s)}</span>`).join('')}</div>`:''}
   </div>`;
 }
 function renderBankabilitySolution(o, result){
   const analysis = analyzeBankableFinancing(o, result);
   const currentPlan = analysis.currentTermPlan;
   const currentTermText = currentPlan?.possible
-    ? `Bei ${result.months} Monaten wäre eine Anzahlung von mindestens ${money(currentPlan.requiredDownPayment)} nötig. Maximal finanzierbar: ${money(currentPlan.maxFinancedAmount)}.`
-    : `Bei ${result.months} Monaten reicht die maximal plausible Anzahlung von ${money(currentPlan?.maxCustomerDown||analysis.maxCustomerDown)} nicht aus.`;
+    ? t('salefinancing.bankable_current_possible',{months:result.months,required:money(currentPlan.requiredDownPayment),max:money(currentPlan.maxFinancedAmount)})
+    : t('salefinancing.bankable_current_impossible',{months:result.months,max:money(currentPlan?.maxCustomerDown||analysis.maxCustomerDown)});
   const longer = analysis.byTerm.find(x=>x.possible && x.result.months>result.months);
   const longerText = longer
-    ? `Eine längere Laufzeit hilft: ${longer.result.months} Monate mit ${money(longer.requiredDownPayment)} Anzahlung und ${money(longer.result.monthlyPayment)}/Monat wäre bankfähig.`
-    : `Eine längere Laufzeit macht dieses Angebot nicht automatisch bankfähig.`;
+    ? t('salefinancing.bankable_longer_helps',{months:longer.result.months,down:money(longer.requiredDownPayment),monthly:money(longer.result.monthlyPayment)})
+    : t('salefinancing.bankable_longer_doesnt_help');
   if(analysis.best){
     return `<div class="notice" style="display:block;">
-      <b>Bankfähige Lösung</b><br>
-      ${currentTermText}<br>
-      ${longerText}<br>
-      Sinnvollste bankfähige Variante: <b>${analysis.best.result.months} Monate</b>, <b>${money(analysis.best.requiredDownPayment)}</b> Anzahlung, <b>${money(analysis.best.result.monthlyPayment)}/Monat</b>.
+      <b>${escapeHtml(t('salefinancing.bankable_title'))}</b><br>
+      ${escapeHtml(currentTermText)}<br>
+      ${escapeHtml(longerText)}<br>
+      ${escapeHtml(t('salefinancing.bankable_best',{months:analysis.best.result.months,down:money(analysis.best.requiredDownPayment),monthly:money(analysis.best.result.monthlyPayment)}))}
     </div>`;
   }
   return `<div class="notice warn" style="display:block;">
-    <b>Keine bankfähige Finanzierung möglich</b><br>
-    ${analysis.noBankableReason}<br>
-    Fahrzeugpreis: ${money(analysis.vehiclePrice)} · Kundenvermögen: ${money(analysis.wealth)} · Maximal plausible Anzahlung: ${money(analysis.maxCustomerDown)}.<br>
-    Der Verkaufspreis ist für diesen Kunden zu hoch. Barzahlung, Leasing oder ein günstigeres Fahrzeug prüfen.
+    <b>${escapeHtml(t('salefinancing.no_bankable_title'))}</b><br>
+    ${escapeHtml(analysis.noBankableReason)}<br>
+    ${escapeHtml(t('salefinancing.vehicle_price_label'))}: ${money(analysis.vehiclePrice)} · ${escapeHtml(t('salefinancing.customer_wealth_label'))}: ${money(analysis.wealth)} · ${escapeHtml(t('salefinancing.max_down_label'))}: ${money(analysis.maxCustomerDown)}.<br>
+    ${escapeHtml(t('salefinancing.no_bankable_suffix'))}
   </div>`;
 }
 function renderFinanceDebug(result){
@@ -8782,21 +8787,21 @@ function renderFinanceDebug(result){
     if(key.includes('ratio')) return (v*100).toFixed(1)+'%';
     if(key.includes('interestrate')) return (v*100).toFixed(3)+'%';
     if(key.includes('score')) return String(Math.round(v));
-    if(key.includes('months')) return `${Math.round(v)} Monate`;
+    if(key.includes('months')) return `${Math.round(v)} ${t('salefinancing.months_debug_unit')}`;
     if(key.includes('approved')) return v ? 'true' : 'false';
     return money(v);
   };
-  return `<details class="notice ${failed.length?'warn':'good'}" style="display:block;"><summary><b>Bankprüfung Debug</b></summary>
+  return `<details class="notice ${failed.length?'warn':'good'}" style="display:block;"><summary><b>${escapeHtml(t('salefinancing.debug_title'))}</b></summary>
     <table class="tbl"><tbody>
       ${Object.entries(d).map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td style="font-family:var(--font-m);text-align:right;">${fmtDebug(v,k)}</td></tr>`).join('')}
     </tbody></table>
     <div style="margin-top:10px;line-height:1.55;">
-      <b>Fehlgeschlagene Bankbedingungen</b><br>
-      ${failed.length ? failed.map(x=>`<span style="display:block;color:var(--crimson);">${escapeHtml(x.label)}: ${escapeHtml(x.detail)}</span>`).join('') : '<span style="color:var(--teal);">Keine harte Bankbedingung fehlgeschlagen.</span>'}
+      <b>${escapeHtml(t('salefinancing.debug_failed'))}</b><br>
+      ${failed.length ? failed.map(x=>`<span style="display:block;color:var(--crimson);">${escapeHtml(x.label)}: ${escapeHtml(x.detail)}</span>`).join('') : `<span style="color:var(--teal);">${escapeHtml(t('salefinancing.debug_none_failed'))}</span>`}
     </div>
     <div style="margin-top:8px;line-height:1.55;">
-      <b>Erfüllte Bankbedingungen</b><br>
-      ${passed.map(x=>`<span style="display:block;color:var(--teal);">${escapeHtml(x.label)}: ${escapeHtml(x.detail)}</span>`).join('') || '<span class="subtle">Keine.</span>'}
+      <b>${escapeHtml(t('salefinancing.debug_passed'))}</b><br>
+      ${passed.map(x=>`<span style="display:block;color:var(--teal);">${escapeHtml(x.label)}: ${escapeHtml(x.detail)}</span>`).join('') || `<span class="subtle">${escapeHtml(t('salefinancing.debug_none_passed'))}</span>`}
     </div>
   </details>`;
 }
@@ -8804,17 +8809,17 @@ function renderSaleFinancingPreviewForOffer(o, calc, solved, alternatives){
   const result = financeResultFor(o, calc);
   const fit = result.customerEvaluation;
   const bank = result.bankCheck;
-  const fitLabel = fit.mustViolated.length ? 'Muss verletzt' : (fit.wishIssues.length ? 'verhandelbar' : 'passt gut');
+  const fitLabel = fit.mustViolated.length ? t('salefinancing.status_must_violated') : (fit.wishIssues.length ? t('salefinancing.status_negotiable') : t('salefinancing.status_good_fit'));
   const fitColor = fit.mustViolated.length ? 'var(--crimson)' : (fit.wishIssues.length ? 'var(--amber)' : 'var(--teal)');
   return `<div class="stat-grid">
-    <div class="stat-card"><div class="lbl">Finanzierungsbetrag</div><div class="num">${money(calc.principal)}</div></div>
-    <div class="stat-card"><div class="lbl">Zinssatz</div><div class="num">${(calc.nominalRate*100).toFixed(1)}%</div></div>
-    <div class="stat-card"><div class="lbl">Monatsrate</div><div class="num">${money(calc.monthlyPayment)}</div></div>
-    <div class="stat-card"><div class="lbl">Gesamtkosten</div><div class="num">${money(calc.totalCost)}</div></div>
+    <div class="stat-card"><div class="lbl">${escapeHtml(t('salefinancing.amount_label'))}</div><div class="num">${money(calc.principal)}</div></div>
+    <div class="stat-card"><div class="lbl">${escapeHtml(t('salefinancing.interest_label'))}</div><div class="num">${(calc.nominalRate*100).toFixed(1)}%</div></div>
+    <div class="stat-card"><div class="lbl">${escapeHtml(t('salefinancing.monthly_label'))}</div><div class="num">${money(calc.monthlyPayment)}</div></div>
+    <div class="stat-card"><div class="lbl">${escapeHtml(t('salefinancing.total_label'))}</div><div class="num">${money(calc.totalCost)}</div></div>
   </div>
   ${renderFinancingTargetResult(o, calc, solved)}
   ${renderBankabilitySolution(o, result)}
-  <div class="notice" style="display:block;">Zinsen gesamt: <b>${money(result.totalInterest)}</b> · Bank: <b style="color:${bank.result==='approved'?'var(--teal)':bank.result==='rejected'?'var(--crimson)':'var(--brass)'};">${bank.label}</b> · Kundenzustimmung geschätzt: <b>${Math.round(result.approvalChance*100)}%</b> · Status: <b style="color:${fitColor};">${fitLabel}</b></div>
+  <div class="notice" style="display:block;">${escapeHtml(t('salefinancing.summary_interest'))}: <b>${money(result.totalInterest)}</b> · ${escapeHtml(t('salefinancing.summary_bank'))}: <b style="color:${bank.result==='approved'?'var(--teal)':bank.result==='rejected'?'var(--crimson)':'var(--brass)'};">${bank.label}</b> · ${escapeHtml(t('salefinancing.summary_approval'))}: <b>${Math.round(result.approvalChance*100)}%</b> · ${escapeHtml(t('salefinancing.summary_status'))}: <b style="color:${fitColor};">${escapeHtml(fitLabel)}</b></div>
   ${renderFinancingLiveAnalysis(o, result, bank, fit)}
   ${renderFinanceDebug(result)}
   ${renderFinancingAlternatives(o.id, alternatives || (fit.mustViolated.length || fit.wishIssues.length || bank.result!=='approved' ? bestFinancingOptions(o) : []), result)}
@@ -8894,24 +8899,24 @@ function openSaleLeasingModal(offerId){
   const special = o.financingOffer?.specialPayment ?? Math.round(o.amount*.1/10)*10;
   const calc = calcLeasing(o.amount, o.creditScore||60, {months, specialPayment:special});
   showModal(`
-    <h2 class="section-title">Leasing konfigurieren</h2>
-    <p class="subtle">${o.name} · ${c.brand} ${c.model} · Fahrzeugpreis ${money(o.amount)}</p>
-    <div class="field"><label>Sonderzahlung: <span id="saleLeaseSpecialLbl" style="color:var(--brass);font-family:var(--font-m);">${money(special)}</span></label>
+    <h2 class="section-title">${escapeHtml(t('saleleasing.modal_title'))}</h2>
+    <p class="subtle">${escapeHtml(t('saleleasing.modal_p',{name:o.name,brand:c.brand,model:c.model,price:money(o.amount)}))}</p>
+    <div class="field"><label>${escapeHtml(t('saleleasing.special_label'))}: <span id="saleLeaseSpecialLbl" style="color:var(--brass);font-family:var(--font-m);">${money(special)}</span></label>
       <input id="saleLeaseSpecial" type="range" min="0" max="${Math.round(o.amount*.3/10)*10}" step="10" value="${special}" oninput="updateSaleLeasingPreview('${offerId}')">
     </div>
-    <div class="field"><label>Laufzeit</label>
-      <select id="saleLeaseMonths" onchange="updateSaleLeasingPreview('${offerId}')">${[24,36,48,60].map(m=>`<option value="${m}" ${m===months?'selected':''}>${m} Monate</option>`).join('')}</select>
+    <div class="field"><label>${escapeHtml(t('saleleasing.term_label'))}</label>
+      <select id="saleLeaseMonths" onchange="updateSaleLeasingPreview('${offerId}')">${[24,36,48,60].map(m=>`<option value="${m}" ${m===months?'selected':''}>${escapeHtml(t('saleleasing.months_option',{m}))}</option>`).join('')}</select>
     </div>
     <div id="saleLeasePreview">${renderSaleLeasingPreview(calc)}</div>
-    <div class="row-actions"><button class="btn btn-ghost" onclick="openSaleMethodModal('${offerId}')">Zurück</button><button class="btn btn-primary" onclick="confirmSaleLeasing('${offerId}')">Leasinganfrage starten</button></div>
+    <div class="row-actions"><button class="btn btn-ghost" onclick="openSaleMethodModal('${offerId}')">${escapeHtml(t('saleleasing.back_btn'))}</button><button class="btn btn-primary" onclick="confirmSaleLeasing('${offerId}')">${escapeHtml(t('saleleasing.start_btn'))}</button></div>
   `);
 }
 function renderSaleLeasingPreview(calc){
   return `<div class="stat-grid">
-    <div class="stat-card"><div class="lbl">Laufzeit</div><div class="num">${calc.months} Monate</div></div>
-    <div class="stat-card"><div class="lbl">Sonderzahlung</div><div class="num">${money(calc.specialPayment)}</div></div>
-    <div class="stat-card"><div class="lbl">Monatsrate</div><div class="num">${money(calc.leaseRate)}</div></div>
-    <div class="stat-card"><div class="lbl">Restwert</div><div class="num">${money(calc.residual)}</div></div>
+    <div class="stat-card"><div class="lbl">${escapeHtml(t('saleleasing.term_label_card'))}</div><div class="num">${calc.months} ${escapeHtml(t('salefinancing.months_debug_unit'))}</div></div>
+    <div class="stat-card"><div class="lbl">${escapeHtml(t('saleleasing.special_label_card'))}</div><div class="num">${money(calc.specialPayment)}</div></div>
+    <div class="stat-card"><div class="lbl">${escapeHtml(t('saleleasing.monthly_label'))}</div><div class="num">${money(calc.leaseRate)}</div></div>
+    <div class="stat-card"><div class="lbl">${escapeHtml(t('saleleasing.residual_label'))}</div><div class="num">${money(calc.residual)}</div></div>
   </div>`;
 }
 function updateSaleLeasingPreview(offerId){
@@ -9141,17 +9146,17 @@ function financingRequirementStatusIcon(status){
   return '✖';
 }
 function financingPriorityLabel(priority){
-  if(priority==='must') return {title:'Muss', color:'var(--crimson)'};
-  if(priority==='wish') return {title:'Wunsch', color:'var(--amber)'};
-  return {title:'Präferenz', color:'var(--teal)'};
+  if(priority==='must') return {title:t('salefinancing.priority_must'), color:'var(--crimson)'};
+  if(priority==='wish') return {title:t('salefinancing.priority_wish'), color:'var(--amber)'};
+  return {title:t('salefinancing.priority_pref'), color:'var(--teal)'};
 }
 function renderFinancingPriorityPanel(o, financing){
   const evaluation = financing ? (financing.customerEvaluation || evaluateFinancingPriorities(o, financing)) : null;
   const priorities = evaluation ? evaluation.priorities : ensureFinancingPriorities(o, o.amount);
   const groups = ['must','wish','pref'];
   return `<div class="notice" style="display:block;margin:10px 0;">
-    <b>Kundenanforderungen</b><br>
-    <span class="subtle">Vermögen ${money(priorities.wealth||0)} · Einkommen ${money(priorities.income)}/Monat · Profil: ${priorities.kind}${priorities.capacity?.luxuryScale?` · Klasse ${priorities.capacity.luxuryScale}`:''}</span>
+    <b>${escapeHtml(t('salefinancing.priority_title'))}</b><br>
+    <span class="subtle">${escapeHtml(t('salefinancing.priority_wealth'))} ${money(priorities.wealth||0)} · ${escapeHtml(t('salefinancing.priority_income_label'))} ${money(priorities.income)}${escapeHtml(t('salefinancing.priority_income'))} · ${escapeHtml(t('salefinancing.priority_profile'))}: ${escapeHtml(priorities.kind)}${priorities.capacity?.luxuryScale?` · ${escapeHtml(t('salefinancing.priority_class'))} ${escapeHtml(priorities.capacity.luxuryScale)}`:''}</span>
     ${groups.map(priority=>{
       const meta = financingPriorityLabel(priority);
       const items = (evaluation ? evaluation.results : priorities.items).filter(x=>x.priority===priority);
@@ -9323,7 +9328,6 @@ function showBankDecisionModal(offerId){
   const o = state.offers.find(x=>x.id===offerId); if(!o || !o.bankDecision) return;
   const c = findCar(o.carId); if(!c) return;
   const app = o.bankDecision;
-  const kind = app.method==='leasing' ? 'Leasingantrag' : 'Finanzierungsantrag';
   const calc = app.method==='finanzierung'
     ? (app.financingOffer ? financeResultFor(o, app.financingOffer) : calculateFinanceOffer(o, c, {vehiclePrice:app.amount, ...(app.options||{})}))
     : (app.financingOffer || calcLeasing(app.amount, o.creditScore||60));
@@ -9335,32 +9339,32 @@ function showBankDecisionModal(offerId){
   const revisedShort = app.method==='finanzierung' && bank.result==='shorter_term' ? calculateFinanceOffer(o, c, {vehiclePrice:app.amount, downPayment:calc.downPayment, months:bank.requiredMonths, annualRate:calc.nominalRate}) : null;
   const revisedRate = app.method==='finanzierung' && bank.result==='higher_rate' ? calculateFinanceOffer(o, c, {vehiclePrice:app.amount, downPayment:calc.downPayment, months:calc.months, annualRate:bank.requiredRate}) : null;
   showModal(`
-    <h2 class="section-title">🏦 Bankprüfung: ${kind}</h2>
-    <p class="subtle">${o.name} möchte ${money(app.amount)} für ${c.brand} ${c.model} ${app.method==='leasing'?'leasen':'finanzieren'}.</p>
+    <h2 class="section-title">${escapeHtml(app.method==='leasing' ? t('bankdecision.title_lease') : t('bankdecision.title_fin'))}</h2>
+    <p class="subtle">${escapeHtml(t('bankdecision.'+(app.method==='leasing'?'subtitle_lease':'subtitle_fin'), {name:o.name, amount:money(app.amount), brand:c.brand, model:c.model}))}</p>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Bonität</div><div class="num" style="color:${riskColor(100-(o.creditScore||60))};">${o.creditScore||60}/100</div></div>
-      <div class="stat-card"><div class="lbl">Zahlungsausfall-Risiko</div><div class="num" style="color:${riskColor(delayRisk)};">${delayRisk}%</div></div>
-      <div class="stat-card"><div class="lbl">Bankentscheidung</div><div class="num" style="font-size:18px;color:${bank.result==='approved'?'var(--teal)':bank.result==='rejected'?'var(--crimson)':'var(--brass)'};">${bank.label}</div></div>
-      <div class="stat-card"><div class="lbl">${app.method==='leasing'?'Leasingrate':'Monatsrate'}</div><div class="num">${money(app.method==='leasing'?calc.leaseRate:calc.monthlyPayment)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('bankdecision.credit_label'))}</div><div class="num" style="color:${riskColor(100-(o.creditScore||60))};">${o.creditScore||60}/100</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('bankdecision.risk_label'))}</div><div class="num" style="color:${riskColor(delayRisk)};">${delayRisk}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('bankdecision.bank_label'))}</div><div class="num" style="font-size:18px;color:${bank.result==='approved'?'var(--teal)':bank.result==='rejected'?'var(--crimson)':'var(--brass)'};">${escapeHtml(bankDecisionLabel(bank.result))}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(app.method==='leasing' ? t('bankdecision.lease_rate_label') : t('bankdecision.monthly_label'))}</div><div class="num">${money(app.method==='leasing'?calc.leaseRate:calc.monthlyPayment)}</div></div>
     </div>
     ${app.method==='finanzierung'?`<div class="notice" style="display:block;">
-      <b>Geprüfte Konditionen</b><br>
+      <b>${escapeHtml(t('bankdecision.conditions_title'))}</b><br>
       ${financingOfferLabel(calc)}<br>
-      Finanzierungsbetrag: ${money(calc.principal)} · Gesamtzahlung: ${money(calc.totalCost)} · Zinsen gesamt: ${money(calc.totalInterest)}<br>
-      Bankhinweis: ${bank.note}
+      ${escapeHtml(t('bankdecision.fin_amount_label'))}: ${money(calc.principal)} · ${escapeHtml(t('bankdecision.total_payment_label'))}: ${money(calc.totalCost)} · ${escapeHtml(t('bankdecision.total_interest_label'))}: ${money(calc.totalInterest)}<br>
+      ${escapeHtml(t('bankdecision.bank_note_label'))}: ${escapeHtml(bank.note)}
     </div>`:''}
     ${app.method==='finanzierung'?renderFinanceDebug(calc):''}
     <div class="notice ${risk.level==='high'?'warn':'good'}" style="display:block;">
-      <b>Kundenhinweise</b><br>
-      Beruf: ${o.job} · Bonität: ${o.creditScore}/100 · Zahlungsart: ${app.method==='leasing'?'Leasing':'Finanzierung'}<br>
-      ${risk.notes.join('<br>')}
+      <b>${escapeHtml(t('bankdecision.customer_notes_title'))}</b><br>
+      ${escapeHtml(t('bankdecision.customer_notes_line', {job:o.job||'–', score:o.creditScore||60, method:app.method==='leasing' ? t('bankdecision.method_lease') : t('bankdecision.method_fin')}))}
+      <br>${risk.notes.join('<br>')}
     </div>
     <div class="row-actions">
-      <button class="btn btn-danger" onclick="closeModal(); bankRejectApplication('${o.id}')">Ablehnen</button>
-      ${bank.result==='higher_down'?`<button class="btn btn-ghost" onclick="closeModal(); bankApproveWithConditions('${o.id}', ${bank.requiredDownPayment||higherDown})">Nur mit ${money(bank.requiredDownPayment||higherDown)} Anzahlung</button>`:''}
-      ${bank.result==='shorter_term'?`<button class="btn btn-ghost" onclick="closeModal(); bankPresentRevisedFinancing('${o.id}','shorter')">Kürzere Laufzeit vorlegen${revisedShort?` (${revisedShort.months} Monate)`:''}</button>`:''}
-      ${bank.result==='higher_rate'?`<button class="btn btn-ghost" onclick="closeModal(); bankPresentRevisedFinancing('${o.id}','rate')">Höheren Zinssatz vorlegen${revisedRate?` (${(revisedRate.nominalRate*100).toFixed(1)}%)`:''}</button>`:''}
-      ${bank.result==='approved'?`<button class="btn btn-primary" onclick="closeModal(); bankApproveApplication('${o.id}')">Genehmigen</button>`:''}
+      <button class="btn btn-danger" onclick="closeModal(); bankRejectApplication('${o.id}')">${escapeHtml(t('bankdecision.reject_btn'))}</button>
+      ${bank.result==='higher_down'?`<button class="btn btn-ghost" onclick="closeModal(); bankApproveWithConditions('${o.id}', ${bank.requiredDownPayment||higherDown})">${escapeHtml(t('bankdecision.higher_down_btn', {amount:money(bank.requiredDownPayment||higherDown)}))}</button>`:''}
+      ${bank.result==='shorter_term'?`<button class="btn btn-ghost" onclick="closeModal(); bankPresentRevisedFinancing('${o.id}','shorter')">${escapeHtml(t('bankdecision.shorter_term_btn'))}${revisedShort?` (${revisedShort.months} ${escapeHtml(t('salefinancing.months_debug_unit'))})`:''}</button>`:''}
+      ${bank.result==='higher_rate'?`<button class="btn btn-ghost" onclick="closeModal(); bankPresentRevisedFinancing('${o.id}','rate')">${escapeHtml(t('bankdecision.higher_rate_btn'))}${revisedRate?` (${(revisedRate.nominalRate*100).toFixed(1)}%)`:''}</button>`:''}
+      ${bank.result==='approved'?`<button class="btn btn-primary" onclick="closeModal(); bankApproveApplication('${o.id}')">${escapeHtml(t('bankdecision.approve_btn'))}</button>`:''}
     </div>
   `);
 }
@@ -9442,18 +9446,18 @@ function showFinancingConditionsModal(o, app){
   o._conditionWheel.financingOffer = app.financingOffer || null;
   debugConditionWheel('decision-created', o, {nextAction:'show wheel modal'});
   showModal(`
-    <h2 class="section-title">🏦 Bank verlangt höhere Anzahlung</h2>
-    <p class="subtle">Die Bank genehmigt ${o.name}s Antrag über ${money(app.amount)} nur bei einer Anzahlung von mindestens ${money(higherDown)}.</p>
+    <h2 class="section-title">${escapeHtml(t('conditionwheel.title'))}</h2>
+    <p class="subtle">${escapeHtml(t('conditionwheel.subtitle', {name:o.name, amount:money(app.amount), down:money(higherDown)}))}</p>
     <div class="wheel-wrap">
       <div class="wheel-pointer"></div>
       <div class="condition-wheel" id="conditionWheel">
-        <div class="wheel-label accept">Akzeptiert</div>
-        <div class="wheel-label reject">Lehnt ab</div>
+        <div class="wheel-label accept">${escapeHtml(t('conditionwheel.accept_label'))}</div>
+        <div class="wheel-label reject">${escapeHtml(t('conditionwheel.reject_label'))}</div>
       </div>
-      <div class="wheel-result" id="conditionWheelResult">Das Glücksrad entscheidet...</div>
-      <div class="wheel-note">Akzeptanzchance: ${Math.round(acceptChance*100)}%. Die Entscheidung wird automatisch getroffen.</div>
+      <div class="wheel-result" id="conditionWheelResult">${escapeHtml(t('conditionwheel.deciding_text'))}</div>
+      <div class="wheel-note">${escapeHtml(t('conditionwheel.chance_note', {pct:Math.round(acceptChance*100)}))}</div>
     </div>
-    <div class="notice" style="display:block;">Bitte warten: Der Kunde entscheidet zufällig, ob er die höhere Anzahlung stemmen kann.</div>
+    <div class="notice" style="display:block;">${escapeHtml(t('conditionwheel.waiting_notice'))}</div>
   `);
   const overlay = document.getElementById('modalOverlay');
   if(overlay) overlay.onclick = ()=>{};
@@ -9502,8 +9506,8 @@ function conditionWheelDisplayedResult(rotation){
 }
 function conditionWheelResultText(result){
   return result==='accepted'
-    ? 'Kunde akzeptiert die höhere Anzahlung'
-    : 'Kunde lehnt die höhere Anzahlung ab';
+    ? t('conditionwheel.result_accepted')
+    : t('conditionwheel.result_rejected');
 }
 function isConditionWheelModalOpen(){
   return !!(document.getElementById('modalOverlay') && document.getElementById('conditionWheel'));
@@ -9670,14 +9674,14 @@ function rejectFinancingConditions(offerId){
   renderAllOpen(); scheduleSave();
 }
 function showFinancingRejectedModal(c, amount, offer){
-  const kind = offer.paymentMethod==='leasing' ? 'Leasinganfrage' : 'Finanzierungsanfrage';
+  const isLease = offer.paymentMethod==='leasing';
   showModal(`
-    <h2 class="section-title">🏦 Antrag nicht freigegeben</h2>
-    <p class="subtle">${kind} über ${money(amount)} wurde nicht freigegeben (Bonität: ${offer.creditScore}/100, ${offer.job}).</p>
-    <div class="notice warn">Ohne Finanzierung kann ${offer.name} das Fahrzeug nur bar bezahlen — oder der Deal platzt.</div>
+    <h2 class="section-title">${escapeHtml(t('financingrejected.title'))}</h2>
+    <p class="subtle">${escapeHtml(t(isLease ? 'financingrejected.lease_subtitle' : 'financingrejected.fin_subtitle', {amount:money(amount), score:offer.creditScore||60, job:offer.job||'–'}))}</p>
+    <div class="notice warn">${escapeHtml(t('financingrejected.no_financing_notice', {name:offer.name}))}</div>
     <div class="row-actions">
-      <button class="btn btn-danger" onclick="closeModal(); cancelDealAfterRejection('${offer.id}')">Deal platzen lassen</button>
-      <button class="btn btn-primary" onclick="closeModal(); completeSaleFlowById('${c.id}','${offer.id}',${amount})">${offer.name} zahlt stattdessen bar</button>
+      <button class="btn btn-danger" onclick="closeModal(); cancelDealAfterRejection('${offer.id}')">${escapeHtml(t('financingrejected.cancel_btn'))}</button>
+      <button class="btn btn-primary" onclick="closeModal(); completeSaleFlowById('${c.id}','${offer.id}',${amount})">${escapeHtml(t('financingrejected.cash_btn', {name:offer.name}))}</button>
     </div>
   `);
 }
@@ -9691,8 +9695,8 @@ function cancelDealAfterRejection(offerId){
     notify(`${o.name} konnte keine Finanzierung bekommen und ist abgesprungen.`,'warn');
     showDropoutModal(
       'sale',
-      'Kunde abgesprungen',
-      `${o.name} konnte die Finanzierung nicht abschließen.`,
+      t('dropout.customer_walked'),
+      t('dropout.fin_failed', {name:o.name}),
       'Der Verkauf wurde nicht abgeschlossen. Fahrzeug und Zahlung bleiben unverändert.'
     );
   }
@@ -9831,10 +9835,10 @@ function createDeliveryOrder(offer, c, amount, profit, financing, reaction, sale
   return order;
 }
 function deliveryStatusLabel(d){
-  if(d.status==='planning') return 'Lieferung planen';
-  if(d.status==='pickup_completed') return 'Selbstabholung abgeschlossen';
-  if(d.status==='completed') return 'Lieferung abgeschlossen';
-  return ['Fahrzeug wird vorbereitet','Fahrzeug verladen','Fahrzeug unterwegs','Kurz vor Ankunft'][d.statusIndex||0] || 'Fahrzeug unterwegs';
+  if(d.status==='planning') return t('delivery.status_planning');
+  if(d.status==='pickup_completed') return t('delivery.status_pickup_done');
+  if(d.status==='completed') return t('delivery.status_completed');
+  return [t('delivery.status_step_0'),t('delivery.status_step_1'),t('delivery.status_step_2'),t('delivery.status_step_3')][d.statusIndex||0] || t('delivery.status_default');
 }
 function openDeliveryPlanning(id){
   const d = (state.deliveries||[]).find(x=>x.id===id); if(!d) return;
@@ -9929,18 +9933,18 @@ function renderDeliveries(){
   const avgCost = avg(all.filter(d=>d.baseCost>0), d=>d.baseCost||0);
   const free = all.filter(d=>d.dealerSharePct>=1).length;
   return `
-    <h2 class="section-title">Fahrzeuglieferung</h2>
-    <p class="subtle">Lieferungen entstehen automatisch nach Verkäufen. Kosten, Kulanz, Dauer und Übergabequalität wirken auf Kundenzufriedenheit und Bewertungen.</p>
+    <h2 class="section-title">${escapeHtml(t('delivery.page_title'))}</h2>
+    <p class="subtle">${escapeHtml(t('delivery.page_subtitle'))}</p>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Aktiv / offen</div><div class="num">${active.length}</div></div>
-      <div class="stat-card"><div class="lbl">Abgeschlossen</div><div class="num">${delivered.length}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Lieferkosten</div><div class="num">${avgCost?money(Math.round(avgCost)):'–'}</div></div>
-      <div class="stat-card"><div class="lbl">Kostenlose Lieferungen</div><div class="num">${all.length?Math.round(free/all.length*100):0}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('delivery.stat_active'))}</div><div class="num">${active.length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('delivery.stat_done'))}</div><div class="num">${delivered.length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('delivery.stat_avg_cost'))}</div><div class="num">${avgCost?money(Math.round(avgCost)):'–'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('delivery.stat_free_pct'))}</div><div class="num">${all.length?Math.round(free/all.length*100):0}%</div></div>
     </div>
-    <h3 style="font-family:var(--font-d);font-size:13px;">Offene Lieferungen</h3>
-    ${active.length ? active.map(renderDeliveryCard).join('') : '<div class="empty-state"><div class="ic">🚚</div>Keine offenen Lieferungen.</div>'}
-    <h3 style="font-family:var(--font-d);font-size:13px;margin-top:18px;">Abgeschlossen</h3>
-    ${done.length ? done.map(renderDeliveryCard).join('') : '<p class="subtle">Noch keine abgeschlossenen Lieferungen.</p>'}
+    <h3 style="font-family:var(--font-d);font-size:13px;">${escapeHtml(t('delivery.open_title'))}</h3>
+    ${active.length ? active.map(renderDeliveryCard).join('') : `<div class="empty-state"><div class="ic">🚚</div>${escapeHtml(t('delivery.empty_open'))}</div>`}
+    <h3 style="font-family:var(--font-d);font-size:13px;margin-top:18px;">${escapeHtml(t('delivery.done_title'))}</h3>
+    ${done.length ? done.map(renderDeliveryCard).join('') : `<p class="subtle">${escapeHtml(t('delivery.empty_done'))}</p>`}
   `;
 }
 function renderDeliveryCard(d){
@@ -9950,17 +9954,17 @@ function renderDeliveryCard(d){
   const done = ['completed','pickup_completed'].includes(d.status);
   return `<div class="offer-card">
     <div class="offer-head"><span><b>${d.car.brand} ${d.car.model}</b> — ${d.customerName}</span><span class="persona">${status}</span></div>
-    <p class="subtle" style="margin:0 0 8px;">${type.label} · ${d.distanceKm} km · Kundenkosten ${money(d.customerCharge||0)} · Autohausanteil ${money(Math.max(0,d.dealerCost||0))}${d.plannedArrivalDay?` · geplant für ${gameDateShort(d.plannedArrivalDay)}`:''}</p>
+    <p class="subtle" style="margin:0 0 8px;">${escapeHtml(t('delivery.type_'+d.desiredType))} · ${d.distanceKm} km · ${escapeHtml(t('delivery.customer_cost_label'))} ${money(d.customerCharge||0)} · ${escapeHtml(t('delivery.dealer_share_label'))} ${money(Math.max(0,d.dealerCost||0))}${d.plannedArrivalDay?` · ${escapeHtml(t('delivery.planned_for_label', {date:gameDateShort(d.plannedArrivalDay)}))}`:''}</p>
     <div class="spec-row">
-      <span class="chip">${method?method.label:'Noch nicht beauftragt'}</span>
-      <span class="chip">${DELIVERY_SHARES[d.share]?.label || 'Kunde zahlt vollständig'}</span>
-      ${d.onTime!=null?`<span class="chip">${d.onTime?'pünktlich':'verspätet'}</span>`:''}
-      ${d.problem?'<span class="chip" style="color:var(--red);">Problem</span>':''}
+      <span class="chip">${escapeHtml(d.method ? t('delivery.method_'+d.method) : t('delivery.not_commissioned'))}</span>
+      <span class="chip">${escapeHtml(DELIVERY_SHARES[d.share] ? t('delivery.share_'+d.share) : t('delivery.share_customer'))}</span>
+      ${d.onTime!=null?`<span class="chip">${escapeHtml(d.onTime?t('delivery.on_time'):t('delivery.delayed'))}</span>`:''}
+      ${d.problem?`<span class="chip" style="color:var(--red);">${escapeHtml(t('delivery.problem_chip'))}</span>`:''}
     </div>
     ${!done?`<div class="progress"><div style="width:${d.status==='planning'?8:Math.round((1-(d.daysLeft||0)/Math.max(1,d.daysTotal||1))*100)}%;"></div></div>`:''}
     <div class="row-actions" style="margin-top:10px;">
-      ${d.status==='planning'?`<button class="btn btn-primary btn-sm" onclick="openDeliveryPlanning('${d.id}')">Planen</button>`:''}
-      ${done?`<button class="btn btn-ghost btn-sm" disabled>Abgeschlossen</button>`:`<button class="btn btn-ghost btn-sm" onclick="navigateTo('deliveries')">Details</button>`}
+      ${d.status==='planning'?`<button class="btn btn-primary btn-sm" onclick="openDeliveryPlanning('${d.id}')">${escapeHtml(t('delivery.plan_btn'))}</button>`:''}
+      ${done?`<button class="btn btn-ghost btn-sm" disabled>${escapeHtml(t('delivery.done_btn'))}</button>`:`<button class="btn btn-ghost btn-sm" onclick="navigateTo('deliveries')">${escapeHtml(t('delivery.details_btn'))}</button>`}
     </div>
   </div>`;
 }
@@ -10154,21 +10158,21 @@ function showOpenSaleConditionModal(offerId, conditionId){
   const suggestedDiscount = Math.round(Math.max(cost*.75, o.amount*(condition.severity||1)*0.012)/10)*10;
   const allOpen = openSaleConditions(o, c).filter(cond=>cond.status!=='repairing');
   showModal(`
-    <h2 class="section-title">Offener Kundenwunsch</h2>
-    <p class="subtle">${o.name} möchte vor dem Kauf, dass <b>${escapeHtml(saleConditionText(condition))}</b>.</p>
-    <div class="notice warn" style="display:block;">Normaler Verkaufsabschluss ist blockiert, bis Sie diesen Wunsch erfüllen, ablehnen oder der Kunde einen Ausgleich akzeptiert.</div>
+    <h2 class="section-title">${escapeHtml(t('salecondition.open_modal_title'))}</h2>
+    <p class="subtle">${escapeHtml(o.name)} ${escapeHtml(t('salecondition.open_subtitle_prefix'))} <b>${escapeHtml(saleConditionText(condition))}</b></p>
+    <div class="notice warn" style="display:block;">${escapeHtml(t('salecondition.open_notice'))}</div>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Werkstattkosten</div><div class="num">${money(cost)}</div></div>
-      <div class="stat-card"><div class="lbl">Dauer</div><div class="num">${days} Tag(e)</div></div>
-      <div class="stat-card"><div class="lbl">Schwere</div><div class="num">${condition.severity}/4</div></div>
-      <div class="stat-card"><div class="lbl">Vorschlag Rabatt</div><div class="num">${money(suggestedDiscount)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('salecondition.workshop_cost_label'))}</div><div class="num">${money(cost)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('salecondition.duration_label'))}</div><div class="num">${days} ${escapeHtml(t('salecondition.days_unit'))}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('salecondition.severity_label'))}</div><div class="num">${condition.severity}/4</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('salecondition.suggested_discount_label'))}</div><div class="num">${money(suggestedDiscount)}</div></div>
     </div>
     <div class="row-actions">
-      <button class="btn btn-primary" onclick="fulfillSaleCondition('${offerId}','${conditionId}')">Kundenwunsch erfüllen</button>
-      ${allOpen.length>1?`<button class="btn btn-primary" onclick="startAllCustomerWishRepairs('${c.id}','${offerId}')">Alle Kundenwünsche erfüllen</button>`:''}
-      <button class="btn btn-ghost" onclick="showSaleConditionDiscount('${offerId}','${conditionId}',${suggestedDiscount})">Preisnachlass anbieten</button>
-      <button class="btn btn-ghost" onclick="offerRepairCostShare('${offerId}','${conditionId}')">50% Reparaturkosten übernehmen</button>
-      <button class="btn btn-danger" onclick="rejectSaleCondition('${offerId}','${conditionId}')">Kundenwunsch ablehnen</button>
+      <button class="btn btn-primary" onclick="fulfillSaleCondition('${offerId}','${conditionId}')">${escapeHtml(t('salecondition.fulfill_btn'))}</button>
+      ${allOpen.length>1?`<button class="btn btn-primary" onclick="startAllCustomerWishRepairs('${c.id}','${offerId}')">${escapeHtml(t('salecondition.fulfill_all_btn'))}</button>`:''}
+      <button class="btn btn-ghost" onclick="showSaleConditionDiscount('${offerId}','${conditionId}',${suggestedDiscount})">${escapeHtml(t('salecondition.discount_btn'))}</button>
+      <button class="btn btn-ghost" onclick="offerRepairCostShare('${offerId}','${conditionId}')">${escapeHtml(t('salecondition.share_cost_btn'))}</button>
+      <button class="btn btn-danger" onclick="rejectSaleCondition('${offerId}','${conditionId}')">${escapeHtml(t('salecondition.reject_btn'))}</button>
     </div>
   `);
 }
@@ -10176,12 +10180,12 @@ function showSaleConditionDiscount(offerId, conditionId, suggested){
   const {o,condition} = conditionById(offerId, conditionId);
   if(!o || !condition) return;
   showModal(`
-    <h2 class="section-title">Preisnachlass anbieten</h2>
-    <p class="subtle">Rabatt als Ausgleich für: ${escapeHtml(saleConditionText(condition))}</p>
-    <div class="field"><label>Rabatt: <span id="condDiscountLbl" style="color:var(--brass);font-family:var(--font-m);">${money(suggested)}</span></label>
+    <h2 class="section-title">${escapeHtml(t('salecondition.discount_modal_title'))}</h2>
+    <p class="subtle">${escapeHtml(t('salecondition.discount_subtitle', {condition:saleConditionText(condition)}))}</p>
+    <div class="field"><label>${escapeHtml(t('salecondition.discount_label'))}: <span id="condDiscountLbl" style="color:var(--brass);font-family:var(--font-m);">${money(suggested)}</span></label>
       <input id="condDiscount" type="range" min="0" max="${Math.round(o.amount*.22/10)*10}" step="10" value="${suggested}" oninput="document.getElementById('condDiscountLbl').textContent=money(Number(this.value)||0)">
     </div>
-    <div class="row-actions"><button class="btn btn-ghost" onclick="showOpenSaleConditionModal('${offerId}','${conditionId}')">Zurück</button><button class="btn btn-primary" onclick="submitSaleConditionDiscount('${offerId}','${conditionId}')">Rabatt anbieten</button></div>
+    <div class="row-actions"><button class="btn btn-ghost" onclick="showOpenSaleConditionModal('${offerId}','${conditionId}')">${escapeHtml(t('salecondition.discount_back_btn'))}</button><button class="btn btn-primary" onclick="submitSaleConditionDiscount('${offerId}','${conditionId}')">${escapeHtml(t('salecondition.discount_submit_btn'))}</button></div>
   `);
 }
 function saleConditionDiscountChance(o, condition, discount){
@@ -10394,16 +10398,16 @@ function rollLeaseEvent(lease){
 }
 function showEarlyReturnModal(lease){
   showModal(`
-    <h2 class="section-title">📄 Vorzeitige Rückgabe angefragt</h2>
-    <p class="subtle">${lease.customerName} möchte den Leasingvertrag für ${lease.carSnapshot.brand} ${lease.carSnapshot.model} vorzeitig beenden (noch ${lease.months-lease.monthsElapsed} Monate Restlaufzeit).</p>
+    <h2 class="section-title">${escapeHtml(t('earlyreturn.title'))}</h2>
+    <p class="subtle">${escapeHtml(t('earlyreturn.subtitle', {name:lease.customerName, brand:lease.carSnapshot.brand, model:lease.carSnapshot.model, remaining:lease.months-lease.monthsElapsed}))}</p>
     <div class="row-actions">
-      <button class="btn btn-ghost" onclick="closeModal(); declineEarlyReturn('${lease.id}')">Ablehnen – Vertrag läuft weiter</button>
-      <button class="btn btn-primary" onclick="closeModal(); acceptEarlyReturn('${lease.id}')">Annehmen – Fahrzeug zurücknehmen</button>
+      <button class="btn btn-ghost" onclick="closeModal(); declineEarlyReturn('${lease.id}')">${escapeHtml(t('earlyreturn.decline_btn'))}</button>
+      <button class="btn btn-primary" onclick="closeModal(); acceptEarlyReturn('${lease.id}')">${escapeHtml(t('earlyreturn.accept_btn'))}</button>
     </div>
   `);
 }
 function declineEarlyReturn(leaseId){
-  notify('Vorzeitige Rückgabe abgelehnt, Vertrag läuft weiter.','info');
+  notify(t('earlyreturn.decline_notify'),'info');
   renderAllOpen(); scheduleSave();
 }
 function acceptEarlyReturn(leaseId){
@@ -10415,14 +10419,14 @@ function acceptEarlyReturn(leaseId){
 function triggerLeaseEnd(lease){
   lease.status = 'ended_pending';
   showModal(`
-    <h2 class="section-title">📄 Leasingvertrag läuft aus</h2>
-    <p class="subtle">${lease.customerName}s Leasingvertrag für ${lease.carSnapshot.brand} ${lease.carSnapshot.model} endet. Restwert: ${money(lease.residual)}.</p>
-    ${lease.mileageOverageKm>0?`<div class="notice warn">⚠ ${lease.mileageOverageKm.toLocaleString('de-DE')} km Mehrkilometer erfasst.</div>`:''}
-    ${lease.damageEvents>0?`<div class="notice warn">⚠ ${lease.damageEvents} Schadensmeldung(en) während der Laufzeit.</div>`:''}
+    <h2 class="section-title">${escapeHtml(t('earlyreturn.end_title'))}</h2>
+    <p class="subtle">${escapeHtml(t('earlyreturn.end_subtitle', {name:lease.customerName, brand:lease.carSnapshot.brand, model:lease.carSnapshot.model, amount:money(lease.residual)}))}</p>
+    ${lease.mileageOverageKm>0?`<div class="notice warn">${escapeHtml(t('earlyreturn.overage_notice', {km:lease.mileageOverageKm.toLocaleString(localeMeta().numberLocale)}))}</div>`:''}
+    ${lease.damageEvents>0?`<div class="notice warn">${escapeHtml(t('earlyreturn.damage_notice', {n:lease.damageEvents}))}</div>`:''}
     <div class="row-actions" style="flex-direction:column;gap:8px;">
-      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeModal(); leaseTakeover('${lease.id}')">🚗 Kunde übernimmt Fahrzeug für ${money(lease.residual)}</button>
-      <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="closeModal(); leaseReturn('${lease.id}')">↩ Fahrzeug wird zurückgegeben</button>
-      <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="closeModal(); leaseExtend('${lease.id}')">📄 Verlängerung um 12 Monate anbieten</button>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeModal(); leaseTakeover('${lease.id}')">${escapeHtml(t('earlyreturn.takeover_btn', {amount:money(lease.residual)}))}</button>
+      <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="closeModal(); leaseReturn('${lease.id}')">${escapeHtml(t('earlyreturn.return_btn'))}</button>
+      <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="closeModal(); leaseExtend('${lease.id}')">${escapeHtml(t('earlyreturn.extend_btn'))}</button>
     </div>
   `);
 }
@@ -10480,38 +10484,40 @@ function closeLeaseWithReturn(lease, early){
 
 /* =============================== VERKAUFS-FEIER =============================== */
 function renderFinancingBlock(f){
-  if(!f) return `<div class="notice good" style="margin-top:4px;"><span>💵</span><span>Barzahlung – sofort vollständig beglichen.</span></div>`;
+  const M = t('market');
+  if(!f) return `<div class="notice good" style="margin-top:4px;"><span>${escapeHtml(M.sale_cash)}</span></div>`;
   if(f.type==='finanzierung'){
-    return `<div class="notice" style="margin-top:4px;"><div>🏦 <b>Finanzierung genehmigt</b><br>
-      Anzahlung: ${money(f.downPayment)} · Laufzeit: ${f.months} Monate<br>
-      Sollzins: ${(f.nominalRate*100).toFixed(1)}% · eff. Jahreszins: ${(f.effectiveRate*100).toFixed(1)}%<br>
-      Monatliche Rate: ${money(f.monthlyPayment)} · Gesamtkosten: ${money(f.totalCost)}</div></div>`;
+    return `<div class="notice" style="margin-top:4px;"><div>${escapeHtml(M.sale_fin_approved)}<br>
+      ${escapeHtml(M.sale_fin_down)}: ${money(f.downPayment)} · ${escapeHtml(M.sale_fin_term)}: ${f.months} ${escapeHtml(M.sale_months_unit)}<br>
+      ${escapeHtml(M.sale_fin_nominal)}: ${(f.nominalRate*100).toFixed(1)}% · ${escapeHtml(M.sale_fin_effective)}: ${(f.effectiveRate*100).toFixed(1)}%<br>
+      ${escapeHtml(M.sale_fin_rate)}: ${money(f.monthlyPayment)} · ${escapeHtml(M.sale_fin_total)}: ${money(f.totalCost)}</div></div>`;
   }
-  return `<div class="notice" style="margin-top:4px;"><div>📄 <b>Leasingvertrag</b><br>
-    Laufzeit: ${f.months} Monate · Kilometerlimit: ${f.mileage.toLocaleString('de-DE')} km/Jahr<br>
-    Sonderzahlung: ${money(f.specialPayment)} · Restwert: ${money(f.residual)}<br>
-    Leasingrate: ${money(f.leaseRate)}/Monat</div></div>`;
+  return `<div class="notice" style="margin-top:4px;"><div>${escapeHtml(M.sale_lease_title)}<br>
+    ${escapeHtml(M.sale_lease_term)}: ${f.months} ${escapeHtml(M.sale_months_unit)} · ${escapeHtml(M.sale_lease_km)}: ${f.mileage.toLocaleString(localeMeta().numberLocale||'en-US')} ${escapeHtml(M.sale_km_per_year)}<br>
+    ${escapeHtml(M.sale_lease_special)}: ${money(f.specialPayment)} · ${escapeHtml(M.sale_lease_residual)}: ${money(f.residual)}<br>
+    ${escapeHtml(M.sale_lease_rate)}: ${money(f.leaseRate)}${escapeHtml(M.sale_month_rate)}</div></div>`;
 }
 function showSaleCelebration(d){
   const profitColor = d.profit>=0 ? 'var(--teal)' : 'var(--red)';
+  const M = t('market');
   showModal(`
     <div style="text-align:center;position:relative;">
       <div id="confettiWrap" style="position:absolute;inset:-22px -22px auto -22px;height:150px;overflow:hidden;pointer-events:none;"></div>
       <div style="font-size:42px;margin-bottom:4px;">🎉</div>
-      <h2 class="section-title" style="font-size:20px;">Verkauft!</h2>
+      <h2 class="section-title" style="font-size:20px;">${escapeHtml(M.sale_title)}</h2>
       <p class="subtle">${d.c.brand} ${d.c.model} an ${d.customerName} (${d.persona})</p>
     </div>
     <div class="stat-grid" style="margin-top:6px;">
-      <div class="stat-card"><div class="lbl">Verkaufspreis</div><div class="num" id="celPrice">0 €</div></div>
-      <div class="stat-card"><div class="lbl">Marge</div><div class="num" style="color:${profitColor};font-size:16px;">${d.profit>=0?'+':''}${money(d.profit)}<br><span style="font-size:12px;">(${d.marginPct>=0?'+':''}${d.marginPct.toFixed(1)}%)</span></div></div>
-      <div class="stat-card"><div class="lbl">Standtage</div><div class="num">${d.standDays}</div></div>
-      <div class="stat-card"><div class="lbl">Ruf</div><div class="num" style="font-size:16px;">${d.repBefore} → ${d.repAfter}<br><span style="font-size:12px;color:${d.repChange>=0?'var(--teal)':'var(--red)'};">(${d.repChange>=0?'+':''}${d.repChange})</span></div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(M.sale_col_price)}</div><div class="num" id="celPrice">${money(0)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(M.sale_col_margin)}</div><div class="num" style="color:${profitColor};font-size:16px;">${d.profit>=0?'+':''}${money(d.profit)}<br><span style="font-size:12px;">(${d.marginPct>=0?'+':''}${d.marginPct.toFixed(1)}%)</span></div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(M.sale_col_standdays)}</div><div class="num">${d.standDays}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(M.sale_col_rep)}</div><div class="num" style="font-size:16px;">${d.repBefore} → ${d.repAfter}<br><span style="font-size:12px;color:${d.repChange>=0?'var(--teal)':'var(--red)'};">(${d.repChange>=0?'+':''}${d.repChange})</span></div></div>
     </div>
     ${renderFinancingBlock(d.financing)}
-    <div class="notice good">${d.reaction.emoji} ${d.reaction.text}</div>
-    <div class="notice" style="border-color:rgba(212,175,106,.35);">✨ +${d.xpGain} XP${d.leveledUp?` · 🎊 Level ${state.level} erreicht!`:''}</div>
-    ${d.newAchievements.map(a=>`<div class="notice" style="border-color:rgba(212,175,106,.4);"><span style="font-size:18px;">${a.icon}</span><span><b>${a.label}</b> freigeschaltet – ${a.desc}</span></div>`).join('')}
-    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeModal();openDeliveryPlanning('${d.deliveryId}')">Lieferung planen</button>
+    <div class="notice good">${d.reaction.emoji} ${escapeHtml(d.reaction.text)}</div>
+    <div class="notice" style="border-color:rgba(212,175,106,.35);">✨ +${d.xpGain} XP${d.leveledUp?` · ${escapeHtml(t('market.sale_level_up',{n:state.level}))}`:''}</div>
+    ${d.newAchievements.map(a=>`<div class="notice" style="border-color:rgba(212,175,106,.4);"><span style="font-size:18px;">${a.icon}</span><span><b>${escapeHtml(achievementText(a,'label'))}</b> ${escapeHtml(M.sale_achievement_suffix)} ${escapeHtml(achievementText(a,'desc'))}</span></div>`).join('')}
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeModal();openDeliveryPlanning('${d.deliveryId}')">${escapeHtml(M.sale_plan_delivery)}</button>
   `);
   animateCelebrationNumber('celPrice', d.amount);
   spawnConfetti();
@@ -10623,30 +10629,30 @@ function renderBank(){
   const limit = Math.round(8000 + state.reputation*400 + Math.max(0,state.cash)*0.5);
   const dailyInterest = Math.round(state.loanPrincipal*state.loanRate);
   return `
-    <h2 class="section-title">Bank</h2>
+    <h2 class="section-title">${escapeHtml(t('bank.title'))}</h2>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Offener Kredit</div><div class="num">${money(state.loanPrincipal)}</div></div>
-      <div class="stat-card"><div class="lbl">Zinssatz/Tag</div><div class="num">${(state.loanRate*100).toFixed(3)}%</div></div>
-      <div class="stat-card"><div class="lbl">Kreditlimit</div><div class="num">${money(limit)}</div></div>
-      <div class="stat-card"><div class="lbl">Tageszinsen</div><div class="num">${money(dailyInterest)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('bank.open_loan'))}</div><div class="num">${money(state.loanPrincipal)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('bank.daily_rate'))}</div><div class="num">${(state.loanRate*100).toFixed(3)}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('bank.loan_limit'))}</div><div class="num">${money(limit)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(t('bank.daily_interest'))}</div><div class="num">${money(dailyInterest)}</div></div>
     </div>
     <div class="field">
-      <label>Kredit aufnehmen: <span id="loanlbl" style="font-family:var(--font-m);color:var(--amber);">${money(1000)}</span></label>
+      <label>${escapeHtml(t('bank.take_loan_label'))}: <span id="loanlbl" style="font-family:var(--font-m);color:var(--amber);">${money(1000)}</span></label>
       <div style="display:flex;gap:10px;align-items:center;">
         <input type="range" min="500" max="${Math.max(500,limit-state.loanPrincipal)}" step="100" value="1000" oninput="syncFromRange('loan', this.value, 500, ${Math.max(500,limit-state.loanPrincipal)}, '_loanVal')" id="loanRange" style="flex:1;">
         <input type="number" min="500" max="${Math.max(500,limit-state.loanPrincipal)}" step="100" value="1000" oninput="syncFromNumber('loan', this.value, 500, ${Math.max(500,limit-state.loanPrincipal)}, '_loanVal')" onblur="snapNumberField('loan', 500, ${Math.max(500,limit-state.loanPrincipal)}, '_loanVal')" id="loanNumber" style="width:130px;flex:0 0 auto;">
       </div>
     </div>
-    <button class="btn btn-primary" onclick="takeLoan()">Kredit aufnehmen</button>
+    <button class="btn btn-primary" onclick="takeLoan()">${escapeHtml(t('bank.take_loan_btn'))}</button>
     <hr style="border:none;border-top:1px solid var(--glass-brd);margin:20px 0;">
     <div class="field">
-      <label>Kredit tilgen: <span id="replbl" style="font-family:var(--font-m);color:var(--teal);">${money(Math.min(500,state.loanPrincipal))}</span></label>
+      <label>${escapeHtml(t('bank.repay_label'))}: <span id="replbl" style="font-family:var(--font-m);color:var(--teal);">${money(Math.min(500,state.loanPrincipal))}</span></label>
       <div style="display:flex;gap:10px;align-items:center;">
         <input type="range" min="0" max="${state.loanPrincipal}" step="50" value="${Math.min(500,state.loanPrincipal)}" oninput="syncFromRange('rep', this.value, 0, ${state.loanPrincipal}, '_repVal')" id="repRange" style="flex:1;">
         <input type="number" min="0" max="${state.loanPrincipal}" step="50" value="${Math.min(500,state.loanPrincipal)}" oninput="syncFromNumber('rep', this.value, 0, ${state.loanPrincipal}, '_repVal')" onblur="snapNumberField('rep', 0, ${state.loanPrincipal}, '_repVal')" id="repNumber" style="width:130px;flex:0 0 auto;">
       </div>
     </div>
-    <button class="btn btn-ghost" onclick="repayLoan()" ${state.loanPrincipal<=0?'disabled':''}>Tilgung durchführen</button>
+    <button class="btn btn-ghost" onclick="repayLoan()" ${state.loanPrincipal<=0?'disabled':''}>${escapeHtml(t('bank.repay_btn'))}</button>
   `;
 }
 function takeLoan(){
@@ -10836,61 +10842,63 @@ function renderMarketStats(){
   const worst = sales.slice().sort((a,b)=>a.profit-b.profit).slice(0,6);
   const brands = Object.keys(BRANDS);
   const models = f.brand ? Object.keys(BRANDS[f.brand].models) : [];
+  const MS = t('marketstats');
   return `
-    <h2 class="section-title">Marktstatistik</h2>
-    <p class="subtle">Alle Werte werden aus aktuellem Markt, Bestand, Inseraten, Anfragen, Ankäufen, Verkäufen und gespeicherten Marktbewegungen berechnet.</p>
+    <h2 class="section-title">${escapeHtml(MS.title)}</h2>
+    <p class="subtle">${escapeHtml(MS.subtitle)}</p>
     <div class="offer-card">
       <div class="spec-row">
-        <select onchange="setMarketStatFilter('period',this.value)"><option value="all" ${(!f.period||f.period==='all')?'selected':''}>Gesamt</option><option value="14" ${f.period==='14'?'selected':''}>14 Tage</option><option value="30" ${f.period==='30'?'selected':''}>30 Tage</option><option value="60" ${f.period==='60'?'selected':''}>60 Tage</option></select>
-        <select onchange="setMarketStatFilter('brand',this.value);setMarketStatFilter('model','')"><option value="">Alle Marken</option>${brands.map(b=>`<option ${f.brand===b?'selected':''}>${b}</option>`).join('')}</select>
-        <select onchange="setMarketStatFilter('model',this.value)"><option value="">Alle Modelle</option>${models.map(m=>`<option ${f.model===m?'selected':''}>${m}</option>`).join('')}</select>
-        <select onchange="setMarketStatFilter('engine',this.value)"><option value="">Alle Kraftstoffe</option>${ENGINES.map(e=>`<option ${f.engine===e.label?'selected':''}>${e.label}</option>`).join('')}</select>
-        <select onchange="setMarketStatFilter('transmission',this.value)"><option value="">Alle Getriebe</option>${TRANS.map(t=>`<option ${f.transmission===t?'selected':''}>${t}</option>`).join('')}</select>
-        <select onchange="setMarketStatFilter('tier',this.value)"><option value="">Alle Klassen</option>${['Budget','Mittelklasse','Premium','Luxus','Exotisch'].map(t=>`<option ${f.tier===t?'selected':''}>${t}</option>`).join('')}</select>
+        <select onchange="setMarketStatFilter('period',this.value)"><option value="all" ${(!f.period||f.period==='all')?'selected':''}>${escapeHtml(MS.period_all)}</option><option value="14" ${f.period==='14'?'selected':''}>${escapeHtml(MS.period_14)}</option><option value="30" ${f.period==='30'?'selected':''}>${escapeHtml(MS.period_30)}</option><option value="60" ${f.period==='60'?'selected':''}>${escapeHtml(MS.period_60)}</option></select>
+        <select onchange="setMarketStatFilter('brand',this.value);setMarketStatFilter('model','')"><option value="">${escapeHtml(MS.all_brands)}</option>${brands.map(b=>`<option ${f.brand===b?'selected':''}>${b}</option>`).join('')}</select>
+        <select onchange="setMarketStatFilter('model',this.value)"><option value="">${escapeHtml(MS.all_models)}</option>${models.map(m=>`<option ${f.model===m?'selected':''}>${m}</option>`).join('')}</select>
+        <select onchange="setMarketStatFilter('engine',this.value)"><option value="">${escapeHtml(MS.all_fuels)}</option>${ENGINES.map(e=>`<option ${f.engine===e.label?'selected':''}>${e.label}</option>`).join('')}</select>
+        <select onchange="setMarketStatFilter('transmission',this.value)"><option value="">${escapeHtml(MS.all_transmissions)}</option>${TRANS.map(tr=>`<option ${f.transmission===tr?'selected':''}>${tr}</option>`).join('')}</select>
+        <select onchange="setMarketStatFilter('tier',this.value)"><option value="">${escapeHtml(MS.all_classes)}</option>${['Budget','Mittelklasse','Premium','Luxus','Exotisch'].map(ti=>`<option ${f.tier===ti?'selected':''}>${ti}</option>`).join('')}</select>
       </div>
       <div class="spec-row">
-        <input type="number" placeholder="Baujahr ab" value="${escapeAttr(f.yearMin||'')}" onchange="setMarketStatFilter('yearMin',this.value)">
-        <input type="number" placeholder="Baujahr bis" value="${escapeAttr(f.yearMax||'')}" onchange="setMarketStatFilter('yearMax',this.value)">
-        <input type="number" placeholder="Preis bis" value="${escapeAttr(f.priceMax||'')}" onchange="setMarketStatFilter('priceMax',this.value)">
-        <input type="number" placeholder="km bis" value="${escapeAttr(f.mileageMax||'')}" onchange="setMarketStatFilter('mileageMax',this.value)">
+        <input type="number" placeholder="${escapeAttr(MS.year_from)}" value="${escapeAttr(f.yearMin||'')}" onchange="setMarketStatFilter('yearMin',this.value)">
+        <input type="number" placeholder="${escapeAttr(MS.year_to)}" value="${escapeAttr(f.yearMax||'')}" onchange="setMarketStatFilter('yearMax',this.value)">
+        <input type="number" placeholder="${escapeAttr(MS.price_to)}" value="${escapeAttr(f.priceMax||'')}" onchange="setMarketStatFilter('priceMax',this.value)">
+        <input type="number" placeholder="${escapeAttr(MS.mileage_to)}" value="${escapeAttr(f.mileageMax||'')}" onchange="setMarketStatFilter('mileageMax',this.value)">
       </div>
     </div>
     <div class="stat-grid">
-      <div class="stat-card"><div class="lbl">Ø Marktpreis</div><div class="num">${money(avgMarket)}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Verkaufspreis</div><div class="num">${money(avgSale)}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Einkaufspreis</div><div class="num">${money(avgPurchase)}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Gewinn</div><div class="num" style="color:${avgProfit>=0?'var(--teal)':'var(--red)'};">${money(avgProfit)}</div></div>
-      <div class="stat-card"><div class="lbl">Ø Marge</div><div class="num">${avgMargin.toFixed(1)}%</div></div>
-      <div class="stat-card"><div class="lbl">Ø Standzeit</div><div class="num">${avgStand.toFixed(1)} Tage</div></div>
-      <div class="stat-card"><div class="lbl">Aktive Inserate</div><div class="num">${listings.length}</div></div>
-      <div class="stat-card"><div class="lbl">Aktuelle Nachfrage</div><div class="num">${demand.length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(MS.avg_market_price)}</div><div class="num">${money(avgMarket)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(MS.avg_sale_price)}</div><div class="num">${money(avgSale)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(MS.avg_purchase_price)}</div><div class="num">${money(avgPurchase)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(MS.avg_profit)}</div><div class="num" style="color:${avgProfit>=0?'var(--teal)':'var(--red)'};">${money(avgProfit)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(MS.avg_margin)}</div><div class="num">${biPct(avgMargin)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(MS.avg_standtime)}</div><div class="num">${biNum(avgStand,' '+MS.days_label)}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(MS.active_listings)}</div><div class="num">${listings.length}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(MS.current_demand)}</div><div class="num">${demand.length}</div></div>
     </div>
     <div class="grid-cars" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));">
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Preisentwicklung</h3>${lineSvg(hist,'avgMarketPrice','var(--brass)')}</div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Nachfrageverlauf</h3>${lineSvg(hist,'demand','var(--teal)')}</div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Beliebteste Marken</h3>${barSvg(brandDemand,'var(--violet)')}</div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Beliebteste Modelle</h3>${barSvg(modelDemand,'var(--brass)')}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(MS.chart_price_trend)}</h3>${lineSvg(hist,'avgMarketPrice','var(--brass)')}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(MS.chart_demand_trend)}</h3>${lineSvg(hist,'demand','var(--teal)')}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(MS.chart_top_brands)}</h3>${barSvg(brandDemand,'var(--violet)')}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(MS.chart_top_models)}</h3>${barSvg(modelDemand,'var(--brass)')}</div>
     </div>
     <div class="grid-cars" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:14px;">
-      ${renderStatTable('Steigende Nachfrage', rising, x=>x.name, x=>`${x.demand} Nachfrage · ${x.sales} Verkäufe`)}
-      ${renderStatTable('Sinkende Nachfrage', falling, x=>x.name, x=>`${x.demand} Nachfrage · ${x.sales} Verkäufe`)}
-      ${renderStatTable('Schnellste Verkäufer', fastest, s=>`${s.brand} ${s.model}`, s=>`${s.standDays} Tage · ${money(s.profit)}`)}
-      ${renderStatTable('Langsamste Verkäufer', slowest, s=>`${s.brand} ${s.model}`, s=>`${s.standDays} Tage · ${money(s.salePrice)}`)}
-      ${renderStatTable('Höchste Gewinnmarge', best, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${s.marginPct.toFixed(1)}%`)}
-      ${renderStatTable('Niedrigste Gewinnmarge', worst, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${s.marginPct.toFixed(1)}%`)}
+      ${renderStatTable(MS.rising_demand, rising, x=>x.name, x=>`${x.demand} ${MS.demand_label} · ${x.sales} ${MS.sales_label}`)}
+      ${renderStatTable(MS.falling_demand, falling, x=>x.name, x=>`${x.demand} ${MS.demand_label} · ${x.sales} ${MS.sales_label}`)}
+      ${renderStatTable(MS.fastest_sellers, fastest, s=>`${s.brand} ${s.model}`, s=>`${s.standDays} ${MS.days_label} · ${money(s.profit)}`)}
+      ${renderStatTable(MS.slowest_sellers, slowest, s=>`${s.brand} ${s.model}`, s=>`${s.standDays} ${MS.days_label} · ${money(s.salePrice)}`)}
+      ${renderStatTable(MS.highest_margin, best, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${biPct(s.marginPct)}`)}
+      ${renderStatTable(MS.lowest_margin, worst, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${biPct(s.marginPct)}`)}
     </div>
   `;
 }
-function biPct(n){ return Number.isFinite(n) ? n.toFixed(1).replace('.', ',')+'%' : '–'; }
+function biPct(n){ const dec = currentLanguage()==='de'?',':'.'; return Number.isFinite(n) ? n.toFixed(1).replace('.',dec)+'%' : '–'; }
 function biNum(n, suffix){
+  const dec = currentLanguage()==='de'?',':'.';
   if(!Number.isFinite(n)) return '–';
-  return `${Number.isInteger(n)?n:n.toFixed(1).replace('.', ',')}${suffix||''}`;
+  return `${Number.isInteger(n)?n:n.toFixed(1).replace('.',dec)}${suffix||''}`;
 }
 function biRate(part, total){ return total ? part/total*100 : 0; }
 function biGroupStats(rows, keyFn){
   const map = {};
   rows.forEach(r=>{
-    const key = keyFn(r) || 'Unbekannt';
+    const key = keyFn(r) || t('insights.unknown_label');
     if(!map[key]) map[key] = {key, count:0, revenue:0, profit:0, marginSum:0, standSum:0, loss:0};
     const g = map[key];
     g.count++;
@@ -10910,7 +10918,7 @@ function biGroupStats(rows, keyFn){
 }
 function biTrendRows(points, key, label){
   const data = (points||[]).slice().reverse();
-  if(data.length<2) return `<p class="subtle">Für ${label} gibt es noch keinen belastbaren Verlauf.</p>`;
+  if(data.length<2) return `<p class="subtle">${escapeHtml(t('insights.no_trend_data',{label}))}</p>`;
   const first = Number(data[0][key])||0;
   const last = Number(data[data.length-1][key])||0;
   const delta = last-first;
@@ -10918,7 +10926,7 @@ function biTrendRows(points, key, label){
 }
 function biMiniHeatmap(groups, valueKey, label){
   const rows = groups.filter(g=>g.count>=1).sort((a,b)=>b[valueKey]-a[valueKey]).slice(0,12);
-  if(!rows.length) return `<div class="empty-state" style="padding:18px;">Keine Daten für ${label}.</div>`;
+  if(!rows.length) return `<div class="empty-state" style="padding:18px;">${escapeHtml(t('insights.no_heatmap_data',{label}))}</div>`;
   const vals = rows.map(r=>Number(r[valueKey])||0);
   const min = Math.min(...vals), max = Math.max(...vals), span = Math.max(1,max-min);
   return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;">${rows.map(r=>{
@@ -10927,7 +10935,7 @@ function biMiniHeatmap(groups, valueKey, label){
     return `<div style="border:1px solid var(--line);border-radius:10px;padding:9px;background:${bg};">
       <div style="font-size:11px;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.key)}</div>
       <b style="font-family:var(--font-m);font-size:15px;">${valueKey.toLowerCase().includes('margin')?biPct(r[valueKey]):(valueKey.toLowerCase().includes('stand')?biNum(r[valueKey],' T'):money(Math.round(r[valueKey])) )}</b>
-      <div style="font-size:10px;color:var(--ink-2);">${r.count} Verkauf(e)</div>
+      <div style="font-size:10px;color:var(--ink-2);">${escapeHtml(t('insights.sales_count_label',{n:r.count}))}</div>
     </div>`;
   }).join('')}</div>`;
 }
@@ -11210,32 +11218,32 @@ function renderCalculator(){
   const demand = car ? currentDemandItems().filter(d=>d.brand===car.brand || d.model===car.model).length : 0;
   const risk = car ? clamp((100-(car.condition||70)) + (car.hiddenIssues||[]).length*18 + Math.max(0,(car.mileage||0)-120000)/6000 + Math.max(0,(car.effectivePrice||0)-expectedSale)/1000, 0, 100) : 0;
   return `
-    <h2 class="section-title">Kalkulator</h2>
-    <p class="subtle">Alle automatischen Vergleichswerte stammen aus Markt, Bestand, Anfragen und Verkaufshistorie. Manuelle Eingaben werden mathematisch direkt berechnet.</p>
+    <h2 class="section-title">${escapeHtml(t('calc.title'))}</h2>
+    <p class="subtle">${escapeHtml(t('calc.subtitle'))}</p>
     <div class="grid-cars" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr));">
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Gewinnkalkulation</h3>
-        ${calcInput('profit','purchase','Einkaufspreis',purchase)}${calcInput('profit','repair','Reparaturkosten',repair)}${calcInput('profit','transport','Transportkosten',transport)}${calcInput('profit','registration','Zulassungskosten',registration)}${calcInput('profit','prep','Aufbereitungskosten',prep)}${calcInput('profit','ads','Werbekosten',ads)}${calcInput('profit','other','Sonstige Kosten',other)}${calcInput('profit','sale','Geplanter Verkaufspreis',sale)}
-        <div class="stat-grid"><div class="stat-card"><div class="lbl">Gesamtkosten</div><div class="num">${money(totalCost)}</div></div><div class="stat-card"><div class="lbl">Bruttogewinn</div><div class="num" style="color:${gross>=0?'var(--teal)':'var(--red)'};">${money(gross)}</div></div><div class="stat-card"><div class="lbl">Marge</div><div class="num">${totalCost?(gross/totalCost*100).toFixed(1):'0.0'}%</div></div><div class="stat-card"><div class="lbl">Break-even</div><div class="num">${money(totalCost)}</div></div></div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(t('calc.profit_title'))}</h3>
+        ${calcInput('profit','purchase',t('calc.purchase_label'),purchase)}${calcInput('profit','repair',t('calc.repair_label'),repair)}${calcInput('profit','transport',t('calc.transport_label'),transport)}${calcInput('profit','registration',t('calc.registration_label'),registration)}${calcInput('profit','prep',t('calc.prep_label'),prep)}${calcInput('profit','ads',t('calc.ads_label'),ads)}${calcInput('profit','other',t('calc.other_label'),other)}${calcInput('profit','sale',t('calc.planned_sale_label'),sale)}
+        <div class="stat-grid"><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.total_cost_label'))}</div><div class="num">${money(totalCost)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.gross_profit_label'))}</div><div class="num" style="color:${gross>=0?'var(--teal)':'var(--red)'};">${money(gross)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.margin_label'))}</div><div class="num">${totalCost?(gross/totalCost*100).toFixed(1):'0.0'}%</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.breakeven_label'))}</div><div class="num">${money(totalCost)}</div></div></div>
       </div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Finanzierungsrechner</h3>
-        ${calcInput('finance','price','Fahrzeugpreis',finPrice)}${calcInput('finance','down','Anzahlung',down)}${calcInput('finance','rate','Zinssatz % p.a.',(rate*100).toFixed(2))}${calcInput('finance','months','Laufzeit Monate',months)}
-        <div class="stat-grid"><div class="stat-card"><div class="lbl">Finanziert</div><div class="num">${money(principal)}</div></div><div class="stat-card"><div class="lbl">Monatsrate</div><div class="num">${money(fs.pay)}</div></div><div class="stat-card"><div class="lbl">Gesamtkosten</div><div class="num">${money(finTotal)}</div></div><div class="stat-card"><div class="lbl">Zinskosten</div><div class="num">${money(finTotal-finPrice)}</div></div></div>
-        <table class="tbl"><thead><tr><th>Monat</th><th>Rate</th><th>Zins</th><th>Restschuld</th></tr></thead><tbody>${fs.rows.map(r=>`<tr><td>${r.m}</td><td>${money(r.pay)}</td><td>${money(r.interest)}</td><td>${money(r.rest)}</td></tr>`).join('')}</tbody></table>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(t('calc.finance_title'))}</h3>
+        ${calcInput('finance','price',t('calc.vehicle_price_label'),finPrice)}${calcInput('finance','down',t('calc.down_payment_label'),down)}${calcInput('finance','rate',t('calc.interest_rate_label'),(rate*100).toFixed(2))}${calcInput('finance','months',t('calc.term_months_label'),months)}
+        <div class="stat-grid"><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.financed_label'))}</div><div class="num">${money(principal)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.monthly_rate_label'))}</div><div class="num">${money(fs.pay)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.total_fin_label'))}</div><div class="num">${money(finTotal)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.interest_cost_label'))}</div><div class="num">${money(finTotal-finPrice)}</div></div></div>
+        <table class="tbl"><thead><tr><th>${escapeHtml(t('calc.month_col'))}</th><th>${escapeHtml(t('calc.rate_col'))}</th><th>${escapeHtml(t('calc.interest_col'))}</th><th>${escapeHtml(t('calc.remaining_col'))}</th></tr></thead><tbody>${fs.rows.map(r=>`<tr><td>${r.m}</td><td>${money(r.pay)}</td><td>${money(r.interest)}</td><td>${money(r.rest)}</td></tr>`).join('')}</tbody></table>
       </div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Leasingrechner</h3>
-        ${calcInput('lease','price','Fahrzeugpreis',leasePrice)}${calcInput('lease','special','Sonderzahlung',special)}${calcInput('lease','residual','Restwert',residual)}${calcInput('lease','months','Laufzeit Monate',leaseMonths)}${calcInput('lease','rate','Zinssatz % p.a.',(leaseRatePct*100).toFixed(2))}${calcInput('lease','km','km/Jahr',km)}
-        <div class="stat-grid"><div class="stat-card"><div class="lbl">Leasingrate</div><div class="num">${money(leaseRate)}</div></div><div class="stat-card"><div class="lbl">Gesamtkosten</div><div class="num">${money(leaseRate*leaseMonths+special)}</div></div><div class="stat-card"><div class="lbl">Restwert</div><div class="num">${money(residual)}</div></div><div class="stat-card"><div class="lbl">km gesamt</div><div class="num">${Math.round(km*leaseMonths/12).toLocaleString('de-DE')}</div></div></div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(t('calc.lease_title'))}</h3>
+        ${calcInput('lease','price',t('calc.vehicle_price_label'),leasePrice)}${calcInput('lease','special',t('calc.special_payment_label'),special)}${calcInput('lease','residual',t('calc.residual_label'),residual)}${calcInput('lease','months',t('calc.term_months_label'),leaseMonths)}${calcInput('lease','rate',t('calc.interest_rate_label'),(leaseRatePct*100).toFixed(2))}${calcInput('lease','km',t('calc.km_year_label'),km)}
+        <div class="stat-grid"><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.lease_rate_label'))}</div><div class="num">${money(leaseRate)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.total_lease_label'))}</div><div class="num">${money(leaseRate*leaseMonths+special)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.residual_label'))}</div><div class="num">${money(residual)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.km_total_label'))}</div><div class="num">${Math.round(km*leaseMonths/12).toLocaleString(localeMeta().numberLocale)}</div></div></div>
       </div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">Wirtschaftlichkeitsanalyse</h3>
-        <div class="field"><label>Fahrzeug aus Markt/Bestand</label><select onchange="setCalcInput('analysis','vehicleId',this.value);renderApp('calculator')"><option value="">Automatisch wählen</option>${calculatorVehicleOptions()}</select></div>
-        ${car?`<p class="subtle">${car.source}: <b>${car.brand} ${car.model}</b> · Einkauf/Preis ${money(car.effectivePrice||car.price||0)} · Schätzwert ${money(car.marketValue||0)}</p>
-        <div class="stat-grid"><div class="stat-card"><div class="lbl">Erwarteter Verkauf</div><div class="num">${money(expectedSale)}</div></div><div class="stat-card"><div class="lbl">Erwarteter Gewinn</div><div class="num" style="color:${expectedProfit>=0?'var(--teal)':'var(--red)'};">${money(expectedProfit)}</div></div><div class="stat-card"><div class="lbl">Standzeit-Prognose</div><div class="num">${expectedStand||'–'} Tage</div></div><div class="stat-card"><div class="lbl">Nachfrage</div><div class="num">${demand}</div></div><div class="stat-card"><div class="lbl">Kapitalbindung</div><div class="num">${money((car.effectivePrice||car.price||0)*Math.max(1,expectedStand)/30)}</div></div><div class="stat-card"><div class="lbl">Risiko</div><div class="num" style="color:${risk>55?'var(--red)':(risk>28?'var(--brass)':'var(--teal)')};">${Math.round(risk)}/100</div></div></div>`:'<div class="empty-state">Kein Fahrzeug verfügbar.</div>'}
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(t('calc.analysis_title'))}</h3>
+        <div class="field"><label>${escapeHtml(t('calc.vehicle_select_label'))}</label><select onchange="setCalcInput('analysis','vehicleId',this.value);renderApp('calculator')"><option value="">${escapeHtml(t('calc.auto_select'))}</option>${calculatorVehicleOptions()}</select></div>
+        ${car?`<p class="subtle">${escapeHtml(car.source)}: <b>${escapeHtml(car.brand)} ${escapeHtml(car.model)}</b> · ${escapeHtml(t('calc.purchase_price_label'))} ${money(car.effectivePrice||car.price||0)} · ${escapeHtml(t('calc.est_value_label'))} ${money(car.marketValue||0)}</p>
+        <div class="stat-grid"><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.expected_sale_label'))}</div><div class="num">${money(expectedSale)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.expected_profit_label'))}</div><div class="num" style="color:${expectedProfit>=0?'var(--teal)':'var(--red)'};">${money(expectedProfit)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.standtime_label'))}</div><div class="num">${expectedStand||'–'}${escapeHtml(t('calc.days_suffix'))}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.demand_label'))}</div><div class="num">${demand}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.capital_tie_up'))}</div><div class="num">${money((car.effectivePrice||car.price||0)*Math.max(1,expectedStand)/30)}</div></div><div class="stat-card"><div class="lbl">${escapeHtml(t('calc.risk_label'))}</div><div class="num" style="color:${risk>55?'var(--red)':(risk>28?'var(--brass)':'var(--teal)')};">${Math.round(risk)}/100</div></div></div>`:`<div class="empty-state">${escapeHtml(t('calc.no_vehicle'))}</div>`}
       </div>
     </div>
   `;
 }
 function calcInput(group,key,label,value){
-  return `<div class="field"><label>${label}</label><input type="number" step="0.01" value="${escapeAttr(value)}" onchange="setCalcInput('${group}','${key}',this.value);renderApp('calculator')"></div>`;
+  return `<div class="field"><label>${escapeHtml(label)}</label><input type="number" step="0.01" value="${escapeAttr(value)}" onchange="setCalcInput('${group}','${key}',this.value);renderApp('calculator')"></div>`;
 }
 
 /* =============================== EMPLOYEES =============================== */
@@ -11243,9 +11251,9 @@ function calcInput(group,key,label,value){
 const PAYMENT_METHODS = ['bar','finanzierung','leasing'];
 function paymentMethodMeta(method){
   return ({
-    bar:{label:'Barzahlung', icon:'💶', accent:'#3ecf7f', text:'Sofortiger Zahlungseingang ohne Bankprüfung.'},
-    finanzierung:{label:'Finanzierung', icon:'🏦', accent:'#5c86ff', text:'Ratenzahlung mit Bankprüfung und laufenden Einnahmen.'},
-    leasing:{label:'Leasing', icon:'📄', accent:'#8b7ff0', text:'Monatliche Leasingraten über feste Laufzeit.'},
+    bar:{label:t('chat.payment_bar'), icon:'💶', accent:'#3ecf7f', text:t('salemethod.bar_desc')},
+    finanzierung:{label:t('chat.payment_fin'), icon:'🏦', accent:'#5c86ff', text:t('salemethod.fin_desc')},
+    leasing:{label:t('chat.payment_lease'), icon:'📄', accent:'#8b7ff0', text:t('salemethod.lease_desc')},
   })[method] || {label:method, icon:'✓', accent:'var(--brass)', text:''};
 }
 function normalizePaymentMethods(methods){
@@ -11358,26 +11366,26 @@ function renderFinancingOfferCards(offerId, offers){
   const o = state.offers.find(x=>x.id===offerId);
   return `<div class="stat-grid">${offers.map((f,idx)=>`
     <div class="stat-card" style="display:flex;flex-direction:column;gap:8px;">
-      <div class="lbl">Angebot ${idx+1}</div>
-      <div class="num" style="font-size:17px;">${f.months} Monate</div>
+      <div class="lbl">${escapeHtml(t('financingoffer.offer_label', {n:idx+1}))}</div>
+      <div class="num" style="font-size:17px;">${f.months} ${escapeHtml(t('salefinancing.months_debug_unit'))}</div>
       <div class="subtle" style="margin:0;line-height:1.45;">
-        Zinssatz: <b>${(f.nominalRate*100).toFixed(1)}%</b><br>
-        Anzahlung: <b>${money(f.downPayment)}</b><br>
-        Monatsrate: <b style="color:var(--brass);">${money(f.monthlyPayment)}</b><br>
-        Gesamtzahlung: ${money(f.totalCost)}<br>
-        Zinsen gesamt: ${money(f.totalInterest)}<br>
-        Bank: <span style="color:${f.bank.result==='approved'?'var(--teal)':f.bank.result==='rejected'?'var(--crimson)':'var(--brass)'};">${f.bank.label}</span><br>
-        Kundenzustimmung: ${Math.round(f.customerChance*100)}%
+        ${escapeHtml(t('financingoffer.interest_rate_label'))}: <b>${(f.nominalRate*100).toFixed(1)}%</b><br>
+        ${escapeHtml(t('financingoffer.down_label'))}: <b>${money(f.downPayment)}</b><br>
+        ${escapeHtml(t('financingoffer.monthly_label'))}: <b style="color:var(--brass);">${money(f.monthlyPayment)}</b><br>
+        ${escapeHtml(t('financingoffer.total_label'))}: ${money(f.totalCost)}<br>
+        ${escapeHtml(t('financingoffer.total_interest_label'))}: ${money(f.totalInterest)}<br>
+        ${escapeHtml(t('financingoffer.bank_label'))}: <span style="color:${f.bank.result==='approved'?'var(--teal)':f.bank.result==='rejected'?'var(--crimson)':'var(--brass)'};">${escapeHtml(bankDecisionLabel(f.bank.result))}</span><br>
+        ${escapeHtml(t('financingoffer.approval_label'))}: ${Math.round(f.customerChance*100)}%
       </div>
       ${o?renderFinancingOfferFit(o, f):''}
-      <button class="btn btn-primary btn-sm" style="justify-content:center;" onclick="selectFinancingOffer('${offerId}',${idx})">Dieses Angebot senden</button>
+      <button class="btn btn-primary btn-sm" style="justify-content:center;" onclick="selectFinancingOffer('${offerId}',${idx})">${escapeHtml(t('financingoffer.send_btn'))}</button>
     </div>`).join('')}</div>`;
 }
 function renderFinancingOfferFit(o, financing){
   const evaluation = financeResultFor(o, financing).customerEvaluation;
   const rows = evaluation.results.filter(r=>r.priority!=='pref' || r.status!=='fulfilled').slice(0,5);
   const color = evaluation.mustViolated.length ? 'var(--crimson)' : (evaluation.wishIssues.length ? 'var(--amber)' : 'var(--teal)');
-  const label = evaluation.mustViolated.length ? 'Muss verletzt' : (evaluation.wishIssues.length ? 'verhandelbar' : 'passt');
+  const label = evaluation.mustViolated.length ? t('financingoffer.fit_must_violated') : (evaluation.wishIssues.length ? t('financingoffer.fit_negotiable') : t('financingoffer.fit_good'));
   return `<div style="border-top:1px solid var(--line);padding-top:7px;">
     <b style="color:${color};font-size:11px;">${label}</b>
     <div class="subtle" style="line-height:1.45;margin-top:4px;">${rows.map(r=>`${financingRequirementStatusIcon(r.status)} ${escapeHtml(r.label)}`).join('<br>')}</div>
@@ -11389,8 +11397,8 @@ function showFinancingOfferModal(offerId){
   const price = o.amount;
   o.financingOffers = generateFinancingOffers(o, price);
   showModal(`
-    <h2 class="section-title">🏦 Finanzierungsangebote für ${o.name}</h2>
-    <p class="subtle">${c.brand} ${c.model} · Fahrzeugpreis ${money(price)} · geschätztes Einkommen ${money(estimateMonthlyIncome(o))}/Monat · Bonität ${o.creditScore||60}/100</p>
+    <h2 class="section-title">${escapeHtml(t('financingoffer.modal_title', {name:o.name}))}</h2>
+    <p class="subtle">${escapeHtml(t('financingoffer.modal_subtitle', {brand:c.brand, model:c.model, price:money(price), income:money(estimateMonthlyIncome(o)), score:o.creditScore||60}))}</p>
     ${renderFinancingPriorityPanel(o, null)}
     ${renderFinancingOfferCards(offerId, o.financingOffers)}
   `);
@@ -11402,7 +11410,7 @@ function selectFinancingOffer(offerId, index){
   const signature = financingConditionSignature(o.amount, financing);
   o.sentFinancingSignatures = o.sentFinancingSignatures || [];
   if(o.sentFinancingSignatures.includes(signature)){
-    notify('Dieses Finanzierungsangebot wurde bereits vorgelegt. Für eine neue Kundenreaktion müssen Preis, Laufzeit, Zinssatz, Rate oder Anzahlung spürbar anders sein.','warn');
+    notify(t('financingoffer.duplicate_notify'),'warn');
     return;
   }
   o.sentFinancingSignatures.push(signature);
@@ -11547,10 +11555,10 @@ function showAchievementPopup(a){
 }
 function customerReaction(paid, offered){
   const ratio = paid/Math.max(1,offered);
-  if(ratio<=1.03) return {emoji:'😄', text:'Kunde ist begeistert – ein fairer Deal!'};
-  if(ratio<=1.12) return {emoji:'🙂', text:'Kunde ist zufrieden mit dem Abschluss.'};
-  if(ratio<=1.25) return {emoji:'😐', text:'Kunde ist neutral – hätte gerne mehr Rabatt gehabt.'};
-  return {emoji:'😒', text:'Kunde ist unzufrieden mit dem Preis.'};
+  if(ratio<=1.03) return {emoji:'😄', text:t('market.reaction_great')};
+  if(ratio<=1.12) return {emoji:'🙂', text:t('market.reaction_satisfied')};
+  if(ratio<=1.25) return {emoji:'😐', text:t('market.reaction_neutral')};
+  return {emoji:'😒', text:t('market.reaction_unhappy')};
 }
 function playSound(type){
   try{
@@ -12582,8 +12590,8 @@ function nextDay(){
       notify(`${o.name} ist ungeduldig geworden und abgesprungen.`,'warn');
       showDropoutModal(
         'sale',
-        'Kunde abgesprungen',
-        `${o.name} hat das Interesse verloren.`,
+        t('dropout.customer_walked'),
+        t('dropout.lost_interest', {name:o.name}),
         'Grund: Zu lange Wartezeit bzw. zu wenig Fortschritt im Verkaufsgespräch.'
       );
       return false;
@@ -12630,8 +12638,8 @@ function nextDay(){
           notify(`${o.name}s Reservierung ist abgelaufen – Kunde ist abgesprungen.`,'warn');
           showDropoutModal(
             'sale',
-            'Kunde abgesprungen',
-            `${o.name} hat wegen abgelaufener Reservierung abgesagt.`,
+            t('dropout.customer_walked'),
+            t('dropout.reservation_expired', {name:o.name}),
             `${c.brand} ${c.model} ist wieder frei verfügbar.`
           );
         }
