@@ -56,6 +56,7 @@ window.I18N_DE = {
   bottombar: {
     brand_sub:'Premium Management', autosaved_title:'Automatisch gespeichert',
     autosaved_sub:'Spielstand wird nach jeder Aktion gesichert',
+    saved_title:'Gespeichert', saved_sub:'Letzte Speicherung: vor wenigen Sekunden',
     programs_tooltip:'Programme durchsuchen', marketstats_tooltip:'Marktstatistik', mailbox_tooltip:'Postfach',
   },
   programs: {

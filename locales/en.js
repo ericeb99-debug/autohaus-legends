@@ -56,6 +56,7 @@ window.I18N_EN = {
   bottombar: {
     brand_sub:'Premium Management', autosaved_title:'Autosaved',
     autosaved_sub:'Your game is saved after every action',
+    saved_title:'Saved', saved_sub:'Last saved a few seconds ago',
     programs_tooltip:'Browse programs', marketstats_tooltip:'Market statistics', mailbox_tooltip:'Inbox',
   },
   programs: {

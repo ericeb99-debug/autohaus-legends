@@ -135,6 +135,135 @@ function t(key, vars){
   }
   return value;
 }
+const EN_DISPLAY_TERMS = {
+  'Standard':'Standard',
+  'Ruhiger Automotive Empire-Verlauf ohne Bild.':'Calm Automotive Empire gradient without an image.',
+  'Automatisch aus assets/backgrounds erkannt.':'Automatically detected from assets/backgrounds.',
+  'Montag':'Monday', 'Dienstag':'Tuesday', 'Mittwoch':'Wednesday', 'Donnerstag':'Thursday', 'Freitag':'Friday', 'Samstag':'Saturday', 'Sonntag':'Sunday',
+  'Januar':'January', 'Februar':'February', 'Maerz':'March', 'März':'March', 'April':'April', 'Mai':'May', 'Juni':'June', 'Juli':'July', 'August':'August', 'September':'September', 'Oktober':'October', 'November':'November', 'Dezember':'December',
+  'Benzin':'Gasoline', 'Diesel':'Diesel', 'Hybrid':'Hybrid', 'Elektro':'Electric',
+  'Schaltgetriebe':'Manual transmission', 'Automatik':'Automatic', 'Doppelkupplung':'Dual-clutch',
+  'Luxus':'Luxury', 'Exotisch':'Exotic', 'Premium':'Premium', 'Volumen':'Mainstream',
+  'Fahrzeugankauf':'Vehicle Acquisition', 'Direktankauf':'Direct Purchase', 'Privatverkauf':'Private Sale', 'Haendlernetzwerk':'Dealer Network', 'Händlernetzwerk':'Dealer Network', 'Auktion':'Auction', 'Leasingruecklaeufer':'Lease Return', 'Leasingrückläufer':'Lease Return',
+  'Firma':'Business', 'Privatperson':'Private Seller', 'keine bekannt':'none known', 'kleine Gebrauchsspuren':'minor signs of use', 'Parkrempler hinten':'rear parking scrape', 'Steinschlaege vorne':'front stone chips', 'Steinschläge vorne':'front stone chips', 'Die Besichtigung war unauffaellig, der Wagen wirkt ehrlich.':'The inspection was unremarkable; the car appears honest.', 'OBD ist sauber, keine relevanten Fehler gespeichert.':'OBD is clean, no relevant fault codes stored.',
+  'Direkter Kunde':'Direct Customer', 'Vorsichtiger Kunde':'Careful Customer', 'Schnaeppchenjaeger':'Bargain Hunter', 'Schnäppchenjäger':'Bargain Hunter', 'Familienkunde':'Family Buyer', 'Premiumkunde':'Premium Buyer', 'Unsicherer Kunde':'Undecided Customer', 'Ungeduldiger Kunde':'Impatient Customer', 'Stammkunde':'Returning Customer', 'Exporthaendler':'Export Dealer', 'Exporthändler':'Export Dealer', 'Luxuskaeufer':'Luxury Buyer', 'Luxuskäufer':'Luxury Buyer', 'Pendler':'Commuter', 'Student':'Student', 'Rentner':'Retiree',
+  'Mechaniker':'Mechanic', 'Verkaeufer':'Sales Advisor', 'Verkäufer':'Sales Advisor', 'Einkaeufer':'Buyer', 'Einkäufer':'Buyer', 'Kundenservice':'Customer Service', 'Mahnwesen-Spezialist':'Collections Specialist', 'Marketing-Manager':'Marketing Manager', 'Fotograf':'Photographer', 'Buchhalter':'Accountant', 'Fahrzeugaufbereiter':'Vehicle Detailer', 'Business-Analyst':'Business Analyst', 'Finanzierungsberater':'Financing Advisor', 'Leasingberater':'Leasing Advisor', 'Fuhrpark-/Lieferkoordinator':'Fleet and Delivery Coordinator',
+  'Reparatur & Diagnose':'Repairs and Diagnostics', 'Abschluss & Beratung':'Closing and Consulting', 'Markt & Ankauf':'Market and Purchasing', 'Werkstattqualitaet':'Workshop Quality', 'Werkstattqualität':'Workshop Quality', 'Optik & Zustand':'Presentation and Condition', 'Inseratsqualitaet':'Listing Quality', 'Inseratsqualität':'Listing Quality', 'Finanzierung':'Financing', 'Leasing':'Leasing', 'Bewertungen':'Reviews', 'Forderungen':'Outstanding Claims', 'Lieferungen':'Deliveries', 'Verkauf & Abschluss':'Sales and Closing', 'Reichweite & Leads':'Reach and Leads', 'Inserat & Bildwirkung':'Listings and Visual Quality', 'Finanzen & Mahnwesen':'Finance and Collections', 'Optik & Zustandswert':'Presentation and Condition Value', 'Analysen & Prognosen':'Analytics and Forecasting', 'Finanzierungen & Raten':'Financing and Installments', 'Leasing & Restwerte':'Leasing and Residual Values', 'Uebergaben & Logistik':'Handover and Logistics', 'Übergaben & Logistik':'Handover and Logistics',
+  'Bearbeitet Kundenanfragen, verbessert Abschlussquote, Rabatte und Kundenzufriedenheit.':'Handles customer requests and improves close rate, discounts and customer satisfaction.', 'Findet bessere Einkaufspreise, erkennt Ankaufsmöglichkeiten und reduziert Fehlkaufrisiken.':'Finds better purchase prices, identifies buying opportunities and reduces bad-purchase risk.', 'Verkürzt Reparaturzeiten, verbessert Qualität und senkt Reparaturrisiken.':'Shortens repair times, improves quality and lowers repair risk.', 'Verbessert Fahrzeugoptik, Verkaufschance und möglichen Verkaufspreis.':'Improves vehicle presentation, sale probability and potential sale price.', 'Erstellt bessere Fahrzeugbilder und erhöht Anfragen pro Inserat.':'Creates better vehicle photos and increases requests per listing.', 'Verbessert Finanzierungsabschlüsse, Vorprüfung und Bankprozesse.':'Improves financing closings, pre-checks and bank processes.', 'Verbessert Leasingangebote, Leasingquote und reduziert Rückgabeprobleme.':'Improves leasing offers, leasing rate and reduces return issues.', 'Beantwortet Rückfragen, reduziert Beschwerden und erhöht Stammkundenbindung.':'Answers follow-up questions, reduces complaints and improves repeat-customer loyalty.', 'Überwacht offene Forderungen, Mahnfristen und Forderungsmanagement.':'Monitors outstanding claims, dunning deadlines and collections management.', 'Erhöht Reichweite, Anfragen und Kampagnenwirkung.':'Increases reach, requests and campaign impact.', 'Verbessert Business Insights, Prognosen und Schwachstellen-Erkennung.':'Improves business insights, forecasts and weakness detection.', 'Organisiert Lieferungen, reduziert Verzögerungen und verbessert Übergaben.':'Organizes deliveries, reduces delays and improves handovers.',
+  'ruhig':'calm', 'ehrgeizig':'ambitious', 'detailverliebt':'detail-oriented', 'kommunikativ':'communicative', 'pragmatisch':'pragmatic', 'analytisch':'analytical', 'loyal':'loyal', 'kreativ':'creative',
+  'schnelle Entscheidungen':'quick decisions', 'starke Kundenwirkung':'strong customer impact', 'saubere Dokumentation':'clean documentation', 'gute Priorisierung':'good prioritization', 'hohe Ausdauer':'high stamina', 'feines Preisgespuer':'sharp pricing instinct', 'feines Preisgefühl':'sharp pricing instinct',
+  'braucht klare Ziele':'needs clear targets', 'mag keine Hektik':'dislikes rush', 'verliert Details bei Stress':'misses details under pressure', 'will oft nachverhandeln':'often wants to renegotiate', 'lernt langsam neue Tools':'learns new tools slowly',
+  'Inspektion':'Inspection', 'Oelservice':'Oil Service', 'Ölservice':'Oil Service', 'Bremsenservice':'Brake Service', 'Reifenwechsel':'Tire Change', 'Innenaufbereitung':'Interior Detailing', 'Lackaufbereitung':'Paint Correction', 'Elektronikdiagnose':'Electronics Diagnostics', 'Grosse Reparatur':'Major Repair', 'Große Reparatur':'Major Repair',
+  'Alle Kundenwuensche erledigen':'Resolve all customer requests', 'Alle Kundenwünsche erledigen':'Resolve all customer requests',
+  'Design':'Design', 'Zentrale Verwaltung für Hintergründe, Glasoptik, Transparenz, Animationen und zukünftige Themes.':'Central management for backgrounds, glass styling, transparency, animations and future themes.', 'Aktives Erscheinungsbild':'Active Appearance', 'Ausgewählter Hintergrund':'Selected Background', 'Ausgew&auml;hlter Hintergrund':'Selected Background', 'Die Auswahl wird sofort angewendet und automatisch gespeichert.':'Your selection is applied immediately and saved automatically.', 'Hintergründe':'Backgrounds', 'HintergrÃ¼nde':'Backgrounds', 'Galerieansicht für aktuelle und zukünftige Hintergrundbilder.':'Gallery view for current and future background images.', 'Galerieansicht fÃ¼r aktuelle und zukÃ¼nftige Hintergrundbilder.':'Gallery view for current and future background images.', 'Oberflächen-Anpassung':'Surface Customization', 'OberflÃ¤chen-Anpassung':'Surface Customization', 'Standard wiederherstellen':'Restore Default', 'UI-Transparenz':'UI Transparency', 'Glasoptik':'Glass Style', 'Hintergrund-Abdunklung':'Background Overlay', 'Hintergrundunschärfe':'Background Blur', 'HintergrundunschÃ¤rfe':'Background Blur', 'Vorbereitet':'Prepared', 'Weitere Materialoptionen':'Additional Material Options', 'Farbschema & Animationen':'Color Scheme & Animations',
+  'Kompatibel':'Compatible',
+  'Leistungspaket nicht gefunden.':'Performance package not found.',
+  'Diese Optimierung ist bei diesem Fahrzeug bereits installiert.':'This optimization is already installed on this vehicle.',
+  'Das Getriebe ist fuer diese Optimierung nicht geeignet.':'The transmission is not suitable for this optimization.',
+  'Das Getriebe ist für diese Optimierung nicht geeignet.':'The transmission is not suitable for this optimization.',
+  'Die Serienleistung ist fuer diese Optimierung zu niedrig.':'The stock power output is too low for this optimization.',
+  'Die Serienleistung ist für diese Optimierung zu niedrig.':'The stock power output is too low for this optimization.',
+  'Fuer diese Leistungsklasse ist eine Einzelabstimmung noetig.':'This power class requires a custom calibration.',
+  'Für diese Leistungsklasse ist eine Einzelabstimmung nötig.':'This power class requires a custom calibration.',
+  'Der technische Zustand ist fuer Softwaretuning zu schwach.':'The technical condition is too weak for software tuning.',
+  'Der technische Zustand ist für Softwaretuning zu schwach.':'The technical condition is too weak for software tuning.',
+  'Zuerst muss die Vorstufe installiert sein.':'The prerequisite stage must be installed first.',
+  'Fehlende Hardware':'Missing hardware',
+  'aktuell':'Current', 'ueberfaellig':'Overdue', 'überfällig':'Overdue', 'Abgeschlossen':'Completed', 'Forderungsausfall':'Defaulted', 'Fahrzeug zurueckgenommen':'Vehicle Repossessed', 'Fahrzeug zurückgenommen':'Vehicle Repossessed', 'Vergleich abgeschlossen':'Settlement Completed'
+};
+const EN_DISPLAY_REPLACEMENTS = [
+  [/\bTag\s+(\d{1,6})\b/g, (m, d)=>gameDateShort(Number(d))],
+  [/(\d+)\s*Tage?\b/g, '$1 days'],
+  [/(\d+)\s*Monate?\b/g, '$1 months'],
+  [/(\d+)\s*Stunden?\b/g, '$1 hours'],
+  [/(\d+)\s*Minuten?\b/g, '$1 minutes'],
+  [/(\d+)\s*T\b/g, '$1 d'],
+  [/Hintergrund\s+(\d+)\s+ausw(?:ä|&auml;)hlen/g, 'Select background $1'],
+  [/(\d+)\s+Hintergr(?:ü|&uuml;)nde/g, '$1 backgrounds'],
+  [/Live-Vorschau ohne (?:Ue|Ü|&Uuml;)bernehmen-Button\. Aktuell:\s*(\d+)% Transparenz,\s*(\d+)% Glasoptik\./g, 'Live preview without an apply button. Current values: $1% transparency, $2% glass style.'],
+  [/Steuert, wie stark die Hintergrundbilder durch Panels, Karten und Fenster sichtbar bleiben\./g, 'Controls how strongly background images remain visible through panels, cards and windows.'],
+  [/Regelt Blur, Materialtiefe, Lichtreflexe und die hochwertige Glassmorphism-Wirkung\./g, 'Controls blur, material depth, highlights and the premium glassmorphism effect.'],
+  [/Bestimmt, wie stark der Hintergrund (?:fuer|für) bessere Lesbarkeit abgedunkelt wird\./g, 'Controls how strongly the background is dimmed for better readability.'],
+  [/Macht das Hintergrundbild hinter der UI weicher oder komplett scharf\./g, 'Makes the background image behind the UI softer or fully sharp.'],
+  [/Hier k(?:oe|ö)nnen sp(?:ae|ä)ter Glasst(?:ae|ä)rke, Blur und Materialwirkung fein gesteuert werden\./g, 'Future controls for glass strength, blur and material appearance can be refined here.'],
+  [/Zuk(?:ue|ü)nftige Themes, Akzentfarben und Bewegungsoptionen finden hier ihren Platz\./g, 'Future themes, accent colors and motion options will be managed here.'],
+  [/Bei der Besichtigung fallen folgende Punkte auf:\s*(.+?)\./g, (m, list)=>`The inspection reveals the following issues: ${localizeDisplayText(list)}.`],
+  [/OBD\/Pr(?:ue|ü)fung zeigt:\s*(.+?)\./g, (m, list)=>`OBD/inspection shows: ${localizeDisplayText(list)}.`],
+  [/(.+?) erzielt bei Ihnen im Schnitt (.+?) mehr Marge als (.+?)\./g, (m, top, diff, low)=>`${top} generates an average margin ${diff} higher than ${low}.`],
+  [/Ihr durchschnittlicher Rabatt gegen(?:ue|ü)ber Marktwert liegt bei (.+?)\. Schon eine Senkung um 2 Prozentpunkte h(?:ae|ä)tte bei Ihrer bisherigen Umsatzbasis rechnerisch rund (.+?) mehr Verkaufserl(?:oe|ö)s bedeutet\./g, (m, pct, amount)=>`Your average discount versus market value is ${pct}. Reducing it by 2 percentage points would have added roughly ${amount} in revenue based on your sales history.`],
+  [/Ihre durchschnittliche Standzeit liegt bei (.+?)\. K(?:ue|ü)rzere Standzeiten w(?:ue|ü)rden Kapital schneller freisetzen\./g, (m, days)=>`Your average stand time is ${days}. Shorter stand times would free up capital faster.`],
+  [/(\d+) von (\d+) Verk(?:ae|ä)ufen waren Verlustgesch(?:ae|ä)fte \((.+?)\)\./g, (m, losses, sales, pct)=>`${losses} of ${sales} sales were loss-making transactions (${pct}).`],
+  [/(.+?) Ihrer Bewertungen enthalten Reklamationen\./g, (m, pct)=>`${pct} of your reviews contain complaints.`],
+  [/Finanzierungen und Leasing erzeugen aktuell (.+?) monatlichen Cashflow\./g, (m, amount)=>`Financing and leasing currently generate ${amount} in monthly cash flow.`],
+  [/Es wurden bisher (\d+) Mahnungen versendet\. Die aktuelle offene Mahnquote liegt bei (.+?)\./g, (m, n, pct)=>`${n} dunning notices have been sent so far. The current open collections rate is ${pct}.`],
+  [/(\d+) Vertrag\(e\) sind als Defaulted Receivable markiert\./g, (m, n)=>`${n} contract(s) are marked as defaulted receivables.`],
+  [/Die Workshop hat (\d+) laufende Auftr(?:ae|ä)ge bei (\d+) Mechaniker\(n\)\./g, (m, jobs, mechanics)=>`The workshop has ${jobs} active jobs with ${mechanics} mechanic(s).`],
+  [/Die Werkstatt hat (\d+) laufende Auftr(?:ae|ä)ge bei (\d+) Mechaniker\(n\)\./g, (m, jobs, mechanics)=>`The workshop has ${jobs} active jobs with ${mechanics} mechanic(s).`],
+  [/Von (\d+) Vehicle Acquisition-Anfragen wurden (\d+) gekauft\./g, (m, requests, bought)=>`${bought} of ${requests} vehicle acquisition requests were purchased.`],
+  [/Ihre Liquidit(?:ae|ä)t entwickelt sich aktuell mit (.+?) pro Ingame-Tag\./g, (m, amount)=>`Your liquidity is currently trending at ${amount} per in-game day.`],
+  [/Die Elektro-Nachfrage steht aktuell bei (.+?) des Basiswerts\./g, (m, pct)=>`Electric vehicle demand is currently at ${pct} of the base value.`],
+  [/Die SUV-Nachfrage steht aktuell bei (.+?) des Basiswerts\./g, (m, pct)=>`SUV demand is currently at ${pct} of the base value.`],
+  [/Verk(?:ae|ä)ufe/g, 'sales'],
+  [/Verkaufshistorie/g, 'sales history'],
+  [/Bewertungen/g, 'reviews'],
+  [/Reklamationen/g, 'complaints'],
+  [/Vertr(?:ae|ä)ge/g, 'contracts'],
+  [/aktive Finanzierungen/g, 'active financing contracts'],
+  [/aktive Leasingvertr(?:ae|ä)ge/g, 'active leasing contracts'],
+  [/offene Forderungen/g, 'open receivables'],
+  [/Aktive Werkstattjobs und Mitarbeiterrollen/g, 'Active workshop jobs and staff roles'],
+  [/Wunschliste\/Suchauftr(?:ae|ä)ge des aktuellen Spielstands/g, 'Wishlist/search orders in the current save'],
+  [/Fahrzeugankauf-Historie/g, 'Vehicle acquisition history'],
+  [/Nicht passend f(?:u|ü)r ([^-]+)-Antrieb\./g, (m, fuel)=>`Not suitable for ${localizeDisplayText(fuel).toLowerCase()} drive.`],
+  [/Zuerst muss (.+?) installiert sein\./g, (m, part)=>`First install ${localizeDisplayText(part)}.`],
+  [/Fehlende Hardware:\s*(.+?)\./g, (m, part)=>`Missing hardware: ${localizeDisplayText(part)}.`],
+  [/Fahrzeugankauf:\s*/g, 'Vehicle Acquisition: '],
+  [/Schnellverkauf\s+/g, 'Quick Sale '],
+  [/Kreditzinsen/g, 'Loan Interest'],
+  [/Gehaelter Mitarbeiter/g, 'Staff Salaries'],
+  [/Gehälter Mitarbeiter/g, 'Staff Salaries'],
+  [/Werkstatt fertig/g, 'Workshop Completed'],
+  [/Kundenwuensche/g, 'Customer Requests'],
+  [/Kundenwünsche/g, 'Customer Requests'],
+  [/beheben/g, 'repair'],
+  [/Rueckmeldung/g, 'update'],
+  [/Rückmeldung/g, 'update'],
+  [/Reparaturkosten/g, 'repair costs'],
+  [/Preisnachlass/g, 'discount'],
+  [/Forderungsausfall/g, 'Defaulted Receivable'],
+  [/Gerichtsergebnis/g, 'Court Result'],
+  [/Gerichtsentscheid/g, 'court decision'],
+  [/Leasingfall/g, 'leasing case'],
+  [/Fahrzeugr(?:u|ü)cknahme/g, 'vehicle repossession'],
+  [/Neue Zahlung eingegangen/g, 'New Payment Received'],
+  [/Zahlungen eingegangen/g, 'Payments Received'],
+  [/Vertraege ansehen/g, 'View Contracts'],
+  [/Verträge ansehen/g, 'View Contracts'],
+  [/Ansehen/g, 'View'],
+  [/Bewertung (?:o|ö)ffnen/g, 'Open Review'],
+  [/weitere/g, 'more'],
+  [/Mahnungen/g, 'Dunning Notices'],
+  [/Mahnung/g, 'Dunning Notice'],
+  [/f(?:u|ü)r\s+/g, 'for '],
+  [/ueber/g, 'over'],
+  [/über/g, 'over'],
+  [/wurde/g, 'was'],
+  [/abgeschlossen/g, 'completed']
+];
+function localizeDisplayText(value){
+  let text = repairMojibakeText(String(value==null?'':value));
+  if(currentLanguage() !== 'en') return text;
+  if(EN_DISPLAY_TERMS[text] !== undefined) return EN_DISPLAY_TERMS[text];
+  Object.keys(EN_DISPLAY_TERMS)
+    .sort((a,b)=>b.length-a.length)
+    .forEach(term=>{
+      const translated = EN_DISPLAY_TERMS[term];
+      if(term && translated !== undefined) text = text.split(term).join(translated);
+    });
+  EN_DISPLAY_REPLACEMENTS.forEach(([pattern, replacement])=>{ text = text.replace(pattern, replacement); });
+  return text;
+}
+function displayText(value){ return escapeHtml(localizeDisplayText(value)); }
 // Übersetzter App-Name/-Beschreibung mit Farbe aus REF_APP_META (Farben sind sprachunabhängig).
 function appMeta(id){
   const fallback = REF_APP_META[id] || [id, '', '#4d8cff'];
@@ -378,7 +507,7 @@ function gameDateShort(day){
 // Ersetzt alte "Tag 123"-Angaben in bereits GESPEICHERTEN Texten (Benachrichtigungen,
 // Forderungs-Historie, Chatnachrichten älterer Spielstände) beim Anzeigen durch echte Daten.
 function formatStoredDayText(text){
-  return String(text==null?'':text).replace(/\bTag\s+(\d{1,6})\b/g, (m, d)=>gameDateShort(Number(d)));
+  return localizeDisplayText(String(text==null?'':text).replace(/\bTag\s+(\d{1,6})\b/g, (m, d)=>gameDateShort(Number(d))));
 }
 function calendarKey(cal){
   cal = cal || currentCalendar();
@@ -2629,7 +2758,7 @@ function scheduleSave(){
       await saveNow();
       const el = document.getElementById('savebadge');
       if(el){
-        el.innerHTML = '<span class="sdot"></span><span><b>Gespeichert</b><small>Letzte Speicherung: vor wenigen Sekunden</small></span>';
+        el.innerHTML = `<span class="sdot"></span><span><b>${escapeHtml(t('bottombar.saved_title'))}</b><small>${escapeHtml(t('bottombar.saved_sub'))}</small></span>`;
         el.classList.remove('saved-pulse');
         void el.offsetWidth;
         el.classList.add('saved-pulse');
@@ -2654,17 +2783,17 @@ function showToast(icon, text, actionLabel, actionFn){
   const el = document.createElement('div');
   el.className = `toast ${toastTone(icon, text)} ${actionFn?'clickable':''}`;
   const btnId = uid('toastbtn');
-  el.innerHTML = `<span class="ic">${icon}</span><span class="txt">${text}</span>`;
+  el.innerHTML = `<span class="ic">${icon}</span><span class="txt">${localizeDisplayText(text)}</span>`;
   if(overflow>0){
     const more = document.createElement('span');
     more.className = 'toast-more';
-    more.textContent = `+${overflow} weitere`;
+    more.textContent = `+${overflow} ${currentLanguage()==='en'?'more':'weitere'}`;
     el.appendChild(more);
   }
   if(actionLabel && actionFn){
     const btn = document.createElement('button');
     btn.className = 'btn btn-primary btn-sm';
-    btn.textContent = actionLabel;
+    btn.textContent = localizeDisplayText(actionLabel);
     btn.onclick = (ev)=>{ ev.stopPropagation(); actionFn(); dismissToast(el); stack.dataset.overflow = '0'; };
     el.appendChild(btn);
     el.onclick = (ev)=>{ if(ev.target.closest('button')) return; actionFn(); dismissToast(el); stack.dataset.overflow = '0'; };
@@ -5343,6 +5472,7 @@ function startBulkListingRepair(c, row, markupPct, repairMode, quickSale, allowe
     baseJobId:'mech',
     issueIds:row.repair.issues.map(i=>i.id),
     daysLeft:row.repair.days,
+    totalDays:row.repair.days,
     condGain:row.repair.condGain,
     label:'Sammel-Inserierung vorbereiten'
   });
@@ -5414,14 +5544,14 @@ function invCard(c){
   const IV = t('inventory');
   return `
   <div class="card" style="--tier-color:${reserved?'#e0555c':tier.color};">
-    <span class="tier-tag">${reserved?escapeHtml(IV.tier_reserved):tier.label}</span>
+    <span class="tier-tag">${reserved?escapeHtml(IV.tier_reserved):displayText(tier.label)}</span>
     ${renderCarPhoto(c)}
     <div class="car-name">${c.brand} ${c.model}</div>
     <div class="car-sub">${c.year} · ${c.mileage.toLocaleString(localeMeta().numberLocale||'en-US')} km · ${escapeHtml(t('inventory.standdays',{n:c.standDays}))}</div>
     <div class="cond-bar"><div class="cond-fill" style="width:${c.condition}%"></div></div>
     <div class="spec-row">
-      <span class="chip">${escapeHtml(t('inventory.condition',{label:vehicleFile.conditionLabel, n:c.condition}))}</span>
-      ${c.acquisitionSource?`<span class="chip" style="color:var(--brass);">${c.acquisitionSource}</span>`:''}
+      <span class="chip">${escapeHtml(t('inventory.condition',{label:localizeDisplayText(vehicleFile.conditionLabel), n:c.condition}))}</span>
+      ${c.acquisitionSource?`<span class="chip" style="color:var(--brass);">${displayText(c.acquisitionSource)}</span>`:''}
       ${listed?`<span class="chip" style="color:var(--teal);border-color:rgba(51,194,160,.35);">${escapeHtml(t('inventory.listed_chip',{price:money(listed.price)}))}</span>`:''}
       ${listed?paymentMethodBadges(listed.allowedPaymentMethods):''}
       ${inWorkshop?`<span class="chip" style="color:#8fb2ff;">${escapeHtml(t('inventory.in_workshop_chip',{n:inWorkshop.daysLeft}))}</span>`:''}
@@ -5429,8 +5559,8 @@ function invCard(c){
       ${reservationChip(c)}
       ${vehicleFileDebugHtml(c)}
     </div>
-    ${openIssues.length?`<div class="subtle" style="margin:6px 0 0;">${escapeHtml(t('inventory.defects',{list:openIssues.slice(0,3).map(i=>i.label).join(', ')+(openIssues.length>3?' …':'')}))}</div>`:''}
-    ${openConditions.length?`<div class="tag-warn" style="margin-top:6px;">${escapeHtml(t('inventory.open_customer_wish',{text:saleConditionText(openConditions[0])}))}</div>`:''}
+    ${openIssues.length?`<div class="subtle" style="margin:6px 0 0;">${escapeHtml(t('inventory.defects',{list:openIssues.slice(0,3).map(i=>localizeDisplayText(i.label)).join(', ')+(openIssues.length>3?' …':'')}))}</div>`:''}
+    ${openConditions.length?`<div class="tag-warn" style="margin-top:6px;">${escapeHtml(t('inventory.open_customer_wish',{text:localizeDisplayText(saleConditionText(openConditions[0]))}))}</div>`:''}
     <div class="price-row">
       <span class="price">${money(c.marketValue)}</span>
       <span class="mval">${escapeHtml(t('inventory.purchase_price',{price:money(c.purchasePrice), sign:profit>=0?'+':'', profit:money(profit)}))}</span>
@@ -5456,7 +5586,7 @@ function showAcquisitionHistory(id){
     <div class="vehicle-history-shell">
       <div class="vehicle-history-head">
         <h2 class="section-title">${escapeHtml(IV.history_title)}</h2>
-        <p class="subtle" style="margin:0;">${escapeHtml(t('inventory.history_sub',{brand:c.brand, model:c.model, source:c.acquisitionSource||IV.vehicle_source_fallback, price:money(c.purchasePrice||0), forecast:money((c.marketValue||0)-(c.purchasePrice||0))}))}</p>
+        <p class="subtle" style="margin:0;">${escapeHtml(t('inventory.history_sub',{brand:c.brand, model:c.model, source:localizeDisplayText(c.acquisitionSource||IV.vehicle_source_fallback), price:money(c.purchasePrice||0), forecast:money((c.marketValue||0)-(c.purchasePrice||0))}))}</p>
       </div>
       <div class="vehicle-history-body">
         <div class="vehicle-history-section">
@@ -5512,6 +5642,10 @@ function quickTrade(id){
 }
 
 /* =============================== WORKSHOP =============================== */
+const MAX_WORKSHOP_JOB_DAYS = 1;
+function clampWorkshopDays(days){
+  return Math.max(1, Math.min(MAX_WORKSHOP_JOB_DAYS, Math.round(Number(days)||1)));
+}
 function workshopJobQuote(c, job){
   const mechBonus = employeeBonus('Mechaniker');
   const prepBonus = employeeBonus('Fahrzeugaufbereiter');
@@ -5519,7 +5653,7 @@ function workshopJobQuote(c, job){
   const roleBonus = job.baseId==='clean' || job.baseId==='paint' || job.id==='clean' || job.id==='paint' ? Math.max(mechBonus, prepBonus) : mechBonus;
   return {
     cost: Math.round(job.baseCost*(0.55+0.45*tier)*(1-roleBonus*0.25)),
-    days: Math.max(1, Math.round(job.baseDays*(1-roleBonus*0.3))),
+    days: clampWorkshopDays(job.baseDays*(1-roleBonus*0.3)),
   };
 }
 function openCustomerWishConditionsForCar(c, offerId){
@@ -5547,9 +5681,9 @@ function customerWishBatchSummary(c, conditions){
   const rawDays = items.reduce((sum,item)=>sum+item.days,0);
   return {
     items,
-    labels: items.map(item=>item.issue.label),
+    labels: items.map(item=>localizeDisplayText(item.issue.label)),
     cost: items.reduce((sum,item)=>sum+item.cost,0),
-    days: Math.max(1, Math.ceil(rawDays*0.75)),
+    days: clampWorkshopDays(Math.ceil(rawDays*0.75)),
     condGain: clamp(items.reduce((sum,item)=>sum+(item.job.cond||0),0),0,36),
     satisfactionGain: Math.min(18, items.length*4),
     chanceGain: Math.min(26, items.reduce((sum,item)=>sum+(item.issue.severity||1)*4,0)),
@@ -5581,7 +5715,7 @@ function openWorkshopModal(carId){
     ${allJobs.map(j=>{
       const {cost, days} = workshopJobQuote(c, j);
       return `<div class="offer-card">
-        <div class="offer-head"><span>${j.icon} <b>${j.label}</b></span><span class="persona">${escapeHtml(t('workshop.days_suffix',{n:days}))}</span></div>
+        <div class="offer-head"><span>${j.icon} <b>${displayText(j.label)}</b></span><span class="persona">${escapeHtml(t('workshop.days_suffix',{n:days}))}</span></div>
         <p class="subtle" style="margin:0 0 10px;">${j.issueId?escapeHtml(W.defect_target_prefix):''}${escapeHtml(t('workshop.condition_gain',{cond:j.cond, cost:money(cost)}))}</p>
         <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="startRepair('${carId}','${j.id}')" ${state.cash<cost?'disabled':''}>${escapeHtml(W.start_job_btn)}</button>
       </div>`;
@@ -5600,8 +5734,8 @@ function startRepair(carId, jobId){
   const bucket = job.baseId==='clean' || job.baseId==='paint' || job.id==='clean' || job.id==='paint' ? 'prep' : 'repair';
   c.costs[bucket] = Math.round((c.costs[bucket]||0) + cost);
   addTx('expense', job.label+' – '+c.brand+' '+c.model, -cost);
-  state.workshopJobs.push({carId, jobId, issueId:job.issueId||null, baseJobId:job.baseId||job.id, daysLeft:days, condGain:job.cond, label:job.label});
-  notify(t('workshop.job_started',{label:job.label, brand:c.brand, model:c.model}),'info');
+  state.workshopJobs.push({carId, jobId, issueId:job.issueId||null, baseJobId:job.baseId||job.id, daysLeft:days, totalDays:days, condGain:job.cond, label:job.label});
+  notify(t('workshop.job_started',{label:localizeDisplayText(job.label), brand:c.brand, model:c.model}),'info');
   closeModal();
   renderAllOpen(); scheduleSave();
 }
@@ -5625,7 +5759,7 @@ function startAllCustomerWishRepairs(carId, offerId){
       const offerCond = (o.saleConditions||[]).find(x=>x.id===cond.id);
       if(offerCond) offerCond.status = 'repairing';
       if(!offerMessages.has(o.id)) offerMessages.set(o.id, {offer:o, labels:[]});
-      offerMessages.get(o.id).labels.push(item.issue.label);
+      offerMessages.get(o.id).labels.push(localizeDisplayText(item.issue.label));
     }
   });
   offerMessages.forEach(entry=>{
@@ -5640,6 +5774,7 @@ function startAllCustomerWishRepairs(carId, offerId){
     saleConditionIds:batch.items.map(item=>item.condition.id),
     offerIds:batch.items.map(item=>item.condition.offerId),
     daysLeft:batch.days,
+    totalDays:batch.days,
     condGain:batch.condGain,
     label:'Alle Kundenwünsche erledigen'
   });
@@ -5659,10 +5794,10 @@ function renderWorkshop(){
       const c = findCar(j.carId);
       if(!c) return '';
       const job = REPAIR_JOBS.find(x=>x.id===(j.baseJobId||j.jobId)) || {icon:'🔧', baseDays:Math.max(1,j.daysLeft||1)};
-      const pct = Math.round(100*(1-(j.daysLeft/Math.max(1,job.baseDays))));
+      const pct = Math.round(100*(1-(j.daysLeft/Math.max(1,j.totalDays||job.baseDays))));
       const label = j.jobId==='customer-wishes' ? W.batch_label : j.label;
       return `<div class="offer-card">
-        <div class="offer-head"><span>${job.icon} <b>${c.brand} ${c.model}</b> — ${escapeHtml(label)}</span><span class="persona">${escapeHtml(t('workshop.days_left',{n:j.daysLeft}))}</span></div>
+        <div class="offer-head"><span>${job.icon} <b>${c.brand} ${c.model}</b> — ${displayText(label)}</span><span class="persona">${escapeHtml(t('workshop.days_left',{n:j.daysLeft}))}</span></div>
         <div class="progress"><div style="width:${clamp(pct,5,100)}%"></div></div>
       </div>`;
     }).join('')}
@@ -5983,8 +6118,8 @@ function renderEcuOptionResults(r){
   const okCount = r.options.filter(o=>o.ok).length;
   const rows = r.options.map(o=>{
     const stateText = o.ok ? (selected.has(o.id) ? E.opt_state_approved : E.opt_state_possible) : E.opt_state_blocked;
-    const detail = o.ok ? (o.dyno ? t('ecu.opt_detail_expected',{before:o.dyno.beforePower, after:o.dyno.afterPower, pct:o.dyno.powerGainPct, price:money(o.price)}) : t('ecu.opt_detail_price',{price:money(o.price)})) : (o.reason || E.opt_detail_unavailable);
-    const short = o.ok ? (selected.has(o.id) ? t('ecu.opt_short_approved',{price:money(o.price)}) : money(o.price)) : (o.reason || E.opt_short_blocked);
+    const detail = o.ok ? (o.dyno ? t('ecu.opt_detail_expected',{before:o.dyno.beforePower, after:o.dyno.afterPower, pct:o.dyno.powerGainPct, price:money(o.price)}) : t('ecu.opt_detail_price',{price:money(o.price)})) : localizeDisplayText(o.reason || E.opt_detail_unavailable);
+    const short = o.ok ? (selected.has(o.id) ? t('ecu.opt_short_approved',{price:money(o.price)}) : money(o.price)) : localizeDisplayText(o.reason || E.opt_short_blocked);
     return `<div class="ecu-option ${o.ok?'ok':'blocked'} ${selected.has(o.id)?'selected':''}" data-ecutip-title="${escapeHtml(o.fullLabel||o.label)}" data-ecutip="${escapeHtml(`${stateText} ${detail}`)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><i>${o.ok?'✓':'×'}</i><b>${escapeHtml(o.fullLabel||o.label)}</b><span>${escapeHtml(short)}</span></div>`;
   }).join('');
   return `<div class="ecu-options"><div class="dash-panel-head"><b>${escapeHtml(E.analysis_option_title)}</b><span>${escapeHtml(t('ecu.options_possible',{ok:okCount, total:r.options.length}))}</span></div><div class="ecu-option-list">${rows}</div></div>`;
@@ -6017,13 +6152,13 @@ function renderEcuLabDetails(r){
     r.status==='failed' ? `<div class="notice warn">${escapeHtml(E.job_failed_note)}</div>` : ''
   ].join('');
   return `<div class="ecu-report">
-    <div class="ecu-verdict ${analysis.ok?'ok':'blocked'}"><b>${verdictTitle}</b><span>${escapeHtml(r.customerDecisionText || analysis.reason)}</span></div>
+    <div class="ecu-verdict ${analysis.ok?'ok':'blocked'}"><b>${verdictTitle}</b><span>${displayText(r.customerDecisionText || analysis.reason)}</span></div>
     <div class="ecu-fact-row">
       <div><span>${escapeHtml(E.ecu_label)}</span><b>${escapeHtml(analysis.engineCode)}</b></div>
       <div><span>${escapeHtml(E.duration_label)}</span><b>${escapeHtml(t('ecu.hours_suffix',{n:analysis.duration}))}</b></div>
       <div><span>${escapeHtml(E.price_label)}</span><b>${money(r.quote||0)}</b></div>
       <div><span>${escapeHtml(E.risk_label)}</span><b>${analysis.risk.toFixed(1).replace('.',currentLanguage()==='de'?',':'.')}%</b></div>
-      <div data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${escapeHtml(r.message || wishLabel)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><span>${escapeHtml(E.wish_label)}</span><b>${escapeHtml(wishLabel)}</b></div>
+      <div data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${displayText(r.message || wishLabel)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><span>${escapeHtml(E.wish_label)}</span><b>${escapeHtml(wishLabel)}</b></div>
     </div>
     ${renderEcuOptionResults(r)}
     ${dynoFold}
@@ -6050,11 +6185,11 @@ function renderEcuRequestCard(r, isSelected=false){
   const E = t('ecu');
   const active = !['completed','declined','failed'].includes(r.status);
   const canDrag = r.status==='accepted' && isSelected;
-  const tipAttrs = r.message ? `data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${escapeHtml(r.message)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"` : '';
+  const tipAttrs = r.message ? `data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${displayText(r.message)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"` : '';
   return `<div class="ecu-request ${active?'active':''} ${isSelected?'selected':''}" onclick="selectEcuRequest('${r.id}')" ${isSelected?'':tipAttrs}>
     <div class="offer-head"><span><b>${escapeHtml(r.customerName)}</b> - ${escapeHtml(def.short||r.requestedLabel)}</span><span class="persona">${ecuStatusLabel(r.status)}</span></div>
     <div class="ecu-compact-status"><b>${escapeHtml(r.car.brand)} ${escapeHtml(r.car.model)}</b><span>${escapeHtml(r.car.engine)} · ${r.car.power} PS · ${escapeHtml(r.car.year||'')}</span></div>
-    ${isSelected && r.message ? `<div class="ecu-wish" ${tipAttrs}><i>${escapeHtml(E.wish_label)}</i><span>${escapeHtml(r.message)}</span></div>` : ''}
+    ${isSelected && r.message ? `<div class="ecu-wish" ${tipAttrs}><i>${escapeHtml(E.wish_label)}</i><span>${displayText(r.message)}</span></div>` : ''}
     ${r.status==='new'?`<div class="row-actions"><button class="btn btn-primary" onclick="event.stopPropagation();acceptEcuRequest('${r.id}')">${escapeHtml(E.accept)}</button><button class="btn btn-ghost" onclick="event.stopPropagation();declineEcuRequest('${r.id}')">${escapeHtml(E.decline)}</button></div>`:''}
     ${canDrag?`<div onclick="event.stopPropagation()">${renderEcuVehicleDragCard(r)}</div>`:''}
     ${r.status==='accepted' && !isSelected?`<div class="ecu-step-note compact"><b>${escapeHtml(E.ready_note_title)}</b><span>${escapeHtml(E.ready_note_sub)}</span></div>`:''}
@@ -6819,7 +6954,7 @@ function renderPurchaseRequestDetail(id){
   const c = r.car;
   const memory = ensurePurchaseChat(r);
   const bought = r.status==='purchased';
-  const issues = r.inspected ? (c.hiddenIssues.length?c.hiddenIssues.join(', '):A.no_hidden_defects) : A.defects_hidden;
+  const issues = r.inspected ? (c.hiddenIssues.length?c.hiddenIssues.map(localizeDisplayText).join(', '):A.no_hidden_defects) : A.defects_hidden;
   const activeCounter = latestPurchaseCounterOffer(r);
   const bubbles = (r.messages||[]).map((m,idx)=>{
     const counterButton = activeCounter && activeCounter.index===idx && m.from==='seller' && !bought
@@ -6839,7 +6974,7 @@ function renderPurchaseRequestDetail(id){
     <div class="chat-head">
       <div>
         <div style="font-family:var(--font-d);font-weight:800;font-size:15px;">${r.sellerName}</div>
-        <div class="subtle" style="margin:0;">${r.sellerType} · ${r.personaLabel} · ${r.photoQuality}</div>
+        <div class="subtle" style="margin:0;">${displayText(r.sellerType)} · ${displayText(r.personaLabel)} · ${displayText(r.photoQuality)}</div>
         <div class="customer-profile-strip">
           <span class="chip">${escapeHtml(memory.conversationState)}</span>
           <span class="chip">${escapeHtml(t('acquisition.patience',{n:r.patience}))}</span>
@@ -6852,9 +6987,9 @@ function renderPurchaseRequestDetail(id){
       <div>${renderCarPhoto(c)}</div>
       <div>
         <div class="car-name">${c.brand} ${c.model}</div>
-        <div class="car-sub">${c.year} · ${c.mileage.toLocaleString(localeMeta().numberLocale||'en-US')} km · ${c.engine} · ${c.transmission}</div>
+        <div class="car-sub">${c.year} · ${c.mileage.toLocaleString(localeMeta().numberLocale||'en-US')} km · ${displayText(c.engine)} · ${displayText(c.transmission)}</div>
         <div class="spec-row">
-          <span class="chip">${c.power} PS</span><span class="chip">${c.color}</span><span class="chip">TÜV ${c.tuvMonths>0?t('acquisition.tuv_months',{n:c.tuvMonths}):A.tuv_expired}</span><span class="chip">${r.knownDamage}</span>
+          <span class="chip">${c.power} PS</span><span class="chip">${displayText(c.color)}</span><span class="chip">${currentLanguage()==='en'?'Inspection':'TÜV'} ${c.tuvMonths>0?t('acquisition.tuv_months',{n:c.tuvMonths}):A.tuv_expired}</span><span class="chip">${displayText(r.knownDamage)}</span>
         </div>
         <div class="stat-grid" style="margin:10px 0 0;">
           <div class="stat-card"><div class="lbl">${escapeHtml(A.wish_price)}</div><div class="num">${money(r.wishPrice)}</div></div>
@@ -7928,7 +8063,7 @@ function customerIssueWish(o, c){
   return '';
 }
 function saleConditionText(condition){
-  return condition ? (condition.label || condition.issueLabel || t('salecondition.open_modal_title')) : t('salecondition.open_modal_title');
+  return condition ? localizeDisplayText(condition.label || condition.issueLabel || t('salecondition.open_modal_title')) : t('salecondition.open_modal_title');
 }
 function createSaleCondition(o, c, issue, source){
   if(!o || !c || !issue) return null;
@@ -10321,7 +10456,7 @@ function showOpenSaleConditionModal(offerId, conditionId){
   const tier = carTierOf(c.brand, c.model);
   const roleBonus = employeeBonus(job.baseId==='clean' || job.baseId==='paint' ? 'Fahrzeugaufbereiter' : 'Mechaniker');
   const cost = Math.round(job.baseCost*(0.55+0.45*tier)*(1-roleBonus*0.25));
-  const days = Math.max(1, Math.round(job.baseDays*(1-roleBonus*0.3)));
+  const days = clampWorkshopDays(job.baseDays*(1-roleBonus*0.3));
   const suggestedDiscount = Math.round(Math.max(cost*.75, o.amount*(condition.severity||1)*0.012)/10)*10;
   const allOpen = openSaleConditions(o, c).filter(cond=>cond.status!=='repairing');
   showModal(`
@@ -11307,8 +11442,8 @@ function renderBusinessInsights(){
       <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.standtime_by_segment)}</h3>${biMiniHeatmap(d.tierGroups,'avgStand',IN.segments_label)}</div>
     </div>
     <div class="grid-cars" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:14px;">
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.smart_recommendations)}</h3>${recommendations.length?recommendations.map(r=>`<div class="notice ${r.impact==='Hoch'?'warn':'good'}" style="display:block;"><b>${escapeHtml(r.text)}</b><br><span style="color:var(--ink-2);">${escapeHtml(IN.data_basis)} ${escapeHtml(r.basis)}</span></div>`).join(''):`<p class="subtle">${escapeHtml(IN.no_recommendation)}</p>`}</div>
-      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.forecasts)}</h3>${forecasts.length?forecasts.map(f=>`<div class="notice" style="display:block;"><b>${escapeHtml(f.text)}</b><br><span style="color:var(--ink-2);">${escapeHtml(IN.calculated_from)} ${escapeHtml(f.basis)}</span></div>`).join(''):`<p class="subtle">${escapeHtml(IN.no_forecast)}</p>`}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.smart_recommendations)}</h3>${recommendations.length?recommendations.map(r=>`<div class="notice ${r.impact==='Hoch'?'warn':'good'}" style="display:block;"><b>${displayText(r.text)}</b><br><span style="color:var(--ink-2);">${escapeHtml(IN.data_basis)} ${displayText(r.basis)}</span></div>`).join(''):`<p class="subtle">${escapeHtml(IN.no_recommendation)}</p>`}</div>
+      <div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(IN.forecasts)}</h3>${forecasts.length?forecasts.map(f=>`<div class="notice" style="display:block;"><b>${displayText(f.text)}</b><br><span style="color:var(--ink-2);">${escapeHtml(IN.calculated_from)} ${displayText(f.basis)}</span></div>`).join(''):`<p class="subtle">${escapeHtml(IN.no_forecast)}</p>`}</div>
       ${renderStatTable(IN.top_brands_margin, topBrands, x=>x.key, x=>`${biPct(x.avgMargin)} · ${x.count} ${IN.sales_suffix}`)}
       ${renderStatTable(IN.top_models_profit, bestModels, x=>x.key, x=>`${money(x.profit)} · ${x.count} ${IN.sales_suffix}`)}
       ${renderStatTable(IN.highest_margin_vehicles, highMarginCars, s=>`${s.brand} ${s.model}`, s=>`${money(s.profit)} · ${biPct(s.marginPct||0)}`)}
@@ -11334,7 +11469,7 @@ function renderBusinessInsights(){
 }
 function renderStatTable(title, rows, left, right){
   const noDataText = t('insights.no_data_yet');
-  return `<div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(title)}</h3><table class="tbl"><tbody>${rows.map(r=>`<tr><td>${escapeHtml(left(r))}</td><td style="text-align:right;font-family:var(--font-m);">${escapeHtml(right(r))}</td></tr>`).join('') || `<tr><td colspan="2" style="color:var(--ink-2);">${escapeHtml(noDataText)}</td></tr>`}</tbody></table></div>`;
+  return `<div class="offer-card"><h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(title)}</h3><table class="tbl"><tbody>${rows.map(r=>`<tr><td>${displayText(left(r))}</td><td style="text-align:right;font-family:var(--font-m);">${displayText(right(r))}</td></tr>`).join('') || `<tr><td colspan="2" style="color:var(--ink-2);">${escapeHtml(noDataText)}</td></tr>`}</tbody></table></div>`;
 }
 function setCalcInput(group, key, value){
   state.calcInputs = state.calcInputs || {};
@@ -11816,7 +11951,7 @@ function ensureCandidates(){
 }
 function employeeImpactSummary(){
   const roles = EMP_ROLES.map(r=>({role:r.role, count:(state.employees||[]).filter(e=>e.role===r.role).length, icon:r.icon}));
-  return roles.filter(r=>r.count).map(r=>`${r.icon} ${r.role}: ${r.count}`).join(' · ') || t('employees.no_roles_filled');
+  return roles.filter(r=>r.count).map(r=>`${r.icon} ${localizeDisplayText(r.role)}: ${r.count}`).join(' · ') || t('employees.no_roles_filled');
 }
 function employeeCard(e, candidate){
   normalizeEmployee(e);
@@ -11829,10 +11964,10 @@ function employeeCard(e, candidate){
     <div style="min-width:0;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <b style="font-size:13.5px;">${escapeHtml(e.name)}</b>
-        <span class="chip">${meta.icon} ${e.role}</span>
+        <span class="chip">${meta.icon} ${displayText(e.role)}</span>
         <span class="chip">${escapeHtml(EM.level)} ${e.level}</span>
       </div>
-      <p class="subtle" style="margin:6px 0 8px;">${meta.desc}</p>
+      <p class="subtle" style="margin:6px 0 8px;">${displayText(meta.desc)}</p>
       <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:0;">
         <div class="stat-card"><div class="lbl">${escapeHtml(EM.salary_month)}</div><div class="num" style="font-size:15px;">${money((e.salary||0)*30)}</div></div>
         <div class="stat-card"><div class="lbl">${escapeHtml(EM.motivation)}</div><div class="num" style="font-size:15px;">${Math.round(e.motivation)}%</div></div>
@@ -11840,7 +11975,7 @@ function employeeCard(e, candidate){
         <div class="stat-card"><div class="lbl">${escapeHtml(EM.error_rate)}</div><div class="num" style="font-size:15px;color:${e.errorRate>16?'var(--red)':'var(--teal)'};">${Math.round(e.errorRate)}%</div></div>
       </div>
       <div class="progress" style="margin-top:10px;"><div style="width:${xpPct}%;"></div></div>
-      <div class="subtle" style="margin-top:7px;">${escapeHtml(e.specialization)} · ${escapeHtml(e.personality)} · ${escapeHtml(EM.strength)}: ${escapeHtml(e.strength)} · ${escapeHtml(EM.weakness)}: ${escapeHtml(e.weakness)}</div>
+      <div class="subtle" style="margin-top:7px;">${displayText(e.specialization)} · ${displayText(e.personality)} · ${escapeHtml(EM.strength)}: ${displayText(e.strength)} · ${escapeHtml(EM.weakness)}: ${displayText(e.weakness)}</div>
     </div>
     <div class="row-actions" style="margin:0;justify-content:flex-end;">
       ${candidate ? `<button class="btn btn-ghost btn-sm" onclick="rejectCandidate('${e.id}')">${escapeHtml(EM.decline)}</button><button class="btn btn-primary btn-sm" onclick="hireEmployee('${e.id}')">${escapeHtml(EM.hire)}</button>` : `<button class="btn btn-danger btn-sm" onclick="fireEmployee('${e.id}')">${escapeHtml(EM.fire)}</button>`}
@@ -11882,7 +12017,7 @@ function hireEmployee(id){
   state.employees.push({...c, id:uid('emp')});
   state.candidates.splice(idx,1);
   ensureCandidates();
-  notify(t('employees.hired_notify',{name:c.name, role:c.role}), 'good');
+  notify(t('employees.hired_notify',{name:c.name, role:localizeDisplayText(c.role)}), 'good');
   renderAllOpen(); scheduleSave();
 }
 function rejectCandidate(id){
@@ -12187,7 +12322,7 @@ function renderDesignControl(key, label, desc){
 function renderDesign(){
   const active = getAppBackground(state.backgroundId);
   const ds = designSettings();
-  return `
+  return localizeDisplayText(`
     <h2 class="section-title">Design</h2>
     <p class="subtle">Zentrale Verwaltung für Hintergründe, Glasoptik, Transparenz, Animationen und zukünftige Themes.</p>
     <div class="design-hero offer-card">
@@ -12237,7 +12372,7 @@ function renderDesign(){
         <p class="subtle" style="margin:6px 0 0;">Zukünftige Themes, Akzentfarben und Bewegungsoptionen finden hier ihren Platz.</p>
       </div>
     </div>
-  `;
+  `);
 }
 /* =============================== UPDATES & NEWS =============================== */
 function sortedChangelog(){
@@ -13232,7 +13367,11 @@ function migrateState(){
     normalizeVehicleIssues(c);
   });
   (state.searchOrders||[]).forEach(clearBranchFields);
-  (state.workshopJobs||[]).forEach(clearBranchFields);
+  (state.workshopJobs||[]).forEach(j=>{
+    clearBranchFields(j);
+    j.daysLeft = clampWorkshopDays(j.daysLeft);
+    j.totalDays = clampWorkshopDays(j.totalDays || j.daysLeft);
+  });
   (state.salesHistory||[]).forEach(clearBranchFields);
   (state.purchaseHistory||[]).forEach(clearBranchFields);
   if(state.leaseContracts===undefined) state.leaseContracts = [];

@@ -1,5 +1,28 @@
 const CHANGELOG = [
   {
+    version:'1.1.1', date:'2026-07-11', type:'improved',
+    title:'Werkstatt-Komfort verbessert',
+    headline:'Reparaturen blockieren Kunden und Verkäufe nicht mehr unnötig lange.',
+    sections:{
+      improved:[
+        'Alle Werkstattaufträge dauern jetzt maximal bis zum nächsten Tageswechsel.',
+        'Kundenwünsche, Sammelreparaturen und automatische Reparaturen vor der Inserierung werden dadurch deutlich schneller abgeschlossen.',
+        'Fortschrittsanzeigen der Werkstatt passen sich an die kürzere Bearbeitungszeit an.',
+      ],
+    },
+    en:{
+      title:'Workshop Flow Improved',
+      headline:'Repairs no longer block customers and sales longer than necessary.',
+      sections:{
+        improved:[
+          'All workshop jobs now take at most until the next day transition.',
+          'Customer requests, batch repairs and automatic pre-listing repairs now complete much faster.',
+          'Workshop progress displays now match the shorter processing time.',
+        ],
+      },
+    },
+  },
+  {
     version:'1.1.1', date:'2026-07-09', type:'improved',
     title:'Lokalisierung vervollständigt',
     headline:'Alle verbleibenden Spielbereiche sind jetzt vollständig auf Englisch und Deutsch lokalisiert.',
