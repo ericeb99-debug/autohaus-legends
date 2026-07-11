@@ -385,6 +385,12 @@ const CHANGELOG = [
         'Das neue Automotive-Empire-Logo ist jetzt im Login, in der App-Oberfläche sowie in Fenster-, Taskleisten- und Installer-Icons eingebunden.',
         'Die bisherigen Hintergründe wurden vollständig durch drei neue Premium-Hintergründe ersetzt.',
         'Updates & News, Dashboard und Navigationsbereiche greifen das neue Branding sauber im bestehenden Premium-Design auf.'
+      ],
+      improved:[
+        'Das goldene A mit silbernem Ring und Flügeln ist jetzt das einzige offizielle Markenlogo und ersetzt alle bisherigen Logo- und App-Icon-Varianten.',
+        'Login, Profilauswahl, Navigation, Updates & News sowie die Desktop-App verwenden durchgehend dasselbe offizielle Markenlogo.',
+        'Fenster, Taskleiste, Desktop-Verknüpfung, Installer und plattformspezifische App-Icons greifen auf einheitliche Markenassets zurück.',
+        'Der Hintergrund des Logos ist jetzt transparent – sowohl im Spiel als auch beim Desktop-App-Icon.'
       ]
     },
     en:{
@@ -395,6 +401,12 @@ const CHANGELOG = [
           'The new Automotive Empire logo is now used on the login screen, throughout the app interface, and in window, taskbar and installer icons.',
           'The previous backgrounds have been fully replaced with three new premium backgrounds.',
           'Updates & News, the Dashboard and navigation areas now reflect the new branding cleanly within the existing premium design.'
+        ],
+        improved:[
+          'The golden A with its silver ring and wings is now the sole official brand logo and replaces all previous logo and app icon variants.',
+          'Login, profile selection, navigation, Updates & News, and the desktop app consistently use the same official brand logo.',
+          'Window, taskbar, desktop shortcut, installer, and platform-specific app icons now share one unified set of brand assets.',
+          'The logo background is now transparent both in-game and on the desktop app icon.'
         ]
       },
     },
@@ -407,7 +419,7 @@ const CHANGELOG = [
       improved:[
         'App-Name, Fenstertitel, Installer und sichtbare UI-Texte wurden auf Automotive Empire angepasst.',
         'Die DEV-Version ist ebenfalls passend benannt und erscheint als Automotive Empire DEV.',
-        'Das bestehende Logo bleibt erhalten, damit sich das Spiel weiterhin vertraut anfühlt.'
+        'Der Markenauftritt verwendet durchgehend das aktuelle offizielle Automotive-Empire-Logo.'
       ]
     },
     en:{
@@ -417,7 +429,7 @@ const CHANGELOG = [
         improved:[
           'App name, window title, installer and visible UI text were updated to Automotive Empire.',
           'The DEV build is named accordingly and appears as Automotive Empire DEV.',
-          'The existing logo was kept so the game still feels familiar.'
+          'The brand identity consistently uses the current official Automotive Empire logo.'
         ]
       },
     },

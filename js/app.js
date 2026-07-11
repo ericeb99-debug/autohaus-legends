@@ -2103,11 +2103,10 @@ async function renderProfileLogin(){
           <div class="profile-grid">
             ${profiles.map(p=>{
               const sum = profileSummaries[p.id] || {};
-              const initials = (p.name||'AE').split(/\s+/).map(part=>part[0]).join('').slice(0,2).toUpperCase();
               const selected = p.lastPlayed && p.lastPlayed===lastPlayed;
               return `<div class="profile-card ${selected?'is-selected':''}" data-profile-card="${p.id}" onclick="focusProfilePassword('${p.id}')">
               <div class="profile-card-top">
-                <div class="profile-logo">${escapeHtml(initials||'AE')}</div>
+                <div class="profile-logo"><img src="assets/logos/app-logo.png" alt=""></div>
                 <div class="profile-title">
                   <div class="name">${escapeHtml(p.name)}</div>
                   <div class="meta">${escapeHtml(t('login.last_played_label',{date:sum.lastPlayed||LI.last_played_never}))}${p.migratedLegacy?'<br>'+escapeHtml(LI.migrated_note):''}</div>

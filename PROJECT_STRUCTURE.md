@@ -96,8 +96,10 @@ Wenn weiter refactored wird, nur schrittweise und ohne Logik neu zu schreiben:
 
 | Bereich | Pfad | Inhalt |
 | --- | --- | --- |
-| Logos | `assets/logos/app-logo.png` | Offizielles Automotive-Empire-Logo fuer Login und In-App-Branding. |
-| App-/Installer-Icon | `assets/logos/app-icon.ico` | Windows-/Electron-/Installer-/Portable-Icon. |
+| Logo-Quelle | `assets/logos/app-logo.png` | Einziges offizielles Automotive-Empire-Markenlogo mit transparentem Hintergrund fuer alle In-App-Bereiche. |
+| Windows-Icon | `assets/logos/app-icon.ico` | Mehrgroessen-Icon fuer EXE, Fenster, Taskleiste, Desktop-Verknuepfung und Installer. |
+| macOS-Icon | `assets/logos/app-icon.icns` | Mehrgroessen-Icon fuer macOS-App-Bundles. |
+| Linux-/PNG-Icons | `assets/logos/app-icon-{16,32,48,64,128,256,512,1024}.png` | Aus dem offiziellen Logo skalierte Plattform- und Release-Assets. |
 | Hintergruende | `assets/backgrounds/` | Alle `.webp`, `.png`, `.jpg`, `.jpeg`, `.gif` und `.avif` Dateien werden automatisch als auswählbare Hintergruende erkannt. Dateinamen werden intern fuer IDs genutzt, aber im Spiel nicht angezeigt. |
 | Hintergrund-Konfiguration | Keine manuelle Liste erforderlich. | Der Electron-Hauptprozess liest den Ordner dynamisch und stellt die Liste ueber `preload.js` fuer den Renderer bereit. |
 | Sounds | Nicht vorhanden. | Wenn Sounds ergaenzt werden, unter `assets/sounds/` dokumentieren. |
@@ -141,7 +143,7 @@ Wenn weiter refactored wird, nur schrittweise und ohne Logik neu zu schreiben:
 | ECU | Ablauf/Rendering: `js/app.js`, Daten: `data/ecu.js`, Styles: `css/main.css` |
 | Finanzen | `js/app.js` |
 | Design | `js/app.js`, `css/main.css`, `assets/backgrounds/` |
-| Icons | `assets/logos/app-icon.ico`, `assets/logos/app-logo.png`, Build-Verweise in `package.json` und `electron-builder.dev.json` |
+| Icons / Branding | `assets/logos/`, In-App-Verweise in `js/app.js`, Build-Verweise in `package.json`, `electron-builder.dev.json` und `main.js` |
 | Hintergruende | Ordner: `assets/backgrounds/`, Erkennung: `main.js` + `preload.js`, Anzeige/Design und Update-Karten: `js/app.js` |
 | Auto-Updater | `main.js`, `preload.js`, `package.json`, `scripts/after-pack-dev.js` |
 | DEV-Build | `electron-builder.dev.json`, `package.json`, `main.js`, `scripts/after-pack-dev.js` |

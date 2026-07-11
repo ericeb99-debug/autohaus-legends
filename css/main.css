@@ -210,7 +210,7 @@ button:focus-visible,.btn:focus-visible,[role="button"]:focus-visible,input:focu
 .ref-brand-mark{
   width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
   color:var(--brass-ink);font:800 13px/1 var(--font-d);
-  background:#202833;
+  background:transparent;
   box-shadow:none;
   overflow:hidden;
 }
@@ -283,7 +283,7 @@ button:focus-visible,.btn:focus-visible,[role="button"]:focus-visible,input:focu
 .dock-logo{
   width:44px;height:44px;border-radius:13px;display:grid;place-items:center;cursor:pointer;flex:0 0 auto;
   color:var(--brass-ink);font:800 13px/1 var(--font-d);margin-bottom:8px;
-  background:#202833;
+  background:transparent;
   box-shadow:none;
   overflow:hidden;
 }
@@ -430,7 +430,7 @@ body.theme-light .dock-ring .ring span{background:var(--panel);}
 .bottom-logo{
   width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;
   color:var(--brass-ink);font:800 11px/1 var(--font-d);
-  background:#202833;
+  background:transparent;
   box-shadow:none;
   overflow:hidden;
 }
@@ -1624,7 +1624,7 @@ body.theme-light .notif-overlay{background:rgba(30,41,59,.2);}
 .login-mark{
   width:58px;height:58px;border-radius:17px;display:grid;place-items:center;flex:0 0 auto;
   color:var(--brass-ink);font:900 15px/1 var(--font-d);
-  background:#202833;
+  background:transparent;
   box-shadow:none;
   overflow:hidden;
 }
@@ -1668,9 +1668,9 @@ body.theme-light .notif-overlay{background:rgba(30,41,59,.2);}
 .profile-card-top{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:start;margin-bottom:12px;}
 .profile-logo{
   width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
-  background:linear-gradient(135deg,var(--brass),#f1d8a6);color:var(--brass-ink);
-  font:900 13px/1 var(--font-d);box-shadow:0 10px 22px rgba(216,172,82,.2);
+  background:transparent;overflow:hidden;
 }
+.profile-logo img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;}
 .profile-title{min-width:0;}
 .profile-card .name{
   font-family:var(--font-d);font-weight:800;font-size:15px;line-height:1.2;margin-bottom:5px;color:var(--ink-0);

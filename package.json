@@ -1,7 +1,7 @@
 {
   "name": "automotive-empire",
   "productName": "Automotive Empire",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Automotive Empire - Desktop-App (Electron-Huelle um autodealer-simulator.html)",
   "main": "main.js",
   "author": "Automotive Empire",
@@ -61,6 +61,12 @@
           ]
         }
       ]
+    },
+    "mac": {
+      "icon": "assets/logos/app-icon.icns"
+    },
+    "linux": {
+      "icon": "assets/logos/app-icon-512.png"
     },
     "nsis": {
       "artifactName": "AutomotiveEmpireSetup.exe",

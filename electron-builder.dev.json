@@ -39,6 +39,12 @@
       }
     ]
   },
+  "mac": {
+    "icon": "assets/logos/app-icon.icns"
+  },
+  "linux": {
+    "icon": "assets/logos/app-icon-512.png"
+  },
   "nsis": {
     "artifactName": "AutomotiveEmpireDEVSetup.exe",
     "oneClick": false,
