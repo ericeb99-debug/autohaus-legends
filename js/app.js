@@ -539,6 +539,23 @@ function negativeMoney(n){
   n = Math.max(0, Math.round(n||0));
   return n>0 ? '-'+money(n) : money(0);
 }
+function formatRealPlaytime(ms){
+  ms = Math.max(0, Math.round(Number(ms)||0));
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if(currentLanguage()==='de'){
+    if(hours <= 0) return `${minutes} Min.`;
+    return `${hours} Std. ${minutes} Min.`;
+  }
+  if(hours <= 0) return `${minutes} min`;
+  return `${hours} h ${minutes} min`;
+}
+function estimatedRealPlaytimeMsFromState(s){
+  const day = Math.max(1, Math.round(Number(s && s.day)||1));
+  const duration = clamp(Math.round(Number(s && s.dayDurationMs)||DEFAULT_DAY_DURATION_MS), 1000, MAX_DAY_DURATION_MS);
+  return Math.max(0, (day - 1) * duration);
+}
 // Hält Schieberegler, Zahlenfeld und Anzeige-Label für Preis-Eingaben synchron.
 // Regler bewegt -> Zahlenfeld & Label aktualisieren (sofort geklemmt).
 function syncFromRange(prefix, val, min, max, varName){
@@ -644,6 +661,7 @@ function defaultState(){
       explained: false,
       foundingCapital: 45000,
       startedAtDay: 1,
+      startedAtRealPlaytimeMs: 0,
       masterUnlocked: false,
     },
     salesCount: 0,
@@ -671,6 +689,7 @@ function defaultState(){
     receivables: [],
     leaseContracts: [],
     dayDurationMs: 60000,
+    realPlaytimeMs: 0,
     maxNewOffersPerDay: 1,
     dunningFees: {reminder:0, level1:10, level2:35, level3:100, collection:180, legal:350},
     greedyDunningMode: false,
@@ -1839,6 +1858,48 @@ async function loadProfiles(){
 async function saveProfiles(profiles){
   await storageSet(PROFILE_INDEX_KEY, JSON.stringify(profiles));
 }
+async function readProfileSaveSummary(profile){
+  const nloc = localeMeta().numberLocale || 'de-DE';
+  const fallbackLastPlayed = profile.lastPlayed ? new Date(profile.lastPlayed).toLocaleString(nloc) : t('login.last_played_never');
+  const empty = {
+    hasSave:false,
+    legacyLevel:'--',
+    gameDate:'--',
+    companyValue:'--',
+    cash:'--',
+    reputation:'--',
+    sales:'--',
+    playtime:'--',
+    realPlaytime:'--',
+    lastPlayed:fallbackLastPlayed,
+  };
+  try{
+    const res = await storageGet(profileStateKey(profile.id));
+    if(!res || !res.value) return empty;
+    const s = repairMojibakeDeep(JSON.parse(res.value));
+    const stock = (s.inventory||[]).reduce((sum,c)=>sum+(c.marketValue||c.price||c.purchasePrice||0),0);
+    const receivables = (s.receivables||[]).filter(r=>!r.archived && !r.closed).reduce((sum,r)=>sum+(r.remainingPrincipal||0),0);
+    const leases = (s.leaseContracts||[]).filter(l=>!l.archived && l.status==='active').reduce((sum,l)=>sum+(l.residual||0)*0.55,0);
+    const companyValue = Math.max(0, Math.round((s.cash||0) + stock + receivables + leases - (s.loanPrincipal||0)));
+    const legacyLevel = s.legacy && Number.isFinite(Number(s.legacy.current)) ? Number(s.legacy.current) : 1;
+    const day = Math.max(1, Math.round(Number(s.day)||1));
+    const realPlaytimeMs = Math.max(Number(s.realPlaytimeMs)||0, estimatedRealPlaytimeMsFromState(s));
+    return {
+      hasSave:true,
+      legacyLevel,
+      gameDate:gameDateShort(day),
+      companyValue:money(companyValue),
+      cash:money(s.cash||0),
+      reputation:`${Math.round(Number(s.reputation)||0)}/100`,
+      sales:Math.round(Number(s.salesCount || (s.salesHistory||[]).length)||0).toLocaleString(nloc),
+      playtime:t('legacy.days_suffix',{n:day}),
+      realPlaytime:formatRealPlaytime(realPlaytimeMs),
+      lastPlayed:fallbackLastPlayed,
+    };
+  }catch(e){
+    return empty;
+  }
+}
 async function upsertProfileMeta(profileId, patch){
   const profiles = await loadProfiles();
   const idx = profiles.findIndex(p=>p.id===profileId);
@@ -1866,6 +1927,7 @@ async function renderProfileLogin(){
   document.body.classList.remove('has-app-bg');
   const profiles = await loadProfiles();
   const lastPlayed = profiles.length ? profiles.reduce((latest,p)=>Math.max(latest, p.lastPlayed||0),0) : 0;
+  const profileSummaries = Object.fromEntries(await Promise.all(profiles.map(async p=>[p.id, await readProfileSaveSummary(p)])));
   const LI = t('login');
   const nloc = localeMeta().numberLocale || 'de-DE';
   const profilesChip = profiles.length===1 ? t('login.profiles_chip_s',{n:profiles.length}) : t('login.profiles_chip_p',{n:profiles.length});
@@ -1910,15 +1972,35 @@ async function renderProfileLogin(){
           </div>
           <div id="loginError" class="notice login-error" role="alert"></div>
           <div class="profile-grid">
-            ${profiles.map(p=>`<div class="profile-card">
-              <div class="name">${escapeHtml(p.name)}</div>
-              <div class="meta">${escapeHtml(t('login.last_played_label',{date:p.lastPlayed?new Date(p.lastPlayed).toLocaleString(nloc):LI.last_played_never}))}${p.migratedLegacy?'<br>'+escapeHtml(LI.migrated_note):''}</div>
+            ${profiles.map(p=>{
+              const sum = profileSummaries[p.id] || {};
+              const initials = (p.name||'AE').split(/\s+/).map(part=>part[0]).join('').slice(0,2).toUpperCase();
+              const selected = p.lastPlayed && p.lastPlayed===lastPlayed;
+              return `<div class="profile-card ${selected?'is-selected':''}" data-profile-card="${p.id}" onclick="focusProfilePassword('${p.id}')">
+              <div class="profile-card-top">
+                <div class="profile-logo">${escapeHtml(initials||'AE')}</div>
+                <div class="profile-title">
+                  <div class="name">${escapeHtml(p.name)}</div>
+                  <div class="meta">${escapeHtml(t('login.last_played_label',{date:sum.lastPlayed||LI.last_played_never}))}${p.migratedLegacy?'<br>'+escapeHtml(LI.migrated_note):''}</div>
+                </div>
+                <span class="profile-selected-chip ${selected?'is-visible':''}">${escapeHtml(LI.selected_save)}</span>
+              </div>
+              <div class="profile-save-summary">
+                <div><span>${escapeHtml(LI.metric_legacy)}</span><b>${escapeHtml(String(sum.legacyLevel||'--'))}</b></div>
+                <div><span>${escapeHtml(LI.metric_date)}</span><b>${escapeHtml(sum.gameDate||'--')}</b></div>
+                <div><span>${escapeHtml(LI.metric_value)}</span><b>${escapeHtml(sum.companyValue||'--')}</b></div>
+                <div><span>${escapeHtml(LI.metric_cash)}</span><b>${escapeHtml(sum.cash||'--')}</b></div>
+                <div><span>${escapeHtml(LI.metric_reputation)}</span><b>${escapeHtml(sum.reputation||'--')}</b></div>
+                <div><span>${escapeHtml(LI.metric_sales)}</span><b>${escapeHtml(sum.sales||'--')}</b></div>
+                <div><span>${escapeHtml(LI.metric_playtime)}</span><b>${escapeHtml(sum.playtime||'--')}</b></div>
+                <div><span>${escapeHtml(LI.metric_real_playtime)}</span><b>${escapeHtml(sum.realPlaytime||'--')}</b></div>
+              </div>
               <div class="unlock">
                 <input type="password" id="pw_${p.id}" data-profile-login-control="1" placeholder="${escapeAttr(p.password?LI.password_placeholder:LI.no_password_placeholder)}" onkeydown="if(event.key==='Enter'){selectProfile('${p.id}');}">
                 <button class="btn btn-primary btn-sm" id="loginBtn_${p.id}" data-profile-login-control="1" onclick="selectProfile('${p.id}')">${escapeHtml(LI.continue_btn)}</button>
               </div>
               <button class="btn btn-danger btn-sm" data-profile-login-control="1" style="margin-top:10px;" onclick="event.stopPropagation(); deleteProfileFromLogin('${p.id}')">${escapeHtml(LI.delete_btn)}</button>
-            </div>`).join('') || `<div class="notice">${escapeHtml(LI.no_profiles)}</div>`}
+            </div>`;}).join('') || `<div class="notice">${escapeHtml(LI.no_profiles)}</div>`}
           </div>
           <div class="login-new-game">
             <h3>${escapeHtml(LI.new_game_title)}</h3>
@@ -1942,6 +2024,16 @@ async function renderProfileLogin(){
   initLoginBackground();
   // Am Login-Bildschirm darf ein bereits heruntergeladenes Update angeboten werden.
   maybeOfferPendingUpdateAtLogin();
+}
+function focusProfilePassword(profileId){
+  document.querySelectorAll('[data-profile-card]').forEach(card=>{
+    const active = card.getAttribute('data-profile-card') === profileId;
+    card.classList.toggle('is-selected', active);
+    const chip = card.querySelector('.profile-selected-chip');
+    if(chip) chip.classList.toggle('is-visible', active);
+  });
+  const input = document.getElementById('pw_'+profileId);
+  if(input) input.focus();
 }
 // Schwebende Fahrzeuge im Login-Hintergrund (Helium-Ballon-Optik).
 // Nutzt die ECHTEN Fahrzeug-Illustrationen des Spiels (renderCarPhoto/.body-shape)
@@ -2485,6 +2577,8 @@ async function selectProfile(profileId){
   }
 }
 function startProfileGame(){
+  realPlaytimeLastTick = Date.now();
+  realPlaytimeSaveElapsedMs = 0;
   applyTheme();
   renderGameShell();
   ensureCandidates();
@@ -2506,6 +2600,8 @@ async function switchProfile(){
   state = null;
   dayElapsedMs = 0;
   priceElapsedMs = 0;
+  realPlaytimeLastTick = 0;
+  realPlaytimeSaveElapsedMs = 0;
   renderProfileLogin();
 }
 async function loadGame(profileId){
@@ -2520,6 +2616,7 @@ async function loadGame(profileId){
 }
 async function saveNow(){
   if(!state || !activeProfileId) return;
+  syncRealPlaytime();
   captureActiveDrafts();
   await storageSet(profileStateKey(activeProfileId), JSON.stringify(state));
   await upsertProfileMeta(activeProfileId, {name:activeProfileName||activeProfileId, lastPlayed:Date.now()});
@@ -2835,6 +2932,7 @@ function legacyState(){
   if(state.legacy.completed.length===0 && state.legacy.current===1) state.legacy.current = 0;
   if(state.legacy.foundingCapital===undefined) state.legacy.foundingCapital = 45000;
   if(state.legacy.startedAtDay===undefined) state.legacy.startedAtDay = 1;
+  if(state.legacy.startedAtRealPlaytimeMs===undefined) state.legacy.startedAtRealPlaytimeMs = 0;
   if(state.legacy.explained===undefined) state.legacy.explained = false;
   if(state.legacy.masterUnlocked===undefined) state.legacy.masterUnlocked = false;
   return state.legacy;
@@ -11764,13 +11862,13 @@ function renderLegacyExplanation(){
         </div>
       </div>
       <div class="legacy-explain">
-        <div class="notice"><b>${escapeHtml(t('legacy.restart_q'))}</b><br>${escapeHtml(t('legacy.restart_a'))}</div>
-        <div class="notice"><b>${escapeHtml(t('legacy.company_value_word'))}</b><br>${escapeHtml(t('legacy.company_value_body'))}</div>
-        <div class="notice"><b>${escapeHtml(t('legacy.start_capital_word'))}</b><br>${escapeHtml(t('legacy.start_capital_body'))}</div>
-        <div class="notice"><b>${escapeHtml(t('legacy.index_and_rate_word'))}</b><br>${escapeHtml(t('legacy.index_and_rate_body'))}</div>
-        <div class="notice"><b>${escapeHtml(t('legacy.score_word'))}</b><br>${escapeHtml(t('legacy.score_body'))}</div>
-        <div class="notice"><b>${escapeHtml(t('legacy.fairness_word'))}</b><br>${escapeHtml(t('legacy.fairness_body'))}</div>
-        <div class="notice"><b>${escapeHtml(t('legacy.dunning_word'))}</b><br>${escapeHtml(t('legacy.dunning_body'))}</div>
+        <article class="legacy-info-card"><b>${escapeHtml(t('legacy.restart_q'))}</b><p>${escapeHtml(t('legacy.restart_a'))}</p></article>
+        <article class="legacy-info-card"><b>${escapeHtml(t('legacy.company_value_word'))}</b><p>${escapeHtml(t('legacy.company_value_body'))}</p></article>
+        <article class="legacy-info-card"><b>${escapeHtml(t('legacy.start_capital_word'))}</b><p>${escapeHtml(t('legacy.start_capital_body'))}</p></article>
+        <article class="legacy-info-card"><b>${escapeHtml(t('legacy.index_and_rate_word'))}</b><p>${escapeHtml(t('legacy.index_and_rate_body'))}</p></article>
+        <article class="legacy-info-card"><b>${escapeHtml(t('legacy.score_word'))}</b><p>${escapeHtml(t('legacy.score_body'))}</p></article>
+        <article class="legacy-info-card"><b>${escapeHtml(t('legacy.fairness_word'))}</b><p>${escapeHtml(t('legacy.fairness_body'))}</p></article>
+        <article class="legacy-info-card"><b>${escapeHtml(t('legacy.dunning_word'))}</b><p>${escapeHtml(t('legacy.dunning_body'))}</p></article>
       </div>
       <p class="legacy-motivate">${escapeHtml(t('legacy.motivate'))}</p>
     </div>
@@ -11784,18 +11882,18 @@ function renderLegacyPreview(valuation, legacyReady){
     <h2 class="section-title">${escapeHtml(LG.legacy_history)}</h2>
     <p class="subtle">${escapeHtml(LG.first_founding)} &middot; Level ${level} / 30 &middot; ${escapeHtml(LG.unlocks_at_30)}</p>
     <div class="offer-card legacy-page-hero" style="margin:14px 0 16px;padding:0;">
-      <div class="legacy-hero" style="padding:22px 24px 18px;">
+      <div class="legacy-hero">
         <div class="legacy-kicker">${escapeHtml(LG.milestone)}</div>
         <h2 class="legacy-title" style="font-size:22px;">${escapeHtml(LG.on_the_way_title)}</h2>
         <p class="legacy-sub">${escapeHtml(LG.on_the_way_body)}</p>
       </div>
-      <div style="padding:0 24px 22px;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:240px;">
-          <div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--ink-1);font-weight:700;">
+      <div class="legacy-current-progress">
+        <div class="legacy-current-copy">
+          <div class="legacy-current-labels">
             <span>${escapeHtml(LG.current_progress)}</span>
             <span>Level ${level} / 30</span>
           </div>
-          <div class="progress legacy-milestone-bar" style="height:12px;margin-top:10px;"><div style="width:${levelPct}%;background:linear-gradient(90deg,var(--dash-blue),var(--brass));"></div></div>
+          <div class="progress legacy-milestone-bar"><div style="width:${levelPct}%;background:linear-gradient(90deg,var(--dash-blue),var(--brass));"></div></div>
         </div>
         ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">${escapeHtml(LG.start_legacy_btn)}</button>` : `<span class="chip">${escapeHtml(LG.unlock_requirement)}</span>`}
       </div>
@@ -11803,6 +11901,7 @@ function renderLegacyPreview(valuation, legacyReady){
     <div class="stat-grid">
       <div class="stat-card"><div class="lbl">${escapeHtml(LG.current_company_value)}</div><div class="num">${money(valuation.value)}</div></div>
       <div class="stat-card"><div class="lbl">${escapeHtml(LG.current_success_rate)}</div><div class="num">${valuation.index.successRate}%</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.real_playtime)}</div><div class="num">${escapeHtml(formatRealPlaytime(state.realPlaytimeMs||0))}</div></div>
       <div class="stat-card"><div class="lbl">${escapeHtml(LG.possible_start_capital)}</div><div class="num">${money(valuation.nextCapital)}</div></div>
       <div class="stat-card"><div class="lbl">${escapeHtml(LG.unlock_status)}</div><div class="num">${legacyReady ? escapeHtml(LG.ready) : escapeHtml(LG.performance)}</div></div>
     </div>
@@ -11827,36 +11926,63 @@ function renderLegacyHistory(){
   const scoreLabel = legacyStarted ? LG.business_index : LG.founding_index;
   const nextCapitalLabel = legacyStarted || legacyReady ? LG.next_capital_legacy : LG.next_capital_founding;
   return `
-    <div class="offer-card legacy-page-hero" style="margin-bottom:16px;padding:0;">
-      <div class="legacy-hero" style="padding:20px 24px 16px;">
+    <div class="offer-card legacy-page-hero legacy-history-hero">
+      <div class="legacy-hero">
         <div class="legacy-kicker">${escapeHtml(pageTitle)}</div>
         <h2 class="legacy-title" style="font-size:22px;">${escapeHtml(legacyLabel())}</h2>
-        <p class="legacy-sub">Level ${state.level||1} &middot; ${escapeHtml(LG.current_success_rate)} <b style="color:var(--brass);">${valuation.index.successRate}%</b> &middot; ${escapeHtml(scoreLabel)} <b style="color:var(--brass);">${legacyStarted ? (projectedScore||'--')+'%' : Math.round(valuation.index.total||0)+'%'}</b> &middot; ${escapeHtml(t('legacy.founding_count',{n:done.length, s:done.length===1?'':'s'}))}</p>
+        <p class="legacy-sub">${escapeHtml(t('legacy.founding_count',{n:done.length, s:done.length===1?'':'s'}))}</p>
+      </div>
+      <div class="legacy-current-progress">
+        <div class="legacy-current-copy">
+          <div class="legacy-current-labels">
+            <span>${escapeHtml(LG.current_progress)}</span>
+            <span>Level ${state.level||1}</span>
+          </div>
+          <div class="legacy-current-metrics">
+            <span>${escapeHtml(LG.current_success_rate)} <b>${valuation.index.successRate}%</b></span>
+            <span>${escapeHtml(scoreLabel)} <b>${legacyStarted ? (projectedScore||'--')+'%' : Math.round(valuation.index.total||0)+'%'}</b></span>
+            <span>${escapeHtml(nextCapitalLabel)} <b>${money(valuation.nextCapital)}</b></span>
+          </div>
+        </div>
+        ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">${escapeHtml(LG.start_legacy_btn)}</button>` : `<span class="chip">${escapeHtml(legacyStarted ? LG.can_start : LG.unlocks_at_30)}</span>`}
       </div>
     </div>
-    <div class="stat-grid">
+    <div class="stat-grid legacy-stat-grid">
       <div class="stat-card"><div class="lbl">${escapeHtml(LG.value_before_adjustment)}</div><div class="num">${money(valuation.rawValue)}</div></div>
       <div class="stat-card"><div class="lbl">${escapeHtml(LG.unrated_dunning_fees)}</div><div class="num" style="color:${valuation.dunningFeeAdjustment>0?'var(--red)':'var(--ink-1)'};">${negativeMoney(valuation.dunningFeeAdjustment)}</div></div>
       <div class="stat-card"><div class="lbl">${escapeHtml(LG.rated_value)}</div><div class="num">${money(valuation.value)}</div></div>
       <div class="stat-card"><div class="lbl">${escapeHtml(nextCapitalLabel)}</div><div class="num">${money(valuation.nextCapital)}</div></div>
       <div class="stat-card"><div class="lbl">${escapeHtml(LG.business_index)}</div><div class="num">${valuation.index.successRate}%</div></div>
       <div class="stat-card"><div class="lbl">${escapeHtml(scoreLabel)}</div><div class="num">${legacyStarted ? (projectedScore?projectedScore+'%':'--') : Math.round(valuation.index.total||0)+'%'}</div></div>
+      <div class="stat-card"><div class="lbl">${escapeHtml(LG.real_playtime)}</div><div class="num">${escapeHtml(formatRealPlaytime(state.realPlaytimeMs||0))}</div></div>
     </div>
     <div class="offer-card" style="margin:14px 0;">
       <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(LG.current_index)}</h3>
       ${renderLegacyScoreBars(valuation.index)}
-      ${legacyReady ? `<button class="btn btn-primary" onclick="openLegacyReview()">${escapeHtml(LG.start_legacy_btn)}</button>` : `<p class="subtle">${legacyStarted ? escapeHtml(LG.can_start) : escapeHtml(LG.unlocks_at_30)}</p>`}
     </div>
     ${done.length ? `
-      <div class="offer-card">
+      <div class="offer-card legacy-history-card">
         <h3 style="margin-top:0;font-family:var(--font-d);font-size:13px;">${escapeHtml(LG.completed_foundings)}</h3>
-        <table class="tbl legacy-history-table">
-          <thead><tr><th>${escapeHtml(LG.col_legacy)}</th><th>${escapeHtml(LG.col_value)}</th><th>${escapeHtml(LG.col_dunning_deduction)}</th><th>${escapeHtml(LG.col_start_capital)}</th><th>${escapeHtml(LG.col_rate)}</th><th>${escapeHtml(LG.col_score)}</th><th>${escapeHtml(LG.col_profit)}</th><th>${escapeHtml(LG.col_sales)}</th><th>${escapeHtml(LG.col_margin)}</th><th>${escapeHtml(LG.col_satisfaction)}</th><th>${escapeHtml(LG.col_playtime)}</th></tr></thead>
-          <tbody>${done.map(x=>`<tr>
-            <td>${x.label}</td><td>${money(x.companyValue)}</td><td>${negativeMoney(x.dunningFeeAdjustment||0)}</td><td>${money(x.nextCapital)}</td><td>${x.successRate}%</td><td>${x.legacyScore}%</td>
-            <td>${money(x.totalProfit)}</td><td>${x.salesCount}</td><td>${(x.avgMargin||0).toFixed(1)}%</td><td>${x.reputation}/100</td><td>${t('legacy.days_suffix',{n:x.daysPlayed})}</td>
-          </tr>`).join('')}</tbody>
-        </table>
+        <div class="legacy-history-list">
+          ${done.map(x=>`<article class="legacy-history-entry">
+            <div class="legacy-history-entry-head">
+              <b>${escapeHtml(x.label)}</b>
+              <span>${escapeHtml(LG.col_rate)} ${x.successRate}%</span>
+            </div>
+            <div class="legacy-history-entry-grid">
+              <div><span>${escapeHtml(LG.col_value)}</span><b>${money(x.companyValue)}</b></div>
+              <div><span>${escapeHtml(LG.col_dunning_deduction)}</span><b>${negativeMoney(x.dunningFeeAdjustment||0)}</b></div>
+              <div><span>${escapeHtml(LG.col_start_capital)}</span><b>${money(x.nextCapital)}</b></div>
+              <div><span>${escapeHtml(LG.col_score)}</span><b>${x.legacyScore}%</b></div>
+              <div><span>${escapeHtml(LG.col_profit)}</span><b>${money(x.totalProfit)}</b></div>
+              <div><span>${escapeHtml(LG.col_sales)}</span><b>${x.salesCount}</b></div>
+              <div><span>${escapeHtml(LG.col_margin)}</span><b>${(x.avgMargin||0).toFixed(1)}%</b></div>
+              <div><span>${escapeHtml(LG.col_satisfaction)}</span><b>${x.reputation}/100</b></div>
+              <div><span>${escapeHtml(LG.col_playtime)}</span><b>${escapeHtml(t('legacy.days_suffix',{n:x.daysPlayed}))}</b></div>
+              <div><span>${escapeHtml(LG.col_real_playtime)}</span><b>${escapeHtml(formatRealPlaytime(x.realPlaytimeMs||0))}</b></div>
+            </div>
+          </article>`).join('')}
+        </div>
       </div>` : `<div class="empty-state"><div class="ic">L</div>${escapeHtml(LG.no_sale_yet)}</div>`}
     ${(legacyStarted || legacyReady) ? renderLegacyExplanation() : ''}
   `;
@@ -11894,6 +12020,7 @@ function openLegacyReview(){
         <div class="stat-card"><div class="lbl">${escapeHtml(LG.vehicle_sales)}</div><div class="num">${state.salesCount||0}</div></div>
         <div class="stat-card"><div class="lbl">${escapeHtml(LG.avg_margin)}</div><div class="num">${(v.avgMargin||0).toFixed(1)}%</div></div>
         <div class="stat-card"><div class="lbl">${escapeHtml(LG.avg_standtime)}</div><div class="num">${t('legacy.days_suffix',{n:Math.round(v.avgStand||0)})}</div></div>
+        <div class="stat-card"><div class="lbl">${escapeHtml(LG.real_playtime)}</div><div class="num">${escapeHtml(formatRealPlaytime(state.realPlaytimeMs||0))}</div></div>
         <div class="stat-card"><div class="lbl">${escapeHtml(LG.customer_satisfaction)}</div><div class="num">${state.reputation||0}/100</div></div>
       </div>
       ${firstExplain}
@@ -11918,6 +12045,8 @@ async function confirmLegacyStart(){
     legacyScore: legacyScoreAfter(v.index.successRate), totalProfit: state.totalProfit||0,
     salesCount: state.salesCount||0, avgMargin: v.avgMargin||0, reputation: state.reputation||0,
     avgStars: v.avgStars||0, daysPlayed: Math.max(1,state.day-(l.startedAtDay||1)+1),
+    realPlaytimeMs: state.realPlaytimeMs||0,
+    runRealPlaytimeMs: Math.max(0, (state.realPlaytimeMs||0) - (l.startedAtRealPlaytimeMs||0)),
     recurring: v.recurring, contracts: activeContractCount(), claimsRecovered: state.claimsRecovered||0,
     indexCategories: v.index.categories.map(c=>({label:c.label, points:c.points, max:c.max})),
   };
@@ -11925,6 +12054,7 @@ async function confirmLegacyStart(){
   const keepBackground = getAppBackground(state.backgroundId).id;
   const keepDesign = {...designSettings()};
   const keepLanguage = state.language;
+  const keepRealPlaytimeMs = state.realPlaytimeMs || 0;
   const completed = (l.completed||[]).concat(entry);
   const nextLegacy = (l.current||0) + 1;
   const masterUnlocked = nextLegacy > 10;
@@ -11933,6 +12063,7 @@ async function confirmLegacyStart(){
   state.backgroundId = keepBackground;
   state.designSettings = keepDesign;
   state.language = keepLanguage || DEFAULT_LANGUAGE;
+  state.realPlaytimeMs = keepRealPlaytimeMs;
   state.cash = masterUnlocked ? Math.max(v.nextCapital, 1000000) : v.nextCapital;
   state.level = masterUnlocked ? 1000 : 1;
   state.legacy = {
@@ -11941,6 +12072,7 @@ async function confirmLegacyStart(){
     explained: true,
     foundingCapital: state.cash,
     startedAtDay: 1,
+    startedAtRealPlaytimeMs: keepRealPlaytimeMs,
     masterUnlocked,
   };
   dayElapsedMs = 0;
@@ -12383,10 +12515,29 @@ let dayElapsedMs = 0;
 
 const PRICE_UPDATE_MS = 180000; // 3 Minuten Echtzeit zwischen Marktpreis-Aktualisierungen
 let priceElapsedMs = 0;
+let realPlaytimeLastTick = 0;
+let realPlaytimeSaveElapsedMs = 0;
+
+function syncRealPlaytime(){
+  if(!state || !activeProfileId) return 0;
+  const now = Date.now();
+  if(!realPlaytimeLastTick){
+    realPlaytimeLastTick = now;
+    return 0;
+  }
+  const delta = clamp(now - realPlaytimeLastTick, 0, 5000);
+  realPlaytimeLastTick = now;
+  if(delta > 0){
+    state.realPlaytimeMs = Math.max(0, Math.round(Number(state.realPlaytimeMs)||0)) + delta;
+    realPlaytimeSaveElapsedMs += delta;
+  }
+  return delta;
+}
 
 function startGameClock(){
   setInterval(()=>{
     if(!state || !activeProfileId){ return; }
+    syncRealPlaytime();
     const dialogOpen = document.getElementById('modalOverlay') || document.getElementById('notifOverlay');
     if(dialogOpen){ return; } // Zeit pausiert, solange der Spieler in einem Dialog entscheidet
     dayElapsedMs += 200;
@@ -12402,6 +12553,10 @@ function startGameClock(){
     if(priceElapsedMs >= PRICE_UPDATE_MS){
       priceElapsedMs = 0;
       updateMarketPrices();
+    }
+    if(realPlaytimeSaveElapsedMs >= 60000){
+      realPlaytimeSaveElapsedMs = 0;
+      scheduleSave();
     }
   }, 200);
 }
@@ -12879,6 +13034,7 @@ function migrateState(){
   repairMojibakeDeep(state);
   activeProfileName = repairMojibakeText(activeProfileName||'');
   const salaryBalanceVersion = state.salaryBalanceVersion || 1;
+  const hadRealPlaytime = state.realPlaytimeMs !== undefined;
   // Kalender-Migration muss laufen, BEVOR Default-Felder aufgefüllt werden und bevor
   // state.dayDurationMs auf den neuen Bereich (30-300s) geklemmt wird.
   ensureCalendarMigration();
@@ -12888,6 +13044,12 @@ function migrateState(){
   });
   state.day = Math.max(1, Math.round(Number(state.day)||1));
   state.dayDurationMs = clamp(Math.round(Number(state.dayDurationMs)||DEFAULT_DAY_DURATION_MS), MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
+  state.realPlaytimeMs = Math.max(0, Math.round(Number(state.realPlaytimeMs)||0));
+  if(!hadRealPlaytime) state.realPlaytimeMs = estimatedRealPlaytimeMsFromState(state);
+  const completedRealPlaytime = Array.isArray(state.legacy?.completed)
+    ? Math.max(0, ...state.legacy.completed.map(x=>Math.round(Number(x.realPlaytimeMs)||0)))
+    : 0;
+  state.realPlaytimeMs = Math.max(state.realPlaytimeMs, completedRealPlaytime);
   syncCalendarFromDay();
   state.calendarHooks = state.calendarHooks || {};
   if(state.calendarHooks.lastMonthKey===undefined) state.calendarHooks.lastMonthKey = calendarKey(state.calendar);

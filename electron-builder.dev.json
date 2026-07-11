@@ -17,6 +17,7 @@
     "autodealer-simulator.html",
     "css/**/*",
     "js/**/*",
+    "locales/**/*",
     "data/**/*",
     "assets/**/*"
   ],
