@@ -376,7 +376,7 @@ function createWindow() {
     autoHideMenuBar: true,        // Menue versteckt; Alt zeigt es, F11 = Vollbild bleibt verfuegbar
     backgroundColor: '#0d1322',   // dunkler App-Hintergrund, passend zum Spiel (kein weisses Aufblitzen)
     show: false,                  // erst zeigen, wenn fertig geladen
-    icon: path.join(__dirname, 'assets', 'logos', 'app-icon.ico'),
+    icon: path.join(__dirname, 'assets', 'logos', 'automotive-empire-icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

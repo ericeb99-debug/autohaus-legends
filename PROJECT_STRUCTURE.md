@@ -97,9 +97,9 @@ Wenn weiter refactored wird, nur schrittweise und ohne Logik neu zu schreiben:
 | Bereich | Pfad | Inhalt |
 | --- | --- | --- |
 | Logo-Quelle | `assets/logos/app-logo.png` | Einziges offizielles Automotive-Empire-Markenlogo mit transparentem Hintergrund fuer alle In-App-Bereiche. |
-| Windows-Icon | `assets/logos/app-icon.ico` | Mehrgroessen-Icon fuer EXE, Fenster, Taskleiste, Desktop-Verknuepfung und Installer. |
-| macOS-Icon | `assets/logos/app-icon.icns` | Mehrgroessen-Icon fuer macOS-App-Bundles. |
-| Linux-/PNG-Icons | `assets/logos/app-icon-{16,32,48,64,128,256,512,1024}.png` | Aus dem offiziellen Logo skalierte Plattform- und Release-Assets. |
+| Windows-Icon | `assets/logos/automotive-empire-icon.ico` | Offizielles Mehrgroessen-Icon fuer EXE, Fenster, Taskleiste, Desktop-Verknuepfung und Installer. |
+| macOS-Icon | `assets/logos/automotive-empire-icon.icns` | Offizielles Mehrgroessen-Icon fuer macOS-App-Bundles. |
+| Linux-/PNG-Icons | `assets/logos/automotive-empire-icon-{16,32,48,64,128,256,512,1024}.png` | Aus dem offiziellen Logo skalierte Plattform- und Release-Assets. |
 | Hintergruende | `assets/backgrounds/` | Alle `.webp`, `.png`, `.jpg`, `.jpeg`, `.gif` und `.avif` Dateien werden automatisch als auswählbare Hintergruende erkannt. Dateinamen werden intern fuer IDs genutzt, aber im Spiel nicht angezeigt. |
 | Hintergrund-Konfiguration | Keine manuelle Liste erforderlich. | Der Electron-Hauptprozess liest den Ordner dynamisch und stellt die Liste ueber `preload.js` fuer den Renderer bereit. |
 | Sounds | Nicht vorhanden. | Wenn Sounds ergaenzt werden, unter `assets/sounds/` dokumentieren. |

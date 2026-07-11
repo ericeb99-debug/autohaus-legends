@@ -22,7 +22,7 @@
     "assets/**/*"
   ],
   "win": {
-    "icon": "assets/logos/app-icon.ico",
+    "icon": "assets/logos/automotive-empire-icon.ico",
     "executableName": "AutomotiveEmpireDEV",
     "target": [
       {
@@ -40,10 +40,10 @@
     ]
   },
   "mac": {
-    "icon": "assets/logos/app-icon.icns"
+    "icon": "assets/logos/automotive-empire-icon.icns"
   },
   "linux": {
-    "icon": "assets/logos/app-icon-512.png"
+    "icon": "assets/logos/automotive-empire-icon-512.png"
   },
   "nsis": {
     "artifactName": "AutomotiveEmpireDEVSetup.exe",
@@ -53,9 +53,9 @@
     "createStartMenuShortcut": true,
     "shortcutName": "Automotive Empire DEV",
     "uninstallDisplayName": "Automotive Empire DEV",
-    "installerIcon": "assets/logos/app-icon.ico",
-    "uninstallerIcon": "assets/logos/app-icon.ico",
-    "installerHeaderIcon": "assets/logos/app-icon.ico"
+    "installerIcon": "assets/logos/automotive-empire-icon.ico",
+    "uninstallerIcon": "assets/logos/automotive-empire-icon.ico",
+    "installerHeaderIcon": "assets/logos/automotive-empire-icon.ico"
   },
   "portable": {
     "artifactName": "AutomotiveEmpireDEVPortable.exe"
