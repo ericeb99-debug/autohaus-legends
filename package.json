@@ -1,7 +1,7 @@
 {
   "name": "automotive-empire",
   "productName": "Automotive Empire",
-  "version": "2.1.8",
+  "version": "2.1.9",
   "description": "Automotive Empire - Desktop-App (Electron-Huelle um autodealer-simulator.html)",
   "main": "main.js",
   "author": "Automotive Empire",

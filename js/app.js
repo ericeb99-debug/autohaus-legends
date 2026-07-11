@@ -102,13 +102,15 @@ function escapeAttr(value){
    LOCALE_REGISTRY eintragen. Sonst muss nichts angepasst werden.
    ============================================================ */
 const DEFAULT_LANGUAGE = 'en';
+let loginLanguage = DEFAULT_LANGUAGE;
 const LOCALE_REGISTRY = {
   en: () => window.I18N_EN,
   de: () => window.I18N_DE,
 };
 function currentLanguage(){
   const lang = state && state.language;
-  return (lang && LOCALE_REGISTRY[lang]) ? lang : DEFAULT_LANGUAGE;
+  if(lang && LOCALE_REGISTRY[lang]) return lang;
+  return LOCALE_REGISTRY[loginLanguage] ? loginLanguage : DEFAULT_LANGUAGE;
 }
 function localeData(lang){
   const loader = LOCALE_REGISTRY[lang];
@@ -157,6 +159,12 @@ const EN_DISPLAY_TERMS = {
   'Alle Kundenwuensche erledigen':'Resolve all customer requests', 'Alle Kundenwünsche erledigen':'Resolve all customer requests',
   'Design':'Design', 'Zentrale Verwaltung für Hintergründe, Glasoptik, Transparenz, Animationen und zukünftige Themes.':'Central management for backgrounds, glass styling, transparency, animations and future themes.', 'Aktives Erscheinungsbild':'Active Appearance', 'Ausgewählter Hintergrund':'Selected Background', 'Ausgew&auml;hlter Hintergrund':'Selected Background', 'Die Auswahl wird sofort angewendet und automatisch gespeichert.':'Your selection is applied immediately and saved automatically.', 'Hintergründe':'Backgrounds', 'HintergrÃ¼nde':'Backgrounds', 'Galerieansicht für aktuelle und zukünftige Hintergrundbilder.':'Gallery view for current and future background images.', 'Galerieansicht fÃ¼r aktuelle und zukÃ¼nftige Hintergrundbilder.':'Gallery view for current and future background images.', 'Oberflächen-Anpassung':'Surface Customization', 'OberflÃ¤chen-Anpassung':'Surface Customization', 'Standard wiederherstellen':'Restore Default', 'UI-Transparenz':'UI Transparency', 'Glasoptik':'Glass Style', 'Hintergrund-Abdunklung':'Background Overlay', 'Hintergrundunschärfe':'Background Blur', 'HintergrundunschÃ¤rfe':'Background Blur', 'Vorbereitet':'Prepared', 'Weitere Materialoptionen':'Additional Material Options', 'Farbschema & Animationen':'Color Scheme & Animations',
   'Kompatibel':'Compatible',
+  'Kreditaufnahme':'Loan Proceeds', 'Kredittilgung':'Loan Repayment',
+  'erste Anfrage':'Initial Inquiry', 'abgesagt':'Cancelled', 'Preisverhandlung':'Price Negotiation', 'Fragen zum Fahrzeug':'Vehicle Questions',
+  'wartet auf Bilder':'Waiting for Photos', 'wartet auf OBD-Test':'Waiting for OBD Test', 'wartet auf Serviceheft':'Waiting for Service Records',
+  'wartet auf TÜV-Info':'Waiting for Inspection Details', 'Probefahrt geplant':'Test Drive Planned', 'Finanzierung läuft':'Financing in Progress',
+  'Leasing wird geprüft':'Lease Under Review', 'Kunde ist kaufbereit':'Customer Ready to Buy', 'Lieferung besprochen':'Delivery Discussed',
+  'Alternative vorgeschlagen':'Alternative Suggested', 'wartet auf Antwort':'Waiting for Reply',
   'Leistungspaket nicht gefunden.':'Performance package not found.',
   'Diese Optimierung ist bei diesem Fahrzeug bereits installiert.':'This optimization is already installed on this vehicle.',
   'Das Getriebe ist fuer diese Optimierung nicht geeignet.':'The transmission is not suitable for this optimization.',
@@ -217,7 +225,27 @@ const EN_DISPLAY_REPLACEMENTS = [
   [/Nicht passend f(?:u|ü)r ([^-]+)-Antrieb\./g, (m, fuel)=>`Not suitable for ${localizeDisplayText(fuel).toLowerCase()} drive.`],
   [/Zuerst muss (.+?) installiert sein\./g, (m, part)=>`First install ${localizeDisplayText(part)}.`],
   [/Fehlende Hardware:\s*(.+?)\./g, (m, part)=>`Missing hardware: ${localizeDisplayText(part)}.`],
+  [/Hallo, ich interessiere mich f(?:u|ü)r Ihren (.+?)\. Mein Angebot: (.+?)\./g, (m,car,price)=>`Hello, I am interested in your ${car}. My offer is ${price}.`],
+  [/Hallo, ich habe den (.+?) gesehen\. W(?:ae|ä)re preislich (.+?) machbar oder ist da noch Luft\?/g, (m,car,price)=>`Hello, I saw the ${car}. Would ${price} be possible, or is there room to negotiate?`],
+  [/Guten Tag, ich interessiere mich f(?:u|ü)r den (.+?)\. K(?:oe|ö)nnen Sie mir Zustand, T(?:U|Ü)V und Servicehistorie best(?:ae|ä)tigen\? Mein Budget l(?:ae|ä)ge ungef(?:ae|ä)hr bei (.+?)\./g, (m,car,price)=>`Hello, I am interested in the ${car}. Can you confirm its condition, inspection status and service history? My budget is around ${price}.`],
+  [/Hallo, ist der (.+?) noch verf(?:u|ü)gbar\? Wenn ja: (.+?), schnelle Abwicklung m(?:oe|ö)glich\?/g, (m,car,price)=>`Hello, is the ${car} still available? If so: ${price}, with a quick purchase?`],
+  [/Danke f(?:u|ü)r die R(?:u|ü)ckmeldung\./g, 'Thank you for the update.'],
+  [/Vielen Dank f(?:u|ü)r die schnelle Antwort\./g, 'Thank you for the quick reply.'],
+  [/Danke f(?:u|ü)r die Info\./g, 'Thanks for the information.'],
+  [/Verstehe\./g, 'I understand.'],
+  [/Alles klar\./g, 'All right.'],
   [/Fahrzeugankauf:\s*/g, 'Vehicle Acquisition: '],
+  [/Privater Fahrzeugankauf\s+/g, 'Private Vehicle Acquisition '],
+  [/Fahrzeugpr(?:ue|ü)fung\s+/g, 'Vehicle Inspection '],
+  [/Sammel-Inserierung Werkstatt\s+/g, 'Workshop Batch Listing '],
+  [/Alle Kundenw(?:ue|ü)nsche\s+[–-]\s+/g, 'All Customer Requests – '],
+  [/Vergleichszahlung\s+/g, 'Settlement Payment '],
+  [/Fahrzeug(?:ue|ü)bernahme\s+/g, 'Vehicle Purchase '],
+  [/Lieferkosten\s+/g, 'Delivery Costs '],
+  [/Verkauf\s+(.+?)\s+an\s+/g, 'Sale $1 to '],
+  [/Anzahlung\/Sonderzahlung, Rest (?:ue|ü)ber Finanzierungspartner Autohaus/g, 'down payment/special payment, balance through dealership financing partner'],
+  [/Upgrade:\s*(.+?)\s+Stufe\s+(\d+)/g, 'Upgrade: $1 Level $2'],
+  [/Ankauf\s+/g, 'Purchase '],
   [/Schnellverkauf\s+/g, 'Quick Sale '],
   [/Kreditzinsen/g, 'Loan Interest'],
   [/Gehaelter Mitarbeiter/g, 'Staff Salaries'],
@@ -275,6 +303,7 @@ function appDisplayName(id){ return appMeta(id)[0]; }
 function setLanguage(code){
   if(!LOCALE_REGISTRY[code] || !localeData(code)) return;
   state.language = code;
+  loginLanguage = code;
   scheduleSave();
   renderAllOpen();
 }
@@ -1987,6 +2016,16 @@ async function loadProfiles(){
 async function saveProfiles(profiles){
   await storageSet(PROFILE_INDEX_KEY, JSON.stringify(profiles));
 }
+async function detectLoginLanguage(profiles){
+  const preferred = (profiles||[]).slice().sort((a,b)=>(b.lastPlayed||0)-(a.lastPlayed||0))[0];
+  if(!preferred){ loginLanguage = DEFAULT_LANGUAGE; return loginLanguage; }
+  try{
+    const res = await storageGet(profileStateKey(preferred.id));
+    const saved = res && res.value ? JSON.parse(res.value) : null;
+    loginLanguage = saved && LOCALE_REGISTRY[saved.language] ? saved.language : DEFAULT_LANGUAGE;
+  }catch(e){ loginLanguage = DEFAULT_LANGUAGE; }
+  return loginLanguage;
+}
 async function readProfileSaveSummary(profile){
   const nloc = localeMeta().numberLocale || 'de-DE';
   const fallbackLastPlayed = profile.lastPlayed ? new Date(profile.lastPlayed).toLocaleString(nloc) : t('login.last_played_never');
@@ -2055,6 +2094,7 @@ async function renderProfileLogin(){
   document.body.classList.remove('theme-light');
   document.body.classList.remove('has-app-bg');
   const profiles = await loadProfiles();
+  await detectLoginLanguage(profiles);
   const lastPlayed = profiles.length ? profiles.reduce((latest,p)=>Math.max(latest, p.lastPlayed||0),0) : 0;
   const profileSummaries = Object.fromEntries(await Promise.all(profiles.map(async p=>[p.id, await readProfileSaveSummary(p)])));
   const LI = t('login');
@@ -4704,7 +4744,7 @@ function dashOrdersPanel(){
     else if((o.patience||0)<=1) badge = `<span class="order-badge hot">${escapeHtml(D.orders_jumping_soon)}</span>`;
     return `<div class="order-row" onclick="navigateTo('mailbox');openConversation('${o.id}')">
       <span class="avatar">${initials}</span>
-      <span><b>${escapeHtml(o.name||t('common.customer'))}</b><small>${c?escapeHtml(c.brand+' '+c.model):escapeHtml(t('common.vehicle'))} · ${escapeHtml(o.persona||'')}</small></span>
+      <span><b>${escapeHtml(o.name||t('common.customer'))}</b><small>${c?escapeHtml(c.brand+' '+c.model):escapeHtml(t('common.vehicle'))} · ${displayText(o.persona||'')}</small></span>
       <span class="order-side"><span class="order-price">${money(o.amount)}</span>${badge}</span>
     </div>`;
   }).join('');
@@ -5814,6 +5854,15 @@ function ensureEcuState(){
   state.ecuVehicleHistories = state.ecuVehicleHistories || {};
 }
 function ecuTuneDef(id){ return (typeof ECU_TUNE_DEFS!=='undefined' ? ECU_TUNE_DEFS : []).find(t=>t.id===id) || null; }
+function ecuDefField(def, field){
+  if(!def) return '';
+  return currentLanguage()==='en' && def.en && def.en[field]!==undefined ? def.en[field] : def[field];
+}
+function ecuRequestMessage(r){
+  const def = ecuTuneDef(r && r.tuneId);
+  if(currentLanguage()==='en') return `I would like ${ecuDefField(def,'customerText') || 'a professional ECU optimization'} for my ${r.car.brand} ${r.car.model}. Could you inspect and tune it professionally?`;
+  return `Ich möchte für meinen ${r.car.brand} ${r.car.model} ${ecuDefField(def,'customerText') || 'eine professionelle Softwareoptimierung'}. Können Sie das professionell prüfen und abstimmen?`;
+}
 function weightedEcuIntent(){
   const intents = typeof ECU_CUSTOMER_INTENTS!=='undefined' ? ECU_CUSTOMER_INTENTS : [];
   const total = intents.reduce((s,i)=>s+i.weight,0);
@@ -5853,7 +5902,7 @@ function ecuCompatibility(car, tuneId){
   const power = car.power || 0;
   if(power < def.minPower) return {ok:false, reason:'Die Serienleistung ist für diese Optimierung zu niedrig.'};
   if(power > def.maxPower) return {ok:false, reason:'Für diese Leistungsklasse ist eine Einzelabstimmung nötig.'};
-  if(def.requirement && !history.installed.includes(def.requirement)) return {ok:false, reason:`Zuerst muss ${ecuTuneDef(def.requirement)?.short || 'die Vorstufe'} installiert sein.`};
+  if(def.requirement && !history.installed.includes(def.requirement)) return {ok:false, reason:`Zuerst muss ${ecuDefField(ecuTuneDef(def.requirement),'short') || 'die Vorstufe'} installiert sein.`};
   if(def.hardware){
     const missing = def.hardware.filter(h=>!(history.hardware||[]).includes(h));
     if(missing.length) return {ok:false, reason:`Fehlende Hardware: ${missing.join(', ')}.`};
@@ -5889,7 +5938,7 @@ function generateEcuRequest(){
     if(fallback){ tuneId = fallback.id; def = fallback; compat = ecuCompatibility(car, tuneId); }
   }
   const names = ['Leon Wagner','Mara Stein','Jonas Keller','Nina Vogt','Tim Reuter','Sofia Brandt','Ben Adler','Lena Schuster','Marco Weiss','Clara Neumann'];
-  return {id:uid('ecu'), day:state.day, status:'new', customerName:choice(names), tuneId, requestedLabel:def.short, car, engineCode:ecuEngineCode(car), message:`Ich möchte für meinen ${car.brand} ${car.model} ${def.customerText}. Können Sie das professionell prüfen und abstimmen?`, quote:null, analysis:null, dyno:null, decision:null, progress:0};
+  return {id:uid('ecu'), day:state.day, status:'new', customerName:choice(names), tuneId, requestedLabel:ecuDefField(def,'short'), car, engineCode:ecuEngineCode(car), message:`Ich möchte für meinen ${car.brand} ${car.model} ${def.customerText}. Können Sie das professionell prüfen und abstimmen?`, quote:null, analysis:null, dyno:null, decision:null, progress:0};
 }
 function maybeGenerateEcuRequest(workshopCompletionsToday){
   ensureEcuState();
@@ -5966,7 +6015,7 @@ function startEcuAnalysis(id){ const r = state.ecuRequests.find(x=>x.id===id); i
 function ecuOptionReport(car){
   return (typeof ECU_TUNE_DEFS!=='undefined'?ECU_TUNE_DEFS:[]).map(def=>{
     const compat = ecuCompatibility(car, def.id);
-    return {id:def.id, label:def.short, fullLabel:def.label, ok:compat.ok, reason:compat.reason, price:compat.ok ? ecuPriceFor(car, def) : 0, dyno:compat.ok ? ecuDynoFor(car, def) : null};
+    return {id:def.id, label:ecuDefField(def,'short'), fullLabel:ecuDefField(def,'label'), ok:compat.ok, reason:compat.reason, price:compat.ok ? ecuPriceFor(car, def) : 0, dyno:compat.ok ? ecuDynoFor(car, def) : null};
   });
 }
 function ecuCustomerChoiceFromReport(r, report){
@@ -6003,7 +6052,7 @@ function finishEcuCustomerDecision(id){
   if(r.customerChoices && r.customerChoices.length){
     r.decision = 'accepted';
     r.status = 'ready';
-    const labels = r.customerChoices.map(tid=>ecuTuneDef(tid)?.short || tid).join(', ');
+    const labels = r.customerChoices.map(tid=>ecuDefField(ecuTuneDef(tid),'short') || tid).join(', ');
     r.customerDecisionText = t('ecu.decision_accepted',{labels});
     notify(t('ecu.customer_approved_notify',{labels, brand:r.car.brand, model:r.car.model}), 'good');
   } else {
@@ -6030,7 +6079,7 @@ function finishEcuProgramming(id){
   const tuneIds = (r.customerChoices && r.customerChoices.length ? r.customerChoices : [r.tuneId]).filter(Boolean);
   const defs = tuneIds.map(ecuTuneDef).filter(Boolean);
   const def = defs[0] || ecuTuneDef(r.tuneId);
-  const label = defs.map(d=>d.short).join(', ') || (def ? def.short : t('ecu.fallback_tuning'));
+  const label = defs.map(d=>ecuDefField(d,'short')).join(', ') || (def ? ecuDefField(def,'short') : t('ecu.fallback_tuning'));
   const totalRisk = clamp(defs.reduce((s,d)=>s+(d.risk||0),0), .01, .16);
   const failed = Math.random() < totalRisk;
   const hist = ecuHistoryForVehicle(r.car);
@@ -6136,7 +6185,7 @@ function renderEcuLabDetails(r){
   if(r.status==='in_lab') return `<div class="row-actions"><button class="btn btn-primary" onclick="startEcuAnalysis('${r.id}')">${escapeHtml(E.analyze_btn)}</button></div>`;
   if(r.status==='scanning') return `<div class="ecu-scan"><div class="ecu-scan-ring"></div><div><b>${escapeHtml(E.scanning_title)}</b><small><span>${escapeHtml(E.scanning_step1)}</span><span>${escapeHtml(E.scanning_step2)}</span><span>${escapeHtml(E.scanning_step3)}</span><span>${escapeHtml(E.scanning_step4)}</span></small></div></div><div class="progress ecu-progress"><div></div></div>`;
   const analysis = r.analysis; if(!analysis) return '';
-  const wishLabel = (r.customerChoices||[]).map(tid=>ecuTuneDef(tid)?.short || tid).join(', ') || def.short || E.wish_open;
+  const wishLabel = (r.customerChoices||[]).map(tid=>ecuDefField(ecuTuneDef(tid),'short') || tid).join(', ') || ecuDefField(def,'short') || E.wish_open;
   const customerDeclined = !analysis.ok && r.decision==='declined' && (r.options||[]).some(o=>o.ok);
   const verdictTitle = analysis.ok ? E.verdict_ok : (customerDeclined ? E.verdict_declined : E.verdict_blocked);
   const d = analysis.ok ? r.dyno : null;
@@ -6157,7 +6206,7 @@ function renderEcuLabDetails(r){
       <div><span>${escapeHtml(E.duration_label)}</span><b>${escapeHtml(t('ecu.hours_suffix',{n:analysis.duration}))}</b></div>
       <div><span>${escapeHtml(E.price_label)}</span><b>${money(r.quote||0)}</b></div>
       <div><span>${escapeHtml(E.risk_label)}</span><b>${analysis.risk.toFixed(1).replace('.',currentLanguage()==='de'?',':'.')}%</b></div>
-      <div data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${displayText(r.message || wishLabel)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><span>${escapeHtml(E.wish_label)}</span><b>${escapeHtml(wishLabel)}</b></div>
+      <div data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${escapeAttr(ecuRequestMessage(r))}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><span>${escapeHtml(E.wish_label)}</span><b>${escapeHtml(wishLabel)}</b></div>
     </div>
     ${renderEcuOptionResults(r)}
     ${dynoFold}
@@ -6184,11 +6233,11 @@ function renderEcuRequestCard(r, isSelected=false){
   const E = t('ecu');
   const active = !['completed','declined','failed'].includes(r.status);
   const canDrag = r.status==='accepted' && isSelected;
-  const tipAttrs = r.message ? `data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${displayText(r.message)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"` : '';
+  const tipAttrs = r.message ? `data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${escapeAttr(ecuRequestMessage(r))}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"` : '';
   return `<div class="ecu-request ${active?'active':''} ${isSelected?'selected':''}" onclick="selectEcuRequest('${r.id}')" ${isSelected?'':tipAttrs}>
-    <div class="offer-head"><span><b>${escapeHtml(r.customerName)}</b> - ${escapeHtml(def.short||r.requestedLabel)}</span><span class="persona">${ecuStatusLabel(r.status)}</span></div>
+    <div class="offer-head"><span><b>${escapeHtml(r.customerName)}</b> - ${escapeHtml(ecuDefField(def,'short')||r.requestedLabel)}</span><span class="persona">${ecuStatusLabel(r.status)}</span></div>
     <div class="ecu-compact-status"><b>${escapeHtml(r.car.brand)} ${escapeHtml(r.car.model)}</b><span>${escapeHtml(r.car.engine)} · ${r.car.power} PS · ${escapeHtml(r.car.year||'')}</span></div>
-    ${isSelected && r.message ? `<div class="ecu-wish" ${tipAttrs}><i>${escapeHtml(E.wish_label)}</i><span>${displayText(r.message)}</span></div>` : ''}
+    ${isSelected && r.message ? `<div class="ecu-wish" ${tipAttrs}><i>${escapeHtml(E.wish_label)}</i><span>${escapeHtml(ecuRequestMessage(r))}</span></div>` : ''}
     ${r.status==='new'?`<div class="row-actions"><button class="btn btn-primary" onclick="event.stopPropagation();acceptEcuRequest('${r.id}')">${escapeHtml(E.accept)}</button><button class="btn btn-ghost" onclick="event.stopPropagation();declineEcuRequest('${r.id}')">${escapeHtml(E.decline)}</button></div>`:''}
     ${canDrag?`<div onclick="event.stopPropagation()">${renderEcuVehicleDragCard(r)}</div>`:''}
     ${r.status==='accepted' && !isSelected?`<div class="ecu-step-note compact"><b>${escapeHtml(E.ready_note_title)}</b><span>${escapeHtml(E.ready_note_sub)}</span></div>`:''}
@@ -7371,7 +7420,7 @@ function renderMailboxListHtml(offers){
     const last = o.messages && o.messages.length? o.messages[o.messages.length-1] : null;
     return `<div class="convo-item ${selectedOfferId===o.id?'active':''}" onclick="openConversation('${o.id}')">
       <div class="top"><span>${o.name}${o.unread?'<span class="unread-dot"></span>':''}</span><span style="color:var(--ink-2);font-weight:500;">${gameDateShort(last?last.day:state.day)}</span></div>
-      <div class="snippet">${c?c.brand+' '+c.model+' · ':''}${last?compactRepeatedCommaText(last.text):''}</div>
+      <div class="snippet">${c?c.brand+' '+c.model+' · ':''}${last?formatStoredDayText(compactRepeatedCommaText(last.text)):''}</div>
     </div>`;
   }).join('');
 }
@@ -7465,7 +7514,7 @@ function chatVehicleStatus(o, c, listing, saleConditions){
   if(workshopJob) return t('chat.status_workshop');
   if(saleConditions && saleConditions.length) return t('chat.status_wishes_open');
   if(c.reservedFor && c.reservedFor.expiresDay>state.day) return t('chat.status_reserved');
-  if(o.chatMemory?.conversationState) return o.chatMemory.conversationState;
+  if(o.chatMemory?.conversationState) return localizeDisplayText(o.chatMemory.conversationState);
   if(listing) return t('chat.status_listed');
   return t('chat.status_in_stock');
 }
@@ -7487,7 +7536,7 @@ function renderChatVehicleCard(o, c, profile, listing, saleConditions){
   const desired = ensureSaleMethodPreference(o);
   const status = chatVehicleStatus(o, c, listing, saleConditions);
   const listPrice = listing ? listing.price : c.marketValue;
-  const phase = o.chatMemory?.conversationState || 'erste Anfrage';
+  const phase = localizeDisplayText(o.chatMemory?.conversationState || 'erste Anfrage');
   const hints = chatVehicleHints(o, c, saleConditions);
   const canFinance = o.paymentMethod==='finanzierung' || desired==='finanzierung';
   const canLease = o.paymentMethod==='leasing' || desired==='leasing';
@@ -7561,9 +7610,9 @@ function renderConversationThread(offerId){
     <div class="chat-head">
       <div>
         <div style="font-family:var(--font-d);font-weight:800;font-size:14px;">${o.name}</div>
-        <div class="subtle" style="margin:0;">${c.brand} ${c.model} · ${o.persona} · ${speedLabel}</div>
+        <div class="subtle" style="margin:0;">${c.brand} ${c.model} · ${displayText(o.persona)} · ${speedLabel}</div>
         <div class="customer-profile-strip">
-          <span class="chip">${escapeHtml(profile.aiType)}</span>
+          <span class="chip">${displayText(profile.aiType)}</span>
           <span class="chip">Budget ${money(profile.budget)}</span>
           <span class="chip">${escapeHtml(t('chat.trust_chip'))} ${Math.round(profile.trust)}%</span>
           <span class="chip">${escapeHtml(t('chat.negotiation_chip'))} ${Math.round(profile.negotiation)}%</span>
@@ -7572,7 +7621,7 @@ function renderConversationThread(offerId){
       <div class="spec-row" style="margin:0;">
         <span class="chip">${pmIcon} ${saleMethodLabel(o.paymentMethod)}</span>
         <span class="chip">✔ ${escapeHtml(t('chat.wish_chip'))}: ${saleMethodLabel(desiredSaleMethod)}</span>
-        <span class="chip">💼 ${o.job||'—'}</span>
+        <span class="chip">💼 ${displayText(o.job||'—')}</span>
         <span class="chip">${escapeHtml(t('chat.credit_chip'))} ${o.creditScore!=null?o.creditScore:'–'}/100</span>
         ${reserved?`<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.4);">🔒 ${escapeHtml(t('chat.reserved_chip',{date:gameDateShort(c.reservedFor.expiresDay)}))}</span>`:''}
       </div>
@@ -7746,6 +7795,17 @@ function updateChatMemory(offer, from, text){
   m.lastIntent = a.primary;
 }
 function chatStatusForIntent(intent, profile){
+  if(currentLanguage()==='en'){
+    if(intent==='images') return 'Customer is waiting for photos ...';
+    if(intent==='documents') return 'Customer is reviewing documents ...';
+    if(intent==='financing') return 'Customer is waiting for a financing decision ...';
+    if(intent==='leasing') return 'Customer is reviewing the lease offer ...';
+    if(intent==='appointment') return 'Customer is checking the appointment ...';
+    if(intent==='reservation') return 'Customer is ready to buy ...';
+    if(intent==='price' || intent==='rejectPrice') return 'Customer is reviewing the offer ...';
+    if(profile && profile.decisionDrive<42) return 'Customer is consulting family ...';
+    return 'Customer is typing ...';
+  }
   if(intent==='images') return 'Kunde wartet auf Bilder ...';
   if(intent==='documents') return 'Kunde prüft Nachweise ...';
   if(intent==='financing') return 'Kunde wartet auf Finanzierungsentscheidung ...';
@@ -7810,7 +7870,40 @@ function customerQuestionFollowUp(o, question){
   if(question.key==='delivery') return `Können Sie liefern, und was würde das kosten?`;
   return `Könnten Sie meine Frage bitte noch beantworten?`;
 }
+function englishCustomerReply(o, pipeline){
+  const c = findCar(o.carId); if(!c) return 'Thank you for the update.';
+  const profile = ensureOfferAi(o,c);
+  const a = pipeline.analysis || pipeline;
+  const prefix = replyTonePrefix(o,profile);
+  const ask = state.listings[o.carId]?.price || c.marketValue;
+  if(a.primary==='imagesPromised') return `${prefix} I’ll wait for the photos and then give you a clearer answer.`;
+  if(a.primary==='images') return `${prefix} Photos would help. Please include the interior, tires, paintwork and driver’s side.`;
+  if(a.primary==='obd') return `${prefix} An OBD scan would be useful. A clean fault memory would reduce my concerns.`;
+  if(a.primary==='service') return `${prefix} The service history matters to me. Complete documentation would be a strong point for the car.`;
+  if(a.primary==='tuv') return `${prefix} The inspection status is important. A longer remaining period would make me much more comfortable.`;
+  if(a.primary==='accident') return a.no ? `${prefix} Accident damage makes me cautious, so the price would need to reflect it.` : `${prefix} Good, an accident-free history is a strong argument for me.`;
+  if(a.primary==='warranty') return `${prefix} A warranty would be a real advantage and give me more confidence in the purchase.`;
+  if(['priceLowered','counterOffer','price'].includes(a.primary)){
+    if(a.amount && (a.amount<=ask || profile.decisionDrive>70)) return `${prefix} ${money(a.amount)} sounds workable. If the vehicle details remain as described, we can arrange an appointment.`;
+    return `${prefix} That is still above my budget. I am closer to ${money(o.amount)}. Can we meet somewhere in between?`;
+  }
+  if(a.primary==='priceReject') return `${prefix} I understand. We are not aligned on price yet. Is there any flexibility or an alternative?`;
+  if(a.primary==='financing') return `${prefix} Financing could work. Please give me the monthly payment, term and down payment.`;
+  if(a.primary==='leasing') return `${prefix} I can consider leasing. The term, mileage allowance and monthly payment are important to me.`;
+  if(a.primary==='appointment') return `${prefix} An appointment makes sense. Please suggest a specific day and time.`;
+  if(a.primary==='reservation') return `${prefix} A reservation would help. If the price and documents check out, I can commit.`;
+  if(a.primary==='reservationRejected') return `${prefix} Without a reservation I would need to decide quickly or keep looking.`;
+  if(a.primary==='delivery') return `${prefix} Delivery would be convenient. Please tell me the cost and earliest delivery date.`;
+  if(a.primary==='defect') return `${prefix} Thank you for being transparent. The defect is not an automatic deal-breaker, but I need a clear solution or a fair price.`;
+  if(a.primary==='alternative') return `${prefix} I am happy to consider an alternative if it fits my budget and key requirements.`;
+  if(a.primary==='sold') return 'That is unfortunate. If you receive something comparable, feel free to contact me.';
+  if(a.primary==='evasive') return `${prefix} I understand, but I still need a clear answer before I can move forward.`;
+  if(profile.aiType==='Direkter Kunde' || profile.aiType==='Ungeduldiger Kunde') return `${prefix} Can you tell me exactly what the next step is?`;
+  if(profile.aiType==='Familienkunde') return `${prefix} Reliability and safety matter most to me. Can you confirm the key points clearly?`;
+  return `${prefix} Let’s agree on the next concrete step.`;
+}
 function buildPipelineCustomerReply(o, pipeline){
+  if(currentLanguage()==='en') return englishCustomerReply(o,pipeline);
   const c = findCar(o.carId); if(!c) return 'Danke für die Rückmeldung.';
   const profile = ensureOfferAi(o, c);
   const m = o.chatMemory || defaultChatMemory(c);
@@ -7895,7 +7988,7 @@ function scheduleAiReply(o, analysis, sourceText){
     setTimeout(()=>{
       const fresh = state.offers.find(x=>x.id===o.id); if(!fresh) return;
       fresh.chatStatus = '';
-      addMsg(fresh, 'customer', payload.reply || buildPipelineCustomerReply(fresh, payload));
+      addMsg(fresh, 'customer', currentLanguage()==='en' ? englishCustomerReply(fresh,payload) : (payload.reply || buildPipelineCustomerReply(fresh, payload)));
       if(!syncActiveMailboxView()) renderPageContent();
       scheduleSave();
     }, profile.replySpeed>82 ? 650 : 1100);
@@ -7909,9 +8002,15 @@ function resolveAiPendingReply(o){
   const pending = o.pendingReply;
   o.pendingReply = null;
   o.chatStatus = '';
-  addMsg(o, 'customer', pending.reply || buildPipelineCustomerReply(o, pending));
+  addMsg(o, 'customer', currentLanguage()==='en' ? englishCustomerReply(o,pending) : (pending.reply || buildPipelineCustomerReply(o, pending)));
 }
 function replyTonePrefix(o, profile){
+  if(currentLanguage()==='en'){
+    if((o.chatMemory?.toneScore||0)<-2) return pickVaried(o,'tone_bad_en',['I have to be honest, the tone makes me a little uncomfortable.','I am not entirely comfortable with that response.']);
+    if(profile.politeness>72) return pickVaried(o,'tone_good_en',['Thank you for the update.','Thank you for the quick reply.','That sounds promising.']);
+    if(profile.aiType==='Direkter Kunde' || profile.aiType==='Ungeduldiger Kunde') return pickVaried(o,'tone_direct_en',['Okay.','Understood.','All right.']);
+    return pickVaried(o,'tone_neutral_en',['Thanks for the information.','I understand.','Good, thank you.']);
+  }
   if((o.chatMemory?.toneScore||0)<-2) return pickVaried(o,'tone_bad',['Ich muss ehrlich sagen, der Ton irritiert mich etwas.','So ganz wohl fühle ich mich mit der Art der Antwort nicht.']);
   if(profile.politeness>72) return pickVaried(o,'tone_good',['Danke für die Rückmeldung.','Vielen Dank für die schnelle Antwort.','Das klingt grundsätzlich gut.']);
   if(profile.aiType==='Direkter Kunde' || profile.aiType==='Ungeduldiger Kunde') return pickVaried(o,'tone_direct',['Okay.','Verstanden.','Alles klar.']);
@@ -8051,12 +8150,15 @@ function customerIssueWish(o, c){
   assessment.announced = true;
   if(required.length){
     required.forEach(i=>{ i.customerMentioned = true; createSaleCondition(o, c, i, 'customer'); });
-    const labels = required.map(i=>i.label).join(', ');
-    const discountText = discountable.length ? ` Kleinere Punkte wie ${discountable.slice(0,3).map(i=>i.label).join(', ')} würde ich mit einem fairen Preisnachlass akzeptieren.` : '';
+    const labels = required.map(i=>localizeDisplayText(i.label)).join(', ');
+    const discountLabels = discountable.slice(0,3).map(i=>localizeDisplayText(i.label)).join(', ');
+    if(currentLanguage()==='en') return `I generally like the car, but I would need the following items resolved before buying: ${labels}.${discountable.length?` I would accept smaller items such as ${discountLabels} with a fair discount.`:''}`;
+    const discountText = discountable.length ? ` Kleinere Punkte wie ${discountLabels} würde ich mit einem fairen Preisnachlass akzeptieren.` : '';
     return `Grundsätzlich gefällt mir der Wagen. Vor dem Kauf müssten für mich aber noch folgende Punkte erledigt werden: ${labels}.${discountText}`;
   }
   if(discountable.length){
-    const labels = discountable.slice(0,3).map(i=>i.label).join(', ');
+    const labels = discountable.slice(0,3).map(i=>localizeDisplayText(i.label)).join(', ');
+    if(currentLanguage()==='en') return `I noticed a few items such as ${labels}, but I could accept them with a fair discount.`;
     return `Ein paar Punkte wie ${labels} sehe ich, aber mit einem fairen Preisnachlass könnte ich damit leben.`;
   }
   return '';
@@ -8194,6 +8296,22 @@ function initialCustomerMessage(o, c){
   const price = money(o.amount);
   const wish = customerIssueWish(o, c);
   const suffix = wish ? ` ${wish}` : '';
+  if(currentLanguage()==='en'){
+    const methodText = o.paymentMethod==='leasing' ? 'leasing' : o.paymentMethod==='finanzierung' ? 'financing' : 'cash payment';
+    if(o.leadRealism==='unrealistic') return choice([
+      `Hello, would the ${c.brand} ${c.model} be possible for ${price} with ${methodText}? I realize my budget may be tight.${suffix}`,
+      `Hello, I really like the ${c.brand} ${c.model}. I would like to discuss ${methodText}, although my budget may not be perfect.${suffix}`,
+      `Hello, I am interested in the ${c.brand} ${c.model}. I was thinking of ${price} with ${methodText}.${suffix}`,
+    ]);
+    if(profile.aiType==='Schnäppchenjäger') return `Hello, I saw the ${c.brand} ${c.model}. Would ${price} be possible, or is there room to negotiate?${suffix}`;
+    if(profile.aiType==='Vorsichtiger Kunde') return `Hello, I am interested in the ${c.brand} ${c.model}. Can you confirm its condition, inspection status and service history? My budget is around ${price}.${suffix}`;
+    if(profile.aiType==='Familienkunde') return `Hello, the ${c.brand} ${c.model} could work for my family. Reliability and safety matter most. My offer is ${price}.${suffix}`;
+    if(profile.aiType==='Premiumkunde') return `Hello, the ${c.brand} ${c.model} is interesting if its condition and equipment are genuinely well maintained. I would start at ${price}.${suffix}`;
+    if(profile.aiType==='Unsicherer Kunde') return `Hello, I am looking at your ${c.brand} ${c.model}. I am not completely sure yet, but ${price} is roughly my budget.`;
+    if(profile.aiType==='Ungeduldiger Kunde') return `Hello, is the ${c.brand} ${c.model} still available? If so: ${price}, with a quick purchase?`;
+    if(profile.aiType==='Stammkunde') return `Hello, I have bought from you before and was satisfied. I am interested in the ${c.brand} ${c.model}; my offer is ${price}.`;
+    return `Hello, I am interested in your ${c.brand} ${c.model}. My offer is ${price}.`;
+  }
   if(o.leadRealism==='unrealistic'){
     const methodText = o.paymentMethod==='leasing' ? 'Leasing' : o.paymentMethod==='finanzierung' ? 'Finanzierung' : 'Barzahlung';
     return choice([
@@ -8261,14 +8379,14 @@ function offerCard(o){
   return `<div class="offer-card">
     <div class="offer-head">
       <span><b>${o.name}</b> — ${c.brand} ${c.model}</span>
-      <span class="persona">${o.persona}</span>
+      <span class="persona">${displayText(o.persona)}</span>
     </div>
     <p class="subtle" style="margin:0 0 6px;">${escapeHtml(t('listings.offer_label'))}: <b style="color:var(--amber);font-family:var(--font-m);">${money(o.amount)}</b> (${escapeHtml(t('listings.list_price_ref'))} ${money(l?l.price:c.marketValue)}) · ${escapeHtml(t('listings.patience_label', {n:o.patience}))}</p>
     <div class="spec-row" style="margin-bottom:10px;">
       <span class="chip">${pmIcon} ${escapeHtml(saleMethodLabel(o.paymentMethod))}</span>
       <span class="chip">${escapeHtml(t('listings.payment_wish_chip'))}: ${escapeHtml(saleMethodLabel(desiredSaleMethod))}</span>
       ${l?paymentMethodBadges(l.allowedPaymentMethods):''}
-      ${o.job?`<span class="chip">💼 ${escapeHtml(o.job)}</span>`:''}
+      ${o.job?`<span class="chip">💼 ${displayText(o.job)}</span>`:''}
       ${o.creditScore!=null?`<span class="chip">${escapeHtml(t('listings.credit_chip'))} ${o.creditScore}/100</span>`:''}
       ${conditions.length?`<span class="chip" style="color:var(--crimson);border-color:rgba(224,85,92,.42);">${escapeHtml(t('listings.open_wish_chip'))}: ${escapeHtml(saleConditionText(conditions[0]))}</span>`:''}
     </div>
@@ -10994,12 +11112,12 @@ function renderFinance(){
     ${claims.length ? `
     <h3 style="font-family:var(--font-d);font-size:13px;margin:6px 0 10px;">${escapeHtml(FN.open_claims_title)} <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">${escapeHtml(FN.open_claims_link)}</a></h3>
     <table class="tbl finance-table"><thead><tr><th>${escapeHtml(FN.col_customer)}</th><th>${escapeHtml(FN.col_vehicle)}</th><th>${escapeHtml(FN.col_status)}</th><th>${escapeHtml(FN.col_total)}</th><th>${escapeHtml(FN.col_next_step)}</th></tr></thead>
-    <tbody>${claims.map(({contract, claim})=>`<tr><td>${contract.customerName}</td><td>${contractDesc(contract)}</td><td style="color:var(--red);">${claimStatusLabel(claim)}</td><td style="font-family:var(--font-m);">${money(claimTotal(claim))}</td><td>${claimActionLabel(claim)}</td></tr>`).join('')}</tbody></table>
+    <tbody>${claims.map(({contract, claim})=>`<tr><td>${escapeHtml(contract.customerName)}</td><td>${displayText(contractDesc(contract))}</td><td style="color:var(--red);">${displayText(claimStatusLabel(claim))}</td><td style="font-family:var(--font-m);">${money(claimTotal(claim))}</td><td>${displayText(claimActionLabel(claim))}</td></tr>`).join('')}</tbody></table>
     ` : ''}
     ${receivables.length ? `
     <h3 style="font-family:var(--font-d);font-size:13px;margin:6px 0 10px;">${escapeHtml(FN.open_financing_title)} <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">${escapeHtml(FN.open_financing_link)}</a></h3>
     <table class="tbl finance-table"><thead><tr><th>${escapeHtml(FN.col_customer)}</th><th>${escapeHtml(FN.col_vehicle)}</th><th>${escapeHtml(FN.col_rate_month)}</th><th>${escapeHtml(FN.col_remaining_debt)}</th><th>${escapeHtml(FN.col_status)}</th></tr></thead>
-    <tbody>${receivables.map(r=>`<tr><td>${r.customerName}</td><td>${r.carDesc}</td><td style="font-family:var(--font-m);">${money(r.monthlyPayment)}</td><td>${money(r.remainingPrincipal)}</td><td style="color:${r.status==='aktuell'?'var(--teal)':'var(--red)'};">${r.status}</td></tr>`).join('')}</tbody></table>
+    <tbody>${receivables.map(r=>`<tr><td>${escapeHtml(r.customerName)}</td><td>${displayText(r.carDesc)}</td><td style="font-family:var(--font-m);">${money(r.monthlyPayment)}</td><td>${money(r.remainingPrincipal)}</td><td style="color:${r.status==='aktuell'?'var(--teal)':'var(--red)'};">${displayText(r.status)}</td></tr>`).join('')}</tbody></table>
     ` : ''}
     ${leases.length ? `
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">${escapeHtml(FN.active_leases_title)} <a style="color:var(--brass);font-size:11px;cursor:pointer;font-weight:600;" onclick="navigateTo('contracts')">${escapeHtml(FN.open_financing_link)}</a></h3>
@@ -11008,7 +11126,7 @@ function renderFinance(){
     ` : ''}
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 10px;">${escapeHtml(FN.recent_transactions)}</h3>
     <table class="tbl finance-table"><thead><tr><th>${escapeHtml(FN.col_date)}</th><th>${escapeHtml(FN.col_description)}</th><th>${escapeHtml(FN.col_amount)}</th></tr></thead>
-    <tbody>${state.transactions.slice(0,40).map(t=>`<tr><td>${gameDateShort(t.day)}</td><td>${formatStoredDayText(t.desc)}</td><td style="color:${t.amount>=0?'var(--teal)':'var(--red)'};font-family:var(--font-m);">${fmtDelta(t.amount)}</td></tr>`).join('') || `<tr><td colspan="3" style="text-align:center;color:var(--txt-2);">${escapeHtml(FN.no_transactions)}</td></tr>`}</tbody></table>
+    <tbody>${state.transactions.slice(0,40).map(t=>`<tr><td>${gameDateShort(t.day)}</td><td>${escapeHtml(formatStoredDayText(t.desc))}</td><td style="color:${t.amount>=0?'var(--teal)':'var(--red)'};font-family:var(--font-m);">${fmtDelta(t.amount)}</td></tr>`).join('') || `<tr><td colspan="3" style="text-align:center;color:var(--txt-2);">${escapeHtml(FN.no_transactions)}</td></tr>`}</tbody></table>
   `;
 }
 
