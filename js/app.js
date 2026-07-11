@@ -4107,6 +4107,68 @@ function renderApp(appId){
 // Dann werden Einblend-Animationen unterdrückt und die Scrollposition gehalten,
 // damit sich der Tageswechsel nicht wie ein Neuladen der Seite anfühlt.
 let quietClockRender = false;
+function syncElementAttrs(target, source){
+  Array.from(target.attributes).forEach(attr=>{
+    if(!source.hasAttribute(attr.name)) target.removeAttribute(attr.name);
+  });
+  Array.from(source.attributes).forEach(attr=>{
+    if(target.getAttribute(attr.name)!==attr.value) target.setAttribute(attr.name, attr.value);
+  });
+}
+function morphDomNode(target, source){
+  if(!target || !source) return;
+  if(target.nodeType !== source.nodeType || (target.nodeType===1 && target.tagName!==source.tagName)){
+    target.replaceWith(source.cloneNode(true));
+    return;
+  }
+  if(target.nodeType===Node.TEXT_NODE){
+    if(target.nodeValue !== source.nodeValue) target.nodeValue = source.nodeValue;
+    return;
+  }
+  if(target.nodeType!==Node.ELEMENT_NODE) return;
+  const active = document.activeElement;
+  const isActiveControl = target === active && isEditingElement(target);
+  syncElementAttrs(target, source);
+  if(!isActiveControl){
+    if(target instanceof HTMLInputElement){
+      target.value = source.value;
+      target.checked = source.checked;
+    }else if(target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement){
+      target.value = source.value;
+    }
+  }
+  const targetChildren = Array.from(target.childNodes);
+  const sourceChildren = Array.from(source.childNodes);
+  const max = Math.max(targetChildren.length, sourceChildren.length);
+  for(let i=0;i<max;i++){
+    const tChild = target.childNodes[i];
+    const sChild = source.childNodes[i];
+    if(!sChild){
+      if(tChild) tChild.remove();
+    }else if(!tChild){
+      target.appendChild(sChild.cloneNode(true));
+    }else{
+      morphDomNode(tChild, sChild);
+    }
+  }
+}
+function quietUpdatePageContent(el, html){
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const sourceChildren = Array.from(tpl.content.childNodes);
+  const max = Math.max(el.childNodes.length, sourceChildren.length);
+  for(let i=0;i<max;i++){
+    const current = el.childNodes[i];
+    const next = sourceChildren[i];
+    if(!next){
+      if(current) current.remove();
+    }else if(!current){
+      el.appendChild(next.cloneNode(true));
+    }else{
+      morphDomNode(current, next);
+    }
+  }
+}
 function renderPageContent(){
   captureActiveDrafts();
   if(currentPage === 'branches') currentPage = 'dashboard';
@@ -4121,7 +4183,9 @@ function renderPageContent(){
     const prevScroll = samePage ? el.scrollTop : 0;
     el.classList.toggle('quiet-rerender', quietClockRender && samePage);
     const chatScroll = captureActiveChatScroll();
-    el.innerHTML = fns[currentPage]();
+    const html = fns[currentPage]();
+    if(quietClockRender && samePage) quietUpdatePageContent(el, html);
+    else el.innerHTML = html;
     el.dataset.renderedPage = currentPage;
     el.scrollTop = prevScroll;
     restoreActiveChatScroll(chatScroll);
@@ -4231,9 +4295,14 @@ function refreshClockChrome(){
     const dayDuration = clamp(state.dayDurationMs || DEFAULT_DAY_DURATION_MS, MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
     bar.style.width = Math.round((dayElapsedMs/dayDuration)*100)+'%';
   }
-  if(!isEditingElement(document.activeElement)){
-    if(!(currentPage==='mailbox' && syncActiveMailboxView())){
-      renderPageContent();
+  if(currentPage==='mailbox' && syncActiveMailboxView()){
+    // Mailbox kann Chatnachrichten gezielt anhängen, ohne den Thread neu aufzubauen.
+  } else {
+    quietClockRender = true;
+    try{ renderPageContent(); }
+    finally{
+      quietClockRender = false;
+      document.getElementById('pagecontent')?.classList.remove('quiet-rerender');
     }
   }
   if(document.getElementById('notifOverlay')) renderNotifPanel();
