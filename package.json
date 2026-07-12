@@ -12,6 +12,8 @@
     "start:dev": "set AUTOMOTIVE_EMPIRE_DEV=1&& electron . --dev",
     "build": "electron-builder --win",
     "build:dev": "set AUTOMOTIVE_EMPIRE_DEV=1&& electron-builder --win --config electron-builder.dev.json --publish never",
+    "build:mac": "electron-builder --mac --arm64 --x64",
+    "build:all": "electron-builder --win --mac --x64 --arm64",
     "reset:game-data": "node scripts/reset-game-data.js"
   },
   "devDependencies": {
@@ -63,7 +65,27 @@
       ]
     },
     "mac": {
-      "icon": "assets/logos/automotive-empire-icon.icns"
+      "icon": "assets/logos/automotive-empire-icon.icns",
+      "category": "public.app-category.games",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "AutomotiveEmpire-${version}-${arch}.${ext}"
     },
     "linux": {
       "icon": "assets/logos/automotive-empire-icon-512.png"

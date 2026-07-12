@@ -204,7 +204,7 @@ function setupAutoUpdater() {
   autoUpdater.allowDowngrade = false;
   autoUpdater.allowPrerelease = false;
 
-  if (ALLOW_UNSIGNED_UPDATES) {
+  if (process.platform === 'win32' && ALLOW_UNSIGNED_UPDATES) {
     // Ersetzt die Windows-Signaturpruefung des Updaters. Rueckgabe null
     // bedeutet fuer electron-updater "Signatur in Ordnung" — unsignierte
     // Entwicklungs-Builds werden dadurch installiert.
@@ -365,7 +365,7 @@ if (!gotLock) {
 }
 
 function createWindow() {
-  const win = new BrowserWindow({
+  const windowOptions = {
     title: APP_DISPLAY_NAME,
     width: 1600,
     height: 900,
@@ -376,14 +376,21 @@ function createWindow() {
     autoHideMenuBar: true,        // Menue versteckt; Alt zeigt es, F11 = Vollbild bleibt verfuegbar
     backgroundColor: '#0d1322',   // dunkler App-Hintergrund, passend zum Spiel (kein weisses Aufblitzen)
     show: false,                  // erst zeigen, wenn fertig geladen
-    icon: path.join(__dirname, 'assets', 'logos', 'automotive-empire-icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
-  });
+  };
+
+  // Windows behaelt exakt das bisherige ICO. Unter macOS stammt das App-Icon
+  // nativ aus dem signierten .app-Bundle (electron-builder / ICNS).
+  if (process.platform === 'win32') {
+    windowOptions.icon = path.join(__dirname, 'assets', 'logos', 'automotive-empire-icon.ico');
+  }
+
+  const win = new BrowserWindow(windowOptions);
 
   // Fenstertitel fest auf den App-Namen halten (Seitentitel des Spiels nicht durchreichen)
   win.on('page-title-updated', (e) => e.preventDefault());

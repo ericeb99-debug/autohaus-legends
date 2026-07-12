@@ -40,7 +40,27 @@
     ]
   },
   "mac": {
-    "icon": "assets/logos/automotive-empire-icon.icns"
+    "icon": "assets/logos/automotive-empire-icon.icns",
+    "category": "public.app-category.games",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "target": [
+      {
+        "target": "dmg",
+        "arch": [
+          "arm64",
+          "x64"
+        ]
+      },
+      {
+        "target": "zip",
+        "arch": [
+          "arm64",
+          "x64"
+        ]
+      }
+    ],
+    "artifactName": "AutomotiveEmpireDEV-${version}-${arch}.${ext}"
   },
   "linux": {
     "icon": "assets/logos/automotive-empire-icon-512.png"

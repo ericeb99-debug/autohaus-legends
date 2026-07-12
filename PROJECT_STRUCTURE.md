@@ -14,6 +14,7 @@ Wichtig: Diese Dokumentation beschreibt den aktuellen Aufbau. Viele Spielsysteme
 | `data/` | Ausgelagerte Datenbloecke wie Changelog, Fahrzeuge und Achievements. |
 | `assets/` | Grafische Assets wie Logos, App-Icon und Hintergruende. |
 | `scripts/` | Node-/Build-Hilfsscripts. |
+| `.github/workflows/` | Gemeinsamer, Tag-basierter Releaseprozess fuer Windows und macOS. |
 | `build/` | Build-/Installer-Ressourcen, soweit vorhanden. |
 | `dist/` | Release-Build-Ausgabe. Generiert, nicht als Quellstruktur behandeln. |
 | `dist-dev/` | DEV-Build-Ausgabe. Generiert, nicht als Quellstruktur behandeln. |
@@ -116,6 +117,7 @@ Wenn weiter refactored wird, nur schrittweise und ohne Logik neu zu schreiben:
 | `electron-builder.dev.json` | DEV-Build-Konfiguration mit getrenntem Produktnamen, eigener App-ID, `dist-dev`-Ausgabe und deaktivierter Update-Verteilung. |
 | `scripts/after-pack-dev.js` | Entfernt Update-Konfiguration aus DEV-Builds, damit DEV keinen Auto-Updater nutzt. |
 | `scripts/reset-game-data.js` | Hilfsscript zum Zuruecksetzen der Spieldaten im aktuellen UserData-Ordner. Vorsichtig verwenden. |
+| `.github/workflows/release.yml` | Baut bei einem Versions-Tag zuerst die unveraenderte Windows-Version und danach signierte/notarisierte macOS-Artefakte fuer Apple Silicon und Intel aus demselben Commit. |
 
 ### Build-Scripts
 
@@ -125,6 +127,19 @@ Wenn weiter refactored wird, nur schrittweise und ohne Logik neu zu schreiben:
 | `npm run start:dev` | DEV-Modus lokal starten. |
 | `npm run build` | Release-Installer und Portable bauen. |
 | `npm run build:dev` | DEV-Installer und Portable bauen, ohne Auto-Updater. |
+| `npm run build:mac` | macOS-DMG und updater-faehiges ZIP fuer Apple Silicon und Intel bauen. |
+| `npm run build:all` | Windows- und macOS-Ziele aus demselben Quellstand bauen (plattformuebergreifende lokale Builder-Einschraenkungen beachten). |
+
+### Plattformen und Releases
+
+| Bereich | Verhalten |
+| --- | --- |
+| Windows | Bleibt Hauptplattform. `npm run build` erzeugt weiterhin unveraendert NSIS-Setup und Portable-x64-Build. |
+| macOS | `npm run build:mac` erzeugt DMG und ZIP jeweils fuer `arm64` (Apple Silicon) und `x64` (Intel). Das App-Bundle nutzt das offizielle ICNS-Logo. |
+| Gemeinsame Version | Beide Plattformen lesen dieselbe Version aus `package.json`; der Release-Workflow bricht ab, wenn Git-Tag und Paketversion abweichen. |
+| Update-Kanal | Windows (`latest.yml`) und macOS (`latest-mac.yml`) verwenden denselben stabilen GitHub-Releasekanal. Die Metadaten bleiben technisch plattformspezifisch. |
+| Signing | Oeffentliche macOS-Releases werden im Workflow mit Developer-ID-Zertifikat signiert und durch Apple notarisiert. Die Zugangsdaten liegen ausschliesslich in GitHub-Secrets. |
+| Release-Ausloeser | Ein Tag `v<package.json-version>` startet automatisch beide Plattform-Builds. Die macOS-Publikation beginnt erst nach erfolgreichem Windows-Build. |
 
 ## Suchfunktion: Wenn ich etwas aendern moechte
 
@@ -148,6 +163,7 @@ Wenn weiter refactored wird, nur schrittweise und ohne Logik neu zu schreiben:
 | Auto-Updater | `main.js`, `preload.js`, `package.json`, `scripts/after-pack-dev.js` |
 | DEV-Build | `electron-builder.dev.json`, `package.json`, `main.js`, `scripts/after-pack-dev.js` |
 | Release-Build | `package.json`, `main.js` |
+| Gemeinsamer Windows-/macOS-Release | `.github/workflows/release.yml`, `package.json` |
 | Native File Storage | `main.js`, `preload.js`, Speicheraufrufe in `js/app.js` |
 | Profile/Speicherstaende | `js/app.js`, `main.js` |
 

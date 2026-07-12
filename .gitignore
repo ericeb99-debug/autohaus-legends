@@ -8,4 +8,5 @@ win-unpacked/
 *.7z
 *.zip
 latest.yml
+latest-mac.yml
 builder-debug.yml

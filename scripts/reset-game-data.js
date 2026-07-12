@@ -1,10 +1,14 @@
 const fs = require('fs/promises');
 const path = require('path');
 
-const appData = process.env.APPDATA;
+const appData = process.env.APPDATA || (
+  process.platform === 'darwin' && process.env.HOME
+    ? path.join(process.env.HOME, 'Library', 'Application Support')
+    : null
+);
 
 if (!appData) {
-  console.error('APPDATA ist nicht gesetzt.');
+  console.error('Der native App-Datenordner konnte nicht bestimmt werden.');
   process.exit(1);
 }
 
