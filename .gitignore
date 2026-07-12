@@ -10,3 +10,4 @@ win-unpacked/
 latest.yml
 latest-mac.yml
 builder-debug.yml
+.DS_Store
