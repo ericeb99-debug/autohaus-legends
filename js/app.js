@@ -2758,8 +2758,6 @@ function startProfileGame(){
     startGameClock();
     gameClockStarted = true;
   }
-  // Nach dem Login einmalig die Neuerungen der frisch installierten Ausgabe zeigen.
-  maybeShowVersionWelcome();
 }
 async function switchProfile(){
   if(state && activeProfileId) await saveNow();
@@ -5828,19 +5826,47 @@ function renderWorkshop(){
   }
   return `
     <h2 class="section-title">${escapeHtml(W.title)}</h2>
-    <p class="subtle">${escapeHtml(t('workshop.active_jobs',{n:state.workshopJobs.length}))}</p>
+    <p class="subtle" id="workshopActiveJobs">${escapeHtml(t('workshop.active_jobs',{n:state.workshopJobs.length}))}</p>
     ${state.workshopJobs.map(j=>{
       const c = findCar(j.carId);
       if(!c) return '';
       const job = REPAIR_JOBS.find(x=>x.id===(j.baseJobId||j.jobId)) || {icon:'🔧', baseDays:Math.max(1,j.daysLeft||1)};
       const pct = Math.round(100*(1-(j.daysLeft/Math.max(1,j.totalDays||job.baseDays))));
       const label = j.jobId==='customer-wishes' ? W.batch_label : j.label;
-      return `<div class="offer-card">
-        <div class="offer-head"><span>${job.icon} <b>${c.brand} ${c.model}</b> — ${displayText(label)}</span><span class="persona">${escapeHtml(t('workshop.days_left',{n:j.daysLeft}))}</span></div>
-        <div class="progress"><div style="width:${clamp(pct,5,100)}%"></div></div>
+      return `<div class="offer-card workshop-job-card" data-workshop-car-id="${escapeAttr(j.carId)}" data-workshop-job-id="${escapeAttr(j.jobId)}">
+        <div class="offer-head"><span>${job.icon} <b>${c.brand} ${c.model}</b> — ${displayText(label)}</span><span class="persona workshop-days-left">${escapeHtml(t('workshop.days_left',{n:j.daysLeft}))}</span></div>
+        <div class="progress"><div class="workshop-progress-bar" style="width:${clamp(pct,5,100)}%"></div></div>
       </div>`;
     }).join('')}
   `;
+}
+
+// Der Kalendertag aktualisiert nur die bereits sichtbaren Werkstattanzeigen.
+// Andere Inhalte und der Scrollzustand der geöffneten Seite bleiben unberührt.
+function refreshWorkshopProgressIndicators(){
+  if(currentPage!=='workshop') return;
+  const page = document.getElementById('pagecontent');
+  if(!page || page.dataset.renderedPage!=='workshop') return;
+  const jobs = state.workshopJobs||[];
+  if(!jobs.length){
+    page.innerHTML = renderWorkshop();
+    enhancePremiumUi();
+    return;
+  }
+  const remaining = jobs.slice();
+  page.querySelectorAll('.workshop-job-card').forEach(card=>{
+    const index = remaining.findIndex(j=>String(j.carId)===card.dataset.workshopCarId && String(j.jobId)===card.dataset.workshopJobId);
+    if(index<0){ card.remove(); return; }
+    const job = remaining.splice(index,1)[0];
+    const totalDays = Math.max(1, Number(job.totalDays)||Number(job.daysLeft)||1);
+    const pct = Math.round(100*(1-(Number(job.daysLeft)||0)/totalDays));
+    const days = card.querySelector('.workshop-days-left');
+    const bar = card.querySelector('.workshop-progress-bar');
+    if(days) days.textContent = t('workshop.days_left',{n:job.daysLeft});
+    if(bar) bar.style.width = clamp(pct,5,100)+'%';
+  });
+  const summary = document.getElementById('workshopActiveJobs');
+  if(summary) summary.textContent = t('workshop.active_jobs',{n:jobs.length});
 }
 
 /* =============================== ECU-TUNING / PERFORMANCE CENTER =============================== */
@@ -13046,6 +13072,7 @@ function nextDay(){
     }
     return true;
   });
+  refreshWorkshopProgressIndicators();
 
   maybeGenerateEcuRequest(completedWorkshopToday);
 
