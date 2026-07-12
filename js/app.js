@@ -4457,10 +4457,7 @@ function refreshClockChrome(){
   renderTopbar();
   renderSidebar();
   const bar = document.getElementById('dayProgress');
-  if(bar){
-    const dayDuration = clamp(state.dayDurationMs || DEFAULT_DAY_DURATION_MS, MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
-    bar.style.width = Math.round((dayElapsedMs/dayDuration)*100)+'%';
-  }
+  if(bar) bar.style.width = globalDayProgressPercent()+'%';
   if(currentPage==='mailbox' && syncActiveMailboxView()){
     // Mailbox kann Chatnachrichten gezielt anhängen, ohne den Thread neu aufzubauen.
   } else {
@@ -5831,11 +5828,11 @@ function renderWorkshop(){
       const c = findCar(j.carId);
       if(!c) return '';
       const job = REPAIR_JOBS.find(x=>x.id===(j.baseJobId||j.jobId)) || {icon:'🔧', baseDays:Math.max(1,j.daysLeft||1)};
-      const pct = Math.round(100*(1-(j.daysLeft/Math.max(1,j.totalDays||job.baseDays))));
+      const pct = globalDayProgressPercent();
       const label = j.jobId==='customer-wishes' ? W.batch_label : j.label;
       return `<div class="offer-card workshop-job-card" data-workshop-car-id="${escapeAttr(j.carId)}" data-workshop-job-id="${escapeAttr(j.jobId)}">
         <div class="offer-head"><span>${job.icon} <b>${c.brand} ${c.model}</b> — ${displayText(label)}</span><span class="persona workshop-days-left">${escapeHtml(t('workshop.days_left',{n:j.daysLeft}))}</span></div>
-        <div class="progress"><div class="workshop-progress-bar" style="width:${clamp(pct,5,100)}%"></div></div>
+        <div class="progress"><div class="workshop-progress-bar" style="width:${pct}%"></div></div>
       </div>`;
     }).join('')}
   `;
@@ -5858,12 +5855,10 @@ function refreshWorkshopProgressIndicators(){
     const index = remaining.findIndex(j=>String(j.carId)===card.dataset.workshopCarId && String(j.jobId)===card.dataset.workshopJobId);
     if(index<0){ card.remove(); return; }
     const job = remaining.splice(index,1)[0];
-    const totalDays = Math.max(1, Number(job.totalDays)||Number(job.daysLeft)||1);
-    const pct = Math.round(100*(1-(Number(job.daysLeft)||0)/totalDays));
     const days = card.querySelector('.workshop-days-left');
     const bar = card.querySelector('.workshop-progress-bar');
     if(days) days.textContent = t('workshop.days_left',{n:job.daysLeft});
-    if(bar) bar.style.width = clamp(pct,5,100)+'%';
+    if(bar) bar.style.width = globalDayProgressPercent()+'%';
   });
   const summary = document.getElementById('workshopActiveJobs');
   if(summary) summary.textContent = t('workshop.active_jobs',{n:jobs.length});
@@ -12860,6 +12855,11 @@ const MIN_DAY_DURATION_MS = 30000;
 const MAX_DAY_DURATION_MS = 300000;
 let dayElapsedMs = 0;
 
+function globalDayProgressPercent(){
+  const dayDuration = clamp(state.dayDurationMs || DEFAULT_DAY_DURATION_MS, MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
+  return clamp(Math.round((dayElapsedMs/dayDuration)*100),0,100);
+}
+
 const PRICE_UPDATE_MS = 180000; // 3 Minuten Echtzeit zwischen Marktpreis-Aktualisierungen
 let priceElapsedMs = 0;
 let realPlaytimeLastTick = 0;
@@ -12895,7 +12895,8 @@ function startGameClock(){
       nextDay();
     } else {
       const bar = document.getElementById('dayProgress');
-      if(bar) bar.style.width = Math.round((dayElapsedMs/dayDuration)*100)+'%';
+      if(bar) bar.style.width = globalDayProgressPercent()+'%';
+      refreshWorkshopProgressIndicators();
     }
     if(priceElapsedMs >= PRICE_UPDATE_MS){
       priceElapsedMs = 0;
