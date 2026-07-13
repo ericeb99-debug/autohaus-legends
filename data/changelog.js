@@ -1,5 +1,93 @@
 const CHANGELOG = [
   {
+    version:'1.1.1', date:'2026-07-13', type:'major', pinned:true,
+    title:'Performance- & Komfort-Highlight',
+    headline:'Automotive Empire startet jetzt immersiver, beendet Spielstände besonders sicher und arbeitet auch in langen Sessions spürbar effizienter.',
+    sections:{
+      new:[
+        'Das Spiel startet standardmäßig direkt im echten Vollbild, ohne die Auflösung oder Skalierung des Betriebssystems zu verändern.',
+        'Ein dauerhaft sichtbarer Exit-Button in der Kopfleiste führt über einen klaren Bestätigungsdialog zum sicheren Beenden.',
+      ],
+      improved:[
+        'Vollbild- und Fenstermodus merken sich die bewusste Auswahl sowie eine sinnvolle Fensterposition für den verwendeten Bildschirm.',
+        'Speichervorgänge werden geordnet, gebündelt und beim Beenden vollständig abgeschlossen, bevor sich die Anwendung schließt.',
+        'Unsichtbare Bereiche vermeiden unnötige Aktualisierungen; hochauflösende Programmbilder werden erst in der Nähe des sichtbaren Bereichs dekodiert.',
+        'Fenster-, Speicher- und Oberflächenaktualisierungen verursachen weniger doppelte Arbeit und bleiben dadurch auch bei langen Spielständen flüssiger.',
+      ],
+      fixed:[
+        'Exit-Button, Fenster-Schließen, Alt+F4 und Cmd+Q verwenden nun denselben sicheren Speichern-und-Beenden-Ablauf.',
+        'Parallele Schreibzugriffe auf denselben Spielstand können sich nicht mehr gegenseitig überschneiden.',
+      ],
+    },
+    en:{
+      title:'Performance & Comfort Highlight',
+      headline:'Automotive Empire now starts more immersively, closes saves with extra care and works more efficiently throughout long sessions.',
+      sections:{
+        new:[
+          'The game now starts directly in true fullscreen by default without changing the operating system resolution or scaling.',
+          'A permanently visible exit button in the header opens a clear confirmation dialog for safe shutdown.',
+        ],
+        improved:[
+          'Fullscreen and windowed mode remember the deliberate choice and a sensible window position for the display in use.',
+          'Save operations are serialized, batched and fully completed before the application closes.',
+          'Hidden areas avoid unnecessary updates, while high-resolution program artwork is decoded only near the visible viewport.',
+          'Window, storage and interface updates perform less duplicate work, keeping long-running saves smoother.',
+        ],
+        fixed:[
+          'The exit button, window close control, Alt+F4 and Cmd+Q now share the same safe save-and-quit flow.',
+          'Parallel writes to the same save file can no longer overlap.',
+        ],
+      },
+    },
+  },
+  {
+    version:'1.1.1', date:'2026-07-12', type:'improved',
+    title:'Navigations-Feinschliff',
+    headline:'Seitenleiste und Schnellleiste wirken moderner, klarer und bleiben auch in kleinen Fenstern komfortabel lesbar.',
+    sections:{
+      improved:[
+        'Die Navigationssymbole verwenden jetzt ein einheitliches Premium-Design mit dezenten Farbakzenten, wodurch sich die Spielbereiche schneller unterscheiden lassen.',
+        'Sanfte Hover-Effekte geben beim Überfahren direktes visuelles Feedback, ohne vom Spielgeschehen abzulenken.',
+        'Die Schaltfläche zum Anpassen der Schnellleiste ist jetzt dauerhaft sichtbar und passend bei den Schnellzugriffen angeordnet.',
+        'Das Programme-Fenster präsentiert alle Bereiche jetzt als großzügige Hero-Karten mit stimmungsvollen Motiven, klaren Kategorie-Farben und hochwertiger Glasoptik.',
+        'Jeder Spielbereich besitzt nun ein eigenes, passend zugeschnittenes Hero-Motiv und ist dadurch bereits am Bild eindeutig erkennbar.',
+        'Neue Öffnungs-, Karten- und Hover-Animationen sowie eine feinere Suche und Scrollleiste machen die Modulauswahl spürbar ruhiger und lebendiger.',
+        'Hochauflösende Hero-Motive, individuelle Modulfarben und dezente Live-Informationen verleihen jeder Programmkarte mehr Tiefe, Klarheit und Eigenständigkeit.',
+        'Alle Hero-Motive wurden detailgetreu in 4K rekonstruiert und bleiben dadurch auch auf hochauflösenden Displays klar, ruhig und hochwertig.',
+        'Das Programme-Fenster wurde als zentrales AAA-Steuerungspanel neu aufgebaut: Schnellzugriffe, klar gegliederte Bereiche und kompakte Bildkarten bringen alle Module schneller und hochwertiger zusammen.',
+        'Dynamische Kartenformate und dichter angeordnete Bereichspanels nutzen den verfügbaren Platz jetzt besser und heben zentrale Module gezielt hervor.',
+        'Ein dauerhaft sichtbarer Programme-Launcher sitzt jetzt fest vor der Tableiste und öffnet das Steuerungspanel jederzeit per Klick, F1 oder Strg+Leertaste.',
+      ],
+      fixed:[
+        'Hinweise und Beschreibungen der Navigation werden jetzt vollständig über der Oberfläche angezeigt und passen ihre Position automatisch an den verfügbaren Bildschirmplatz an.',
+        'Auch bei kleinen Fenstern bleiben die Navigationshinweise vollständig sichtbar und lesbar.',
+      ],
+    },
+    en:{
+      title:'Navigation Polish',
+      headline:'The sidebar and quick-access bar now look more modern and distinctive while remaining easy to read in smaller windows.',
+      sections:{
+        improved:[
+          'Navigation icons now share a consistent premium style with subtle color accents, making game areas easier to distinguish at a glance.',
+          'Gentle hover effects provide clear visual feedback without distracting from gameplay.',
+          'The quick-access customization button is now permanently visible and positioned alongside the quick-access controls.',
+          'The Programs window now presents every area as a spacious hero card with atmospheric imagery, clear category colors and premium glass styling.',
+          'Every game area now has its own carefully cropped hero artwork, making each module recognizable from its image alone.',
+          'New opening, card and hover animations plus a refined search field and scrollbar make module selection feel calmer and more alive.',
+          'High-resolution hero artwork, individual module colors and subtle live information give every program card greater depth, clarity and identity.',
+          'All hero scenes were faithfully reconstructed in 4K, keeping them crisp, composed and premium on high-resolution displays.',
+          'The Programs window has been rebuilt as a central AAA control panel, combining quick access, clearly structured areas and compact visual module cards.',
+          'Dynamic card sizes and more tightly arranged area panels now use the available space better while deliberately highlighting key modules.',
+          'A permanently visible Programs launcher now sits in front of the tab bar and opens the control panel at any time via click, F1 or Ctrl+Space.',
+        ],
+        fixed:[
+          'Navigation hints and descriptions now appear fully above the interface and automatically adapt their position to the available screen space.',
+          'Navigation hints remain completely visible and readable even in small windows.',
+        ],
+      },
+    },
+  },
+  {
     version:'1.1.1', date:'2026-07-11', type:'improved',
     title:'Werkstatt-Komfort verbessert',
     headline:'Reparaturen blockieren Kunden und Verkäufe nicht mehr unnötig lange.',
@@ -70,7 +158,7 @@ const CHANGELOG = [
     },
   },
   {
-    version:'1.1.1', date:'2026-07-08', type:'major', pinned:true,
+    version:'1.1.1', date:'2026-07-08', type:'major',
     title:'🌍 Vollständige Englisch-Lokalisierung',
     headline:'Automotive Empire unterstützt jetzt vollständig Deutsch und Englisch. Das gesamte Spiel – inklusive Benutzeroberfläche, Menüs, Benachrichtigungen, Tooltips, Kalender sowie Währungs- und Zahlenformatierung – passt sich automatisch der gewählten Sprache an. In der englischen Version werden alle Geldbeträge und Formate professionell auf US-Dollar und internationale Schreibweise umgestellt. Das neue Lokalisierungssystem ist außerdem für weitere Sprachen in zukünftigen Updates vorbereitet.',
     sections:{
@@ -115,7 +203,7 @@ const CHANGELOG = [
     },
   },
   {
-    version:'1.1.1', date:'2026-07-07', type:'major', pinned:true,
+    version:'1.1.1', date:'2026-07-07', type:'major',
     title:'Performance Center Update',
     headline:'Das neue Performance Center erweitert Automotive Empire um einen interaktiven ECU- und Softwareoptimierungsbereich mit Fahrzeuganalyse, Drag & Drop, Kompatibilitätsprüfung und realistischem Kundenablauf.',
     sections:{
@@ -504,6 +592,7 @@ const CHANGELOG = [
     sections:{
       improved:[
         'Update-Hinweise, Login, Einstellungen und Willkommensfenster wirken jetzt einheitlicher und aufgeräumter.',
+        'Seitenleiste und Schnellzugriffe verwenden jetzt durchgängig klare, fein gezeichnete Premium-Symbole für eine ruhigere und hochwertigere Navigation.',
       ],
       fixed:[
         'Die Update-Installation schlug bei Entwicklungs-Builds an der Signaturprüfung fehl („not signed by the application owner“).',
@@ -516,6 +605,7 @@ const CHANGELOG = [
       sections:{
         improved:[
           'Update notices, login, settings and the welcome window now look more consistent and tidy.',
+          'The sidebar and quick-access bar now use a consistent set of crisp, finely drawn premium symbols for calmer, more polished navigation.',
         ],
         fixed:[
           'Update installation failed the signature check on development builds ("not signed by the application owner").',

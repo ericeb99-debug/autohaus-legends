@@ -13,6 +13,7 @@ Wichtig: Diese Dokumentation beschreibt den aktuellen Aufbau. Viele Spielsysteme
 | `js/` | JavaScript-Laufzeit der Anwendung. |
 | `data/` | Ausgelagerte Datenbloecke wie Changelog, Fahrzeuge und Achievements. |
 | `assets/` | Grafische Assets wie Logos, App-Icon und Hintergruende. |
+| `assets/programs/heroes/` | Einzelne, aus der Programme-Referenz zugeschnittene Hero-Motive fuer alle 23 Programmkarten. |
 | `scripts/` | Node-/Build-Hilfsscripts. |
 | `build/` | Build-/Installer-Ressourcen, soweit vorhanden. |
 | `dist/` | Release-Build-Ausgabe. Generiert, nicht als Quellstruktur behandeln. |
@@ -48,10 +49,12 @@ Aktueller Hinweis: CSS ist derzeit in einer Datei gebuendelt. Wenn spaeter weite
 
 | Bereich | Wo aktuell suchen | Hinweise |
 | --- | --- | --- |
-| App-Start | `init()` in `js/app.js` | Initialisiert Runtime-Infos, Updater-Bridge, Hintergruende und Login. |
-| Navigation | `navigateTo()`, `renderSidebar()`, `renderBottomBar()` | Steuert Seitenwechsel, Dock und Bottom-Bar. |
+| App-Start | `init()` in `js/app.js`, `createWindow()` in `main.js` | Initialisiert Runtime-Infos, Lifecycle-Bridge, Hintergruende und Login; Electron startet standardmaessig im echten Vollbild und merkt eine bewusste Fenstermodus-Auswahl. |
+| Navigation | `navigateTo()`, `renderSidebar()`, `renderBottomBar()`, `installProgramLauncherShortcuts()` | Steuert Seitenwechsel, Dock und Bottom-Bar; der feste Programme-Launcher liegt außerhalb der scrollbaren Tabs und reagiert auf F1 sowie Strg+Leertaste. |
+| Programme-Fenster | `openProgramsWindow()`, `renderProgramsGrid()`, `PROGRAM_HEROES` | AAA-Steuerungspanel mit Schnellzugriffen, asymmetrischem Kategorie-Raster, Live-Daten und 4K-Hero-Karten; Motive liegen in `assets/programs/heroes/`. |
 | Profile/Login | `renderProfileLogin()`, `createProfileFromLogin()`, `loadProfile()` | Nutzt native Speicherung ueber `window.storage`. |
-| State/Speicherlogik | `defaultState()`, `migrateState()`, `saveNow()`, `storageGet()`, `storageSet()` | Interne Save-Keys nicht ohne Migration aendern. |
+| State/Speicherlogik | `defaultState()`, `migrateState()`, `saveNow()`, `flushPendingSave()`, `storageGet()`, `storageSet()` | Interne Save-Keys nicht ohne Migration aendern. Renderer-Saves und native Dateischreibvorgaenge werden geordnet; der Exit-Ablauf wartet auf den letzten Save. |
+| Sicheres Beenden | `showExitConfirmation()`, `confirmSafeExit()`, `initAppLifecycleBridge()` | Exit-Button und Betriebssystem-Schliesswege laufen ueber dieselbe Save-Bestaetigung und die `window.appLifecycle`-Bridge. |
 | Kunden | Kunden-, Offers-, Reviews- und Chat-Funktionen in `js/app.js` | Datenbasis teilweise in `data/vehicles.js`. |
 | Fahrzeuge | `generateCar()`, Markt-, Bestand-, Inserat- und Fahrzeugdatei-Funktionen | Marken-/Modell- und Fahrzeugdaten liegen in `data/vehicles.js`. |
 | Werkstatt | Werkstatt-Jobs und Reparatur-/Servicefunktionen in `js/app.js` | Kein separates Modul. |
@@ -110,8 +113,8 @@ Wenn weiter refactored wird, nur schrittweise und ohne Logik neu zu schreiben:
 
 | Datei | Aufgabe |
 | --- | --- |
-| `main.js` | Electron-Hauptprozess. Erstellt das BrowserWindow, setzt App-Name/UserData-Pfad, verwaltet Native File Storage, IPC, Protokoll-Handler und Auto-Updater. |
-| `preload.js` | Sichere Bridge zwischen Renderer und Electron. Stellt `window.storage`, `window.updater` und `window.appInfo` bereit. |
+| `main.js` | Electron-Hauptprozess. Erstellt das BrowserWindow, verwaltet Vollbild-/Fensterzustand, einheitliches sicheres Beenden, Native File Storage, IPC, Protokoll-Handler und Auto-Updater. |
+| `preload.js` | Sichere Bridge zwischen Renderer und Electron. Stellt `window.storage`, `window.appLifecycle`, `window.updater` und `window.appInfo` bereit. |
 | `package.json` | npm-Scripts, Release-Build-Konfiguration, electron-builder Release-Settings, Installer-/Portable-Namen. |
 | `electron-builder.dev.json` | DEV-Build-Konfiguration mit getrenntem Produktnamen, eigener App-ID, `dist-dev`-Ausgabe und deaktivierter Update-Verteilung. |
 | `scripts/after-pack-dev.js` | Entfernt Update-Konfiguration aus DEV-Builds, damit DEV keinen Auto-Updater nutzt. |
@@ -150,6 +153,8 @@ Wenn weiter refactored wird, nur schrittweise und ohne Logik neu zu schreiben:
 | Release-Build | `package.json`, `main.js` |
 | Native File Storage | `main.js`, `preload.js`, Speicheraufrufe in `js/app.js` |
 | Profile/Speicherstaende | `js/app.js`, `main.js` |
+| Vollbild/Fensterzustand | `main.js` (`readWindowState`, `createWindow`, `writeFullscreenPreference`) |
+| Exit-Button / sicheres Beenden | UI: `js/app.js` + `css/main.css`, Electron-Lifecycle: `main.js` + `preload.js` |
 
 ## Wartung
 

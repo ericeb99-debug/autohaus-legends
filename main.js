@@ -1,7 +1,7 @@
 // Electron-Huelle fuer Automotive Empire.
 // Laedt das unveraenderte Spiel in einem nativen Fenster.
 // Das Spiel selbst wird hier NICHT veraendert.
-const { app, BrowserWindow, protocol, net, shell, nativeTheme, ipcMain } = require('electron');
+const { app, BrowserWindow, protocol, net, shell, nativeTheme, ipcMain, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fsSync = require('fs');
@@ -25,6 +25,65 @@ const storageDirs = ['Local Storage', 'Session Storage'];
 const backgroundImageExtensions = new Set(['.avif', '.gif', '.jpeg', '.jpg', '.png', '.webp']);
 let updateCheckInProgress = false;
 let updateReadyToInstall = false;
+const windowStatePath = path.join(userDataDir, 'window-state.json');
+const storageWriteQueues = new Map();
+let mainWindow = null;
+let allowAppQuit = false;
+let quitRequestPending = false;
+let windowStateTimer = null;
+let windowStateWriteQueue = Promise.resolve();
+
+async function readWindowState() {
+  try { return JSON.parse(await fs.readFile(windowStatePath, 'utf8')); }
+  catch (_) { return { fullscreen: true }; }
+}
+function persistWindowState(state) {
+  windowStateWriteQueue = windowStateWriteQueue.catch(()=>{}).then(async () => {
+    await fs.mkdir(path.dirname(windowStatePath), { recursive: true });
+    await fs.writeFile(windowStatePath + '.tmp', JSON.stringify(state), 'utf8');
+    await fs.rename(windowStatePath + '.tmp', windowStatePath);
+  });
+  return windowStateWriteQueue;
+}
+function scheduleWindowStateSave(win) {
+  if (!win || win.isDestroyed() || win.isFullScreen()) return;
+  clearTimeout(windowStateTimer);
+  windowStateTimer = setTimeout(async () => {
+    if (!win || win.isDestroyed() || win.isFullScreen()) return;
+    const bounds = win.getBounds();
+    const state = { fullscreen: false, bounds, displayId: screen.getDisplayMatching(bounds).id };
+    try { await persistWindowState(state); }
+    catch (error) { console.error('[Window] Could not persist window state:', error); }
+  }, 350);
+}
+async function writeFullscreenPreference(win, fullscreen) {
+  const previous = await readWindowState();
+  const next = {...previous, fullscreen: !!fullscreen};
+  if (win && !win.isDestroyed() && !fullscreen) {
+    next.bounds = win.getBounds();
+    next.displayId = screen.getDisplayMatching(next.bounds).id;
+  }
+  try { await persistWindowState(next); }
+  catch (error) { console.error('[Window] Could not persist fullscreen preference:', error); }
+}
+function queueStorageWrite(key, task) {
+  const previous = storageWriteQueues.get(key) || Promise.resolve();
+  const current = previous.catch(()=>{}).then(task).finally(() => {
+    if (storageWriteQueues.get(key) === current) storageWriteQueues.delete(key);
+  });
+  storageWriteQueues.set(key, current);
+  return current;
+}
+function requestSafeQuit(reason) {
+  if (allowAppQuit || quitRequestPending) return;
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : BrowserWindow.getAllWindows()[0];
+  if (!win || win.webContents.isDestroyed()) { allowAppQuit = true; app.quit(); return; }
+  quitRequestPending = true;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  win.webContents.send('app-quit-requested', { reason: reason || 'system' });
+}
 
 // ============================================================================
 // ⚠️ NUR FUER DIE ENTWICKLUNGSPHASE: Signaturpruefung des Auto-Updaters
@@ -296,16 +355,13 @@ if (!gotLock) {
     ipcMain.handle('backgrounds-list', () => listBackgroundImages());
 
     ipcMain.handle('storage-get', async (event, key) => {
-      console.log(`[Main] storage-get called for key: ${key}`);
       const filename = getFilenameForKey(key);
       const filepath = path.join(savesDir, filename);
       try {
         const content = await fs.readFile(filepath, 'utf8');
-        console.log(`[Main] Successfully read ${filename}`);
         return { value: content };
       } catch (e) {
         if (e.code === 'ENOENT') {
-          console.log(`[Main] File ${filename} not found, returning null`);
           return { value: null };
         }
         console.error(`[Main] Error reading ${filename}:`, e);
@@ -314,36 +370,39 @@ if (!gotLock) {
     });
 
     ipcMain.handle('storage-set', async (event, key, value) => {
-      console.log(`[Main] storage-set started for key: ${key}`);
-      const filename = getFilenameForKey(key);
-      const filepath = path.join(savesDir, filename);
-      const backupPath = path.join(savesDir, filename.replace('.json', '.backup.json'));
-      
-      console.log(`[Main] Target file path: ${filepath}`);
-      
-      if (value === '' || value === null || value === undefined) {
-        try { await fs.unlink(filepath); console.log(`[Main] Deleted ${filename}`); } catch(e) {}
-        return;
-      }
-      
-      try {
-        const exists = await fs.stat(filepath).then(()=>true).catch(()=>false);
-        if (exists) {
-          await fs.copyFile(filepath, backupPath);
-          console.log(`[Main] Backup created: ${backupPath}`);
+      return queueStorageWrite(key, async () => {
+        const filename = getFilenameForKey(key);
+        const filepath = path.join(savesDir, filename);
+        const backupPath = path.join(savesDir, filename.replace('.json', '.backup.json'));
+        if (value === '' || value === null || value === undefined) {
+          try { await fs.unlink(filepath); } catch(e) {}
+          return;
         }
-      } catch (e) {
-        console.error(`[Main] Error creating backup for ${filename}:`, e);
-      }
-      
-      try {
+        try {
+          const exists = await fs.stat(filepath).then(()=>true).catch(()=>false);
+          if (exists) await fs.copyFile(filepath, backupPath);
+        } catch (e) {
+          console.error(`[Main] Error creating backup for ${filename}:`, e);
+        }
         const tempPath = filepath + '.tmp';
         await fs.writeFile(tempPath, value, 'utf8');
         await fs.rename(tempPath, filepath);
-        console.log(`[Main] File written successfully: ${filepath}`);
-      } catch (e) {
-        console.error(`[Main] Error writing ${filename}:`, e);
-      }
+      });
+    });
+
+    ipcMain.handle('app-quit-request', () => requestSafeQuit('button'));
+    ipcMain.handle('app-quit-cancel', () => { quitRequestPending = false; });
+    ipcMain.handle('app-quit-confirm', async () => {
+      await Promise.allSettled([...storageWriteQueues.values()]);
+      allowAppQuit = true;
+      quitRequestPending = false;
+      app.quit();
+    });
+    ipcMain.handle('app-toggle-fullscreen', () => {
+      const win = mainWindow;
+      if (!win || win.isDestroyed()) return false;
+      win.setFullScreen(!win.isFullScreen());
+      return win.isFullScreen();
     });
 
     protocol.handle('app', (request) => {
@@ -356,7 +415,7 @@ if (!gotLock) {
       return net.fetch(pathToFileURL(file).toString());
     });
 
-    createWindow();
+    createWindow(await readWindowState());
     setupAutoUpdater();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -364,15 +423,26 @@ if (!gotLock) {
   });
 }
 
-function createWindow() {
+function createWindow(windowState = {fullscreen:true}) {
+  const displays = screen.getAllDisplays();
+  const preferredDisplay = displays.find(d => String(d.id) === String(windowState.displayId)) || screen.getPrimaryDisplay();
+  const area = preferredDisplay.workArea;
+  const saved = windowState.bounds;
+  const savedVisible = saved && displays.some(d => {
+    const a=d.workArea; return saved.x < a.x+a.width-80 && saved.x+saved.width > a.x+80 && saved.y < a.y+a.height-80 && saved.y+saved.height > a.y+80;
+  });
+  const width = savedVisible ? Math.max(1280, saved.width) : Math.min(1600, area.width);
+  const height = savedVisible ? Math.max(720, saved.height) : Math.min(900, area.height);
+  const x = savedVisible ? saved.x : Math.round(area.x + (area.width-width)/2);
+  const y = savedVisible ? saved.y : Math.round(area.y + (area.height-height)/2);
   const win = new BrowserWindow({
     title: APP_DISPLAY_NAME,
-    width: 1600,
-    height: 900,
+    x, y, width, height,
     minWidth: 1280,
     minHeight: 720,
     maximizable: true,
     fullscreenable: true,
+    fullscreen: windowState.fullscreen !== false,
     autoHideMenuBar: true,        // Menue versteckt; Alt zeigt es, F11 = Vollbild bleibt verfuegbar
     backgroundColor: '#0d1322',   // dunkler App-Hintergrund, passend zum Spiel (kein weisses Aufblitzen)
     show: false,                  // erst zeigen, wenn fertig geladen
@@ -384,6 +454,7 @@ function createWindow() {
       sandbox: true,
     },
   });
+  mainWindow = win;
 
   // Fenstertitel fest auf den App-Namen halten (Seitentitel des Spiels nicht durchreichen)
   win.on('page-title-updated', (e) => e.preventDefault());
@@ -394,10 +465,38 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  win.once('ready-to-show', () => win.show());
-  win.loadURL('app://game/autodealer-simulator.html');
+  win.on('move', () => scheduleWindowStateSave(win));
+  win.on('resize', () => scheduleWindowStateSave(win));
+  win.on('enter-full-screen', () => writeFullscreenPreference(win, true));
+  win.on('leave-full-screen', () => writeFullscreenPreference(win, false));
+  win.on('close', event => {
+    if (allowAppQuit) return;
+    event.preventDefault();
+    requestSafeQuit('window');
+  });
+  win.webContents.on('before-input-event', (event, input) => {
+    const altEnter = input.type==='keyDown' && input.alt && input.key==='Enter';
+    const f11 = input.type==='keyDown' && input.key==='F11';
+    if (!altEnter && !f11) return;
+    event.preventDefault();
+    win.setFullScreen(!win.isFullScreen());
+  });
+  const revealWindow = () => {
+    if (!win.isDestroyed() && !win.isVisible()) win.show();
+  };
+  win.once('ready-to-show', revealWindow);
+  win.webContents.once('did-finish-load', revealWindow);
+  win.loadURL('app://game/autodealer-simulator.html').catch(error => {
+    console.error('[Window] Could not load game UI:', error);
+    revealWindow();
+  });
 }
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+app.on('before-quit', event => {
+  if (allowAppQuit) return;
+  event.preventDefault();
+  requestSafeQuit('system');
 });

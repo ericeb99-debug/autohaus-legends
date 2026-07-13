@@ -1922,17 +1922,13 @@ function completePrivatePurchase(req, price){
 
 /* =============================== PERSISTENCE =============================== */
 async function storageGet(key){
-  console.log('[Renderer] storageGet called for key:', key, '| window.storage available:', !!(window.storage && window.storage.get));
   if(window.storage && typeof window.storage.get==='function'){
-    console.log('[Renderer] Using window.storage to read', key);
     return await window.storage.get(key);
   }
   throw new Error('window.storage ist nicht verfuegbar. Spielstaende werden nicht im Browser-Speicher gelesen.');
 }
 async function storageSet(key, value){
-  console.log('[Renderer] storageSet called for key:', key, '| window.storage available:', !!(window.storage && window.storage.set));
   if(window.storage && typeof window.storage.set==='function'){
-    console.log('[Renderer] Using window.storage to save', key);
     return await window.storage.set(key, value);
   }
   throw new Error('window.storage ist nicht verfuegbar. Spielstaende werden nicht im Browser-Speicher gespeichert.');
@@ -2104,6 +2100,7 @@ async function renderProfileLogin(){
   document.getElementById('app').innerHTML = `
     <div class="profile-screen">
       <div class="login-bg-cars" id="loginBgCars" aria-hidden="true"></div>
+      <button class="top-exit-btn login-exit-btn" onclick="showExitConfirmation('button')" aria-label="${escapeAttr(currentLanguage()==='de'?'Spiel beenden':'Quit game')}" title="${escapeAttr(currentLanguage()==='de'?'Spiel beenden':'Quit game')}">${refIcon('exit')}</button>
       <div class="profile-login-shell">
         <section class="login-hero">
           <div>
@@ -2760,7 +2757,7 @@ function startProfileGame(){
   }
 }
 async function switchProfile(){
-  if(state && activeProfileId) await saveNow();
+  if(state && activeProfileId) await saveNow(true);
   activeProfileId = null;
   activeProfileName = '';
   state = null;
@@ -2780,12 +2777,27 @@ async function loadGame(profileId){
   }catch(e){ /* not found */ }
   return false;
 }
-async function saveNow(){
+let saveQueue = Promise.resolve();
+let lastProfileMetaSaveAt = 0;
+async function performSaveNow(forceProfileMeta){
   if(!state || !activeProfileId) return;
   syncRealPlaytime();
   captureActiveDrafts();
   await storageSet(profileStateKey(activeProfileId), JSON.stringify(state));
-  await upsertProfileMeta(activeProfileId, {name:activeProfileName||activeProfileId, lastPlayed:Date.now()});
+  const now = Date.now();
+  if(forceProfileMeta || now-lastProfileMetaSaveAt>=30000){
+    await upsertProfileMeta(activeProfileId, {name:activeProfileName||activeProfileId, lastPlayed:now});
+    lastProfileMetaSaveAt = now;
+  }
+}
+function saveNow(forceProfileMeta){
+  saveQueue = saveQueue.catch(error=>console.error('Vorheriger Save fehlgeschlagen',error)).then(()=>performSaveNow(!!forceProfileMeta));
+  return saveQueue;
+}
+async function flushPendingSave(){
+  clearTimeout(saveTimer);
+  await saveQueue.catch(()=>{});
+  if(state && activeProfileId) await saveNow(true);
 }
 function scheduleSave(){
   if(!activeProfileId) return;
@@ -2801,7 +2813,7 @@ function scheduleSave(){
         el.classList.add('saved-pulse');
       }
     }catch(e){ console.error('Save fehlgeschlagen', e); }
-  }, 500);
+  }, 750);
 }
 
 /* =============================== NOTIFICATIONS / TRANSACTIONS =============================== */
@@ -2888,7 +2900,7 @@ function showUpdateHint(version){
         <button class="btn btn-ghost" onclick="dismissUpdateHint()">Später</button>
         ${canOpenUpdates ? `<button class="btn btn-primary" onclick="dismissUpdateHint(); navigateTo('updates')">Ansehen</button>` : ''}
       </div>
-      <button class="uh-close" onclick="dismissUpdateHint()" title="Ausblenden">×</button>
+      <button class="uh-close" onclick="dismissUpdateHint()" aria-label="Ausblenden">×</button>
     </div>
   `;
   document.body.appendChild(el);
@@ -3827,30 +3839,31 @@ function todaysDelta(){
   return last? last.net : 0;
 }
 const REF_ICON_PATHS = {
-  dashboard:'<path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10.5V20h13v-9.5"></path><path d="M9.5 20v-6h5v6"></path>',
-  market:'<path d="M4 8h16"></path><path d="M6 8l2-3h8l2 3"></path><path d="M6 8l-2 5v5h16v-5l-2-5"></path><path d="M7 18h1"></path><path d="M16 18h1"></path>',
+  dashboard:'<path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path>',
+  market:'<path d="M3 14.5V18h2l1-3h11l1 3h2v-4l-2-5H6l-3 5Z"></path><path d="M7 9l1.5-3h5"></path><circle cx="7" cy="14.5" r="1"></circle><circle cx="17" cy="14.5" r="1"></circle><path d="m16 4 2-2 3 3-2 2-3-3Z"></path>',
   acquisition:'<path d="M4 4h16v16H4z"></path><path d="M12 7v10"></path><path d="M7 12h10"></path>',
-  inventory:'<path d="M4 5h16v14H4z"></path><path d="M4 10h16"></path><path d="M9 5v14"></path><path d="M15 5v14"></path>',
+  inventory:'<path d="m5 10 2-5h10l2 5 2 3v6h-3v-2H6v2H3v-6l2-3Z"></path><path d="M5 10h14"></path><path d="M7 14h2"></path><path d="M15 14h2"></path>',
   listings:'<path d="M7 7h12"></path><path d="M7 12h12"></path><path d="M7 17h12"></path><path d="M4 7h.01"></path><path d="M4 12h.01"></path><path d="M4 17h.01"></path>',
   wishlist:'<path d="M12 21s-7-4.4-9-9.2C1.6 8.2 3.7 5 7.1 5c2 0 3.4 1.1 4.9 2.8C13.5 6.1 14.9 5 16.9 5c3.4 0 5.5 3.2 4.1 6.8C19 16.6 12 21 12 21z"></path>',
-  mailbox:'<path d="M4 6h16v12H4z"></path><path d="m4 7 8 6 8-6"></path>',
+  mailbox:'<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path>',
   customers:'<circle cx="12" cy="8" r="3"></circle><path d="M5 19c.7-3.2 3.2-5 7-5s6.3 1.8 7 5"></path>',
   reviews:'<path d="M12 4l2.2 4.5 5 .7-3.6 3.5.8 5-4.4-2.3-4.4 2.3.8-5-3.6-3.5 5-.7z"></path>',
-  contracts:'<path d="M7 3h8l4 4v14H7z"></path><path d="M15 3v5h5"></path><path d="M9.5 12h7"></path><path d="M9.5 16h5"></path>',
+  contracts:'<path d="M6 3h8l4 4v14H6Z"></path><path d="M14 3v5h5"></path><path d="M9 12h6"></path><path d="M9 16c1.7-1.3 2.8 1.3 4.4 0 .7-.6 1.3-.7 1.6-.7"></path>',
   deliveries:'<path d="M3 7h11v10H3z"></path><path d="M14 11h3l3 3v3h-6z"></path><circle cx="7" cy="18" r="1.6"></circle><circle cx="17" cy="18" r="1.6"></circle>',
-  workshop:'<path d="M14.7 6.3 17.5 3.5l3 3-2.8 2.8"></path><path d="M13.8 7.2 5 16v3h3l8.8-8.8"></path>',
-  ecu:'<path d="M7 4h10v16H7z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h3"></path><path d="M4 8h3"></path><path d="M4 12h3"></path><path d="M4 16h3"></path><path d="M17 8h3"></path><path d="M17 12h3"></path><path d="M17 16h3"></path>',
+  workshop:'<path d="m14.7 6.3 3-3a4 4 0 0 1-5 5L6 15l-3 1 1-3 6.7-6.7a4 4 0 0 1 5-5l-3 3 2 2Z"></path><circle cx="17.5" cy="16.5" r="3.5"></circle><path d="M17.5 11v2"></path><path d="M17.5 20v2"></path><path d="m13.6 12.6 1.4 1.4"></path><path d="m20 19 1.4 1.4"></path>',
+  ecu:'<rect x="6" y="6" width="12" height="12" rx="2"></rect><path d="M9 2v4"></path><path d="M15 2v4"></path><path d="M9 18v4"></path><path d="M15 18v4"></path><path d="M2 9h4"></path><path d="M18 9h4"></path><path d="M2 15h4"></path><path d="M18 15h4"></path><path d="m13 8-3 5h3l-2 4"></path>',
   bank:'<path d="M4 9h16"></path><path d="M6 9v9"></path><path d="M10 9v9"></path><path d="M14 9v9"></path><path d="M18 9v9"></path><path d="M3 20h18"></path><path d="M12 3l8 4H4z"></path>',
-  finance:'<path d="M4 18h16"></path><path d="M6 15l4-4 3 3 6-7"></path><path d="M15 7h4v4"></path>',
+  finance:'<path d="M4 20V5"></path><path d="M4 20h16"></path><path d="m7 15 4-4 3 3 6-7"></path><path d="M16 7h4v4"></path>',
   marketstats:'<path d="M5 19V9"></path><path d="M12 19V5"></path><path d="M19 19v-7"></path>',
   insights:'<circle cx="12" cy="12" r="3"></circle><path d="M12 3v3"></path><path d="M12 18v3"></path><path d="M3 12h3"></path><path d="M18 12h3"></path>',
   calculator:'<path d="M6 3h12v18H6z"></path><path d="M8.5 7h7"></path><path d="M9 11h.01"></path><path d="M12 11h.01"></path><path d="M15 11h.01"></path><path d="M9 15h.01"></path><path d="M12 15h.01"></path><path d="M15 15h.01"></path>',
   employees:'<circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.5-3 2.7-5 5.5-5s5 2 5.5 5"></path><path d="M16 11a2.5 2.5 0 1 0 0-5"></path><path d="M17 19c-.2-1.8-.9-3.2-2-4.1"></path>',
   upgrades:'<path d="M12 4v16"></path><path d="m6 10 6-6 6 6"></path><path d="M5 20h14"></path>',
-  design:'<path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3z"></path><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z"></path><path d="M5 14l.9 2.1L8 17l-2.1.9L5 20l-.9-2.1L2 17l2.1-.9L5 14z"></path>',
-  legacy:'<path d="M7 8c-2 0-3.5 1.7-3.5 4S5 16 7 16c3.5 0 6.5-8 10-8 2 0 3.5 1.7 3.5 4S19 16 17 16c-3.5 0-6.5-8-10-8z"></path>',
-  settings:'<circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 3.1a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 3.1h5l.3-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z"></path>',
-  updates:'<path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z"></path><path d="M17 9h3v10a2 2 0 0 1-2 2"></path><path d="M7 9h7"></path><path d="M7 13h7"></path><path d="M7 17h4"></path>',
+  design:'<path d="m12 3 2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2L12 3Z"></path><path d="m19 3 .7 1.8L21.5 5.5l-1.8.7L19 8l-.7-1.8-1.8-.7 1.8-.7L19 3Z"></path>',
+  legacy:'<path d="M8 8c-2.8 0-5 1.8-5 4s2.2 4 5 4c4 0 4-8 8-8 2.8 0 5 1.8 5 4 0 .6-.2 1.2-.5 1.7"></path><circle cx="17" cy="17" r="4"></circle><path d="M17 15v2l1.5 1"></path>',
+  settings:'<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"></path>',
+  exit:'<path d="M10 4H5v16h5"></path><path d="M14 8l4 4-4 4"></path><path d="M8 12h10"></path>',
+  updates:'<path d="M4 13V9l11-4v12L4 13Z"></path><path d="M15 9a4 4 0 0 1 0 4"></path><path d="M7 14v5a2 2 0 0 0 2 2h1l-1-7"></path><path d="M4 9H2v4h2"></path>',
   search:'<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path>',
   bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path>',
   apps:'<path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path><path d="M4 14h6v6H4z"></path><path d="M14 14h6v6h-6z"></path>'
@@ -3873,6 +3886,52 @@ const REF_APP_META = {
 function refIcon(id){
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${REF_ICON_PATHS[id] || REF_ICON_PATHS.apps}</svg>`;
 }
+const NAV_ICON_ACCENTS = {
+  dashboard:'#d8b568', market:'#6f9fe8', inventory:'#55c4bd', mailbox:'#79b9e8',
+  ecu:'#a487db', workshop:'#dc9558', contracts:'#aeb6c2', finance:'#65b982',
+  design:'#c77ac8', updates:'#5ec5d5', settings:'#bbc2cc', legacy:'#d8b568'
+};
+function navAccent(id){ return NAV_ICON_ACCENTS[id] || appMeta(id)[2] || '#9aa7b8'; }
+function navTooltipAttrs(title, detail, placement='auto'){
+  return `data-nav-tooltip="${escapeAttr(title)}" data-nav-tooltip-detail="${escapeAttr(detail||'')}" data-nav-tooltip-placement="${placement}" aria-label="${escapeAttr(title)}" tabindex="0"`;
+}
+function ensureNavTooltipLayer(){
+  if(document.getElementById('navTooltipLayer')) return;
+  const tip = document.createElement('div');
+  tip.id = 'navTooltipLayer';
+  tip.className = 'nav-tooltip-layer';
+  tip.setAttribute('role','tooltip');
+  tip.innerHTML = '<b></b><span></span>';
+  document.body.appendChild(tip);
+  let anchor = null;
+  const hide = ()=>{ anchor=null; tip.classList.remove('visible'); };
+  const position = ()=>{
+    if(!anchor || !document.documentElement.contains(anchor)) return hide();
+    const r=anchor.getBoundingClientRect(), pad=10, gap=10;
+    const tw=tip.offsetWidth, th=tip.offsetHeight;
+    let left=r.right+gap, top=r.top+(r.height-th)/2;
+    if(anchor.dataset.navTooltipPlacement==='top'){
+      left=r.left+(r.width-tw)/2; top=r.top-th-gap;
+      if(top<pad) top=r.bottom+gap;
+    } else if(left+tw>innerWidth-pad){ left=r.left-tw-gap; }
+    left=Math.max(pad,Math.min(left,innerWidth-tw-pad));
+    top=Math.max(pad,Math.min(top,innerHeight-th-pad));
+    tip.style.left=`${left}px`; tip.style.top=`${top}px`;
+  };
+  const show = el=>{
+    anchor=el; tip.querySelector('b').textContent=el.dataset.navTooltip||el.dataset.insightTooltip||'';
+    const detail=el.dataset.navTooltipDetail||'', detailEl=tip.querySelector('span');
+    detailEl.textContent=detail; detailEl.hidden=!detail;
+    tip.classList.add('visible'); requestAnimationFrame(position);
+  };
+  const tooltipSelector='[data-nav-tooltip],[data-insight-tooltip]';
+  document.addEventListener('pointerover',e=>{ const el=e.target.closest?.(tooltipSelector); if(el) show(el); });
+  document.addEventListener('pointerout',e=>{ const el=e.target.closest?.(tooltipSelector); if(el && !el.contains(e.relatedTarget)) hide(); });
+  document.addEventListener('focusin',e=>{ const el=e.target.closest?.(tooltipSelector); if(el) show(el); });
+  document.addEventListener('focusout',e=>{ if(e.target.closest?.(tooltipSelector)) hide(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') hide(); });
+  addEventListener('resize',position); document.addEventListener('scroll',position,true);
+}
 function appBadgeValue(appId){
   if(appId==='mailbox') return (state.offers||[]).filter(o=>o.unread).length;
   if(appId==='listings') return (state.offers||[]).length;
@@ -3883,16 +3942,35 @@ function appBadgeValue(appId){
   return 0;
 }
 function openProgramsWindow(){
-  closeProgramsWindow();
+  const existing = document.getElementById('programOverlay');
+  if(existing){
+    existing.hidden = false;
+    existing.style.display = '';
+    existing.parentElement?.appendChild(existing);
+    existing.classList.remove('launcher-forward');
+    void existing.offsetWidth;
+    existing.classList.add('launcher-forward');
+    document.getElementById('programLauncherButton')?.classList.add('active');
+    document.getElementById('programSearch')?.focus();
+    return;
+  }
   const overlay = document.createElement('div');
   overlay.className = 'program-overlay';
   overlay.id = 'programOverlay';
+  const recentIds = ['market','mailbox','workshop','finance'];
+  const recentLabel = currentLanguage()==='de' ? 'Zuletzt benutzt' : 'Recently used';
+  const quickLinks = recentIds.map(id=>{
+    const meta=appMeta(id), hero=new URL(`assets/programs/heroes/${PROGRAM_HEROES[id]||'settings.jpg'}`,document.baseURI).href;
+    return `<button class="program-quick" style="--app-a:${PROGRAM_APP_ACCENTS[id]||meta[2]};--quick-hero:url(&quot;${escapeAttr(hero)}&quot;)" onclick="closeProgramsWindow();navigateTo('${id}')"><span>${refIcon(id)}</span><b>${escapeHtml(meta[0])}</b></button>`;
+  }).join('');
   overlay.innerHTML = `<div class="program-window" onclick="event.stopPropagation()">
     <div class="program-head">
-      <div class="program-title"><b>${escapeHtml(t('programs.title'))}</b><small>${escapeHtml(t('programs.subtitle'))}</small></div>
+      <div class="program-title"><b>${escapeHtml(t('programs.title'))}</b><small>${escapeHtml(currentLanguage()==='de'?'Dein zentrales Steuerungspanel':'Your central control panel')}</small></div>
+      <div class="program-recent"><span class="program-recent-label">★ ${escapeHtml(recentLabel)}</span><div class="program-quick-list">${quickLinks}</div></div>
       <div class="program-search-wrap">
         <svg class="program-search-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         <input class="program-search" id="programSearch" placeholder="${escapeAttr(t('programs.search_placeholder'))}" oninput="renderProgramsGrid(this.value)" onkeydown="if(event.key==='Escape') closeProgramsWindow();">
+        <button class="program-filter-btn" onclick="document.getElementById('programSearch')?.focus()" aria-label="Filter" title="Filter">${refIcon('apps')}</button>
       </div>
       <button class="program-close" onclick="closeProgramsWindow()">×</button>
     </div>
@@ -3900,22 +3978,113 @@ function openProgramsWindow(){
   </div>`;
   overlay.onclick = (ev)=>{ if(ev.target===overlay) closeProgramsWindow(); };
   document.getElementById('app').appendChild(overlay);
+  document.getElementById('programLauncherButton')?.classList.add('active');
   renderProgramsGrid('');
   requestAnimationFrame(()=>document.getElementById('programSearch')?.focus());
 }
 function closeProgramsWindow(){
+  programHeroObserver?.disconnect();
+  programHeroObserver = null;
   document.getElementById('programOverlay')?.remove();
+  document.getElementById('programLauncherButton')?.classList.remove('active');
+}
+function installProgramLauncherShortcuts(){
+  if(document.documentElement.dataset.programLauncherShortcuts==='1') return;
+  document.documentElement.dataset.programLauncherShortcuts='1';
+  document.addEventListener('keydown',e=>{
+    const f1 = e.key==='F1';
+    const ctrlSpace = e.ctrlKey && !e.altKey && !e.metaKey && e.code==='Space';
+    if(!f1 && !ctrlSpace) return;
+    e.preventDefault();
+    openProgramsWindow();
+  });
 }
 // Kategorien nur für die Anzeige im Programme-Fenster (Launcher) - keine Navigations- oder Logikaenderung,
 // dieselben App-IDs wie zuvor werden lediglich thematisch gruppiert und beschriftet.
 const PROGRAM_CATEGORIES = [
-  {key:'trade', ids:['market','acquisition','inventory','listings','wishlist','customers','mailbox']},
+  {key:'trade', ids:['market','acquisition','inventory','listings','wishlist','customers']},
   {key:'workshop', ids:['workshop','ecu']},
-  {key:'management', ids:['upgrades','employees','contracts','deliveries','legacy']},
-  {key:'finance', ids:['finance','bank']},
-  {key:'analytics', ids:['insights','marketstats','reviews','calculator']},
-  {key:'system', ids:['design','updates','settings']},
+  {key:'management', ids:['employees','upgrades','contracts','deliveries']},
+  {key:'analytics', ids:['finance','bank','insights','marketstats','reviews','calculator']},
+  {key:'communication', ids:['mailbox']},
+  {key:'system', ids:['design','legacy','updates','settings']},
 ];
+const PROGRAM_CATEGORY_LABELS = {
+  de:{trade:['Fahrzeughandel','🚗'],workshop:['Werkstatt & Tuning','🔧'],management:['Unternehmensverwaltung','🏢'],analytics:['Management','📈'],communication:['Kommunikation','✉'],system:['System','⚙']},
+  en:{trade:['Vehicle Trade','🚗'],workshop:['Workshop & Tuning','🔧'],management:['Company Management','🏢'],analytics:['Management','📈'],communication:['Communication','✉'],system:['System','⚙']}
+};
+// Zentrale visuelle Konfiguration: Hero-Motive bleiben austauschbar, ohne die
+// Navigation oder Spiellogik der Programmkarten zu beruehren.
+const PROGRAM_HEROES = {
+  market:'market.jpg', acquisition:'acquisition.jpg', inventory:'inventory.jpg', listings:'listings.jpg', wishlist:'wishlist.jpg',
+  customers:'customers.jpg', mailbox:'mailbox.jpg', workshop:'workshop.jpg', ecu:'ecu.jpg', upgrades:'upgrades.jpg',
+  employees:'employees.jpg', contracts:'contracts.jpg', deliveries:'deliveries.jpg', legacy:'legacy.jpg', finance:'finance.jpg',
+  bank:'bank.jpg', insights:'insights.jpg', marketstats:'marketstats.jpg', reviews:'reviews.jpg', calculator:'calculator.jpg',
+  design:'design.jpg', updates:'updates.jpg', settings:'settings.jpg'
+};
+// Motivfokus je Hero-Karte. Die zweite Position wird bei schmalen Karten genutzt,
+// damit Fahrzeuge, Gesichter und andere Hauptmotive sichtbar bleiben.
+const PROGRAM_HERO_POSITIONS = {
+  market:['50% 52%','52% 50%'], acquisition:['50% 48%','50% 48%'], inventory:['50% 55%','48% 52%'], listings:['54% 48%','58% 48%'], wishlist:['58% 52%','64% 50%'],
+  customers:['52% 46%','54% 46%'], mailbox:['58% 48%','64% 48%'], workshop:['54% 52%','58% 50%'], ecu:['50% 52%','47% 50%'], upgrades:['52% 50%','55% 50%'],
+  employees:['50% 46%','50% 44%'], contracts:['50% 50%','48% 48%'], deliveries:['56% 52%','62% 50%'], legacy:['50% 48%','50% 46%'], finance:['58% 50%','64% 50%'],
+  bank:['50% 50%','52% 48%'], insights:['54% 50%','58% 48%'], marketstats:['54% 50%','58% 48%'], reviews:['63% 48%','68% 46%'], calculator:['46% 50%','42% 48%'],
+  design:['42% 52%','38% 50%'], updates:['55% 50%','60% 48%'], settings:['58% 50%','64% 48%']
+};
+let programHeroObserver = null;
+function installProgramHeroLazyLoading(){
+  programHeroObserver?.disconnect();
+  const body = document.getElementById('programBody');
+  const media = [...document.querySelectorAll('.program-card-media[data-program-hero]')];
+  const load = el=>{
+    if(!el?.dataset.programHero) return;
+    el.style.backgroundImage = `url("${el.dataset.programHero.replace(/"/g,'%22')}")`;
+    delete el.dataset.programHero;
+  };
+  if(!body || !('IntersectionObserver' in window)){ media.forEach(load); return; }
+  programHeroObserver = new IntersectionObserver(entries=>entries.forEach(entry=>{
+    if(!entry.isIntersecting) return;
+    load(entry.target);
+    programHeroObserver?.unobserve(entry.target);
+  }),{root:body,rootMargin:'320px 0px'});
+  media.forEach(el=>programHeroObserver.observe(el));
+}
+const PROGRAM_CATEGORY_ACCENTS = {trade:'#a76cff',workshop:'#f3a145',management:'#ddb352',analytics:'#65cf72',communication:'#39c7dc',system:'#5399ff'};
+const PROGRAM_APP_ACCENTS = {
+  market:'#458cff', acquisition:'#20c9b5', inventory:'#29c8e4', listings:'#9a63ff', wishlist:'#ff4e9a', customers:'#58bfff', mailbox:'#438cff',
+  workshop:'#ff923f', ecu:'#a46cff', upgrades:'#e2b64f', employees:'#55c783', contracts:'#a7b0bd', deliveries:'#4c9cff', legacy:'#dcb452',
+  finance:'#48c778', bank:'#31935c', insights:'#35c9c3', marketstats:'#4e91ff', reviews:'#e3b953', calculator:'#ff9a43', design:'#ed55bd', updates:'#35c9dc', settings:'#a5afbc'
+};
+function programCardStatus(id){
+  const de = currentLanguage()==='de';
+  const n = value=>Number(value||0).toLocaleString(localeMeta().numberLocale||'de-DE');
+  switch(id){
+    case 'market': return `${n((state.market||[]).length)} ${de?'Angebote':'offers'}`;
+    case 'acquisition': return `${n((state.purchaseRequests||[]).length)} ${de?'Anfragen':'requests'}`;
+    case 'inventory': return `${n((state.inventory||[]).length)} ${de?'Fahrzeuge':'vehicles'}`;
+    case 'listings': return `${n(activeListingIds().length)} ${de?'aktive Inserate':'active listings'}`;
+    case 'wishlist': return `${n((state.searchOrders||[]).filter(o=>o.status==='open').length)} ${de?'Suchaufträge':'search orders'}`;
+    case 'customers': return `${n(Object.keys(state.customers||{}).length)} ${de?'Kunden':'customers'}`;
+    case 'mailbox': return `${n((state.offers||[]).filter(o=>o.unread).length)} ${de?'ungelesen':'unread'}`;
+    case 'workshop': return `${n((state.workshopJobs||[]).length)} ${de?'offene Aufträge':'open jobs'}`;
+    case 'ecu': return `${n((state.ecuRequests||[]).filter(r=>!['completed','declined','failed'].includes(r.status)).length)} ${de?'aktiv':'active'}`;
+    case 'upgrades': return `${de?'Unternehmen':'Company'} · ${de?'Level':'Level'} ${n(state.level||1)}`;
+    case 'employees': return `${n((state.employees||[]).length)} ${de?'Mitarbeiter':'employees'}`;
+    case 'contracts': return `${n(activeContractCount())} ${de?'aktive Verträge':'active contracts'}`;
+    case 'deliveries': return `${n((state.deliveries||[]).filter(d=>!['completed','pickup_completed'].includes(d.status)).length)} ${de?'geplant':'scheduled'}`;
+    case 'legacy': return `${de?'Ruf':'Reputation'} · ${n(state.reputation||0)}`;
+    case 'finance': return `${de?'Heute':'Today'} · ${fmtDelta(todaysDelta())}`;
+    case 'bank': return `${de?'Kapital':'Capital'} · ${money(state.cash||0)}`;
+    case 'insights': return `● LIVE`;
+    case 'marketstats': return `${n((state.market||[]).length)} ${de?'Marktdaten':'market entries'}`;
+    case 'reviews': return `★ ${avgReviewStars().toLocaleString(localeMeta().numberLocale||'de-DE',{minimumFractionDigits:1,maximumFractionDigits:1})}`;
+    case 'calculator': return de?'Bereit zur Kalkulation':'Ready to calculate';
+    case 'design': return de?'Premium-Design aktiv':'Premium design active';
+    case 'updates': return de?'Neuigkeiten ansehen':'View latest news';
+    case 'settings': return de?'System bereit':'System ready';
+    default: return '';
+  }
+}
 // Liefert 1-3 kurze Live-Statuszeilen fuer die Hover-Vorschau einer Programmkachel.
 // Rein lesend aus dem bestehenden Spielstand - keine neue Logik, keine Zustandsaenderung.
 function programLiveStats(id){
@@ -3972,18 +4141,24 @@ function renderProgramsGrid(q){
   const body = document.getElementById('programBody');
   if(!body) return;
   const query = (q||'').trim().toLowerCase();
-  const card = id=>{
+  let cardIndex = 0;
+  const card = (id, categoryKey)=>{
     const app = APPS.find(a=>a.id===id); if(!app) return '';
     const meta = appMeta(id);
     const badge = appBadgeValue(id);
     const stats = programLiveStats(id);
-    return `<div class="program-card" style="--app-a:${meta[2]}" onclick="closeProgramsWindow();navigateTo('${id}')">
+    const accent = PROGRAM_APP_ACCENTS[id] || PROGRAM_CATEGORY_ACCENTS[categoryKey] || meta[2];
+    const hero = PROGRAM_HEROES[id] || 'settings.jpg';
+    const heroPath = new URL(`assets/programs/heroes/${hero}`, document.baseURI).href;
+    const heroPositions = PROGRAM_HERO_POSITIONS[id] || ['50% 50%','50% 50%'];
+    const status = programCardStatus(id);
+    const delay = Math.min(cardIndex++ * 24, 360);
+    return `<div class="program-card program-card-${id}" style="--app-a:${accent};--card-delay:${delay}ms;--hero-pos:${heroPositions[0]};--hero-pos-narrow:${heroPositions[1]}" onclick="closeProgramsWindow();navigateTo('${id}')">
+      <span class="program-card-media" data-program-hero="${escapeAttr(heroPath)}" aria-hidden="true"></span>
       <div class="program-card-top">
-        <span class="program-icon">${refIcon(id)}</span>
-        ${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}
+        <span class="program-card-icon-stack"><span class="program-icon">${refIcon(id)}</span>${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}</span>
       </div>
-      <b>${escapeHtml(meta[0])}</b>
-      <small>${escapeHtml(meta[1])}</small>
+      <div class="program-card-copy"><b>${escapeHtml(meta[0])}</b><span class="program-live-status"><i></i>${escapeHtml(status)}</span><small>${escapeHtml(meta[1])}</small></div>
       <div class="program-hover-info">
         <div class="phi-head"><span class="phi-dot"></span><b>${escapeHtml(meta[0])}</b></div>
         <p>${escapeHtml(meta[1])}</p>
@@ -3993,16 +4168,18 @@ function renderProgramsGrid(q){
     </div>`;
   };
   const html = PROGRAM_CATEGORIES.map(({key, ids})=>{
-    const label = t(`programs.categories.${key}.label`);
-    const desc = t(`programs.categories.${key}.desc`);
+    const categoryMeta = (PROGRAM_CATEGORY_LABELS[currentLanguage()]||PROGRAM_CATEGORY_LABELS.de)[key];
+    const label = categoryMeta?.[0] || t(`programs.categories.${key}.label`);
+    const icon = categoryMeta?.[1] || '';
     const cards = ids.filter(id=>{
       const app = APPS.find(a=>a.id===id);
       const meta = appMeta(id);
       return app && (!query || `${meta[0]} ${id} ${meta.join(' ')}`.toLowerCase().includes(query));
-    }).map(card).join('');
-    return cards ? `<div class="program-section-title"><span class="pst-label">${escapeHtml(label)}</span><span class="pst-desc">${escapeHtml(desc)}</span></div><div class="program-grid">${cards}</div>` : '';
+    }).map(id=>card(id,key)).join('');
+    return cards ? `<section class="program-section program-section-${key}" style="--section-a:${PROGRAM_CATEGORY_ACCENTS[key] || '#9aa7b8'}"><div class="program-section-title"><span class="pst-label"><i>${icon}</i>${escapeHtml(label)}</span></div><div class="program-grid">${cards}</div></section>` : '';
   }).join('');
-  body.innerHTML = html || `<div class="program-empty">${escapeHtml(t('programs.empty'))}</div>`;
+  body.innerHTML = html ? `<div class="program-sections">${html}</div>` : `<div class="program-empty">${escapeHtml(t('programs.empty'))}</div>`;
+  installProgramHeroLazyLoading();
 }
 function navEditIcon(){
   return `<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
@@ -4014,6 +4191,7 @@ function getBottomItems(){ return (state.bottomItems && state.bottomItems.length
 function getDockItems(){ return (state.dockItems && state.dockItems.length) ? state.dockItems : DEFAULT_DOCK_ITEMS.slice(); }
 
 function renderBottomBar(){
+  ensureNavTooltipLayer();
   let bar = document.getElementById('bottomBar');
   if(!bar){
     bar = document.createElement('div');
@@ -4024,17 +4202,19 @@ function renderBottomBar(){
   const items = getBottomItems();
   const tabs = items.map(id=>{
     const badge = appBadgeValue(id);
-    return `<div class="bottom-tab ${currentPage===id?'active':''} ${badge?'has-badge':''}" onclick="navigateTo('${id}')">${refIcon(id)}<span>${escapeHtml(appDisplayName(id))}</span>${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}</div>`;
+    const meta=appMeta(id);
+    return `<div class="bottom-tab ${currentPage===id?'active':''} ${badge?'has-badge':''}" style="--nav-accent:${navAccent(id)}" onclick="navigateTo('${id}')" ${navTooltipAttrs(meta[0],meta[1],'top')}>${refIcon(id)}<span>${escapeHtml(meta[0])}</span>${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}</div>`;
   }).join('');
-  const editBtn = `<button class="nav-edit-btn" onclick="openNavCustomize('bottom')" title="${escapeAttr(t('sidebar.customize'))}">${navEditIcon()}</button>`;
+  const editBtn = `<button class="bottom-tool bottom-edit-tool" onclick="openNavCustomize('bottom')" ${navTooltipAttrs(t('sidebar.customize'),'','top')}>${navEditIcon()}</button>`;
   const clockLocale = localeMeta().numberLocale || 'en-US';
-  bar.innerHTML = `${editBtn}<div class="bottom-logo"><img src="assets/logos/app-logo.png" alt=""></div><div class="bottom-title"><b>Automotive Empire</b><small>${escapeHtml(t('bottombar.brand_sub'))}</small></div>
+  bar.innerHTML = `<div class="bottom-logo"><img src="assets/logos/app-logo.png" alt=""></div><div class="bottom-title"><b>Automotive Empire</b><small>${escapeHtml(t('bottombar.brand_sub'))}</small></div>
     <span class="savebadge" id="savebadge"><span class="sdot"></span><span><b>${escapeHtml(t('bottombar.autosaved_title'))}</b><small>${escapeHtml(t('bottombar.autosaved_sub'))}</small></span></span>
+    <button id="programLauncherButton" class="program-launcher-button ${document.getElementById('programOverlay')?'active':''}" onclick="openProgramsWindow()" ondblclick="event.preventDefault();closeProgramsWindow();navigateTo('dashboard')" ${navTooltipAttrs(t('sidebar.programs'),t('bottombar.programs_tooltip'),'top')}>${refIcon('apps')}<span>${escapeHtml(t('sidebar.programs'))}</span></button>
     <div class="bottom-tabs">${tabs}</div>
     <div class="bottom-tools">
-      <div class="bottom-tool" onclick="openProgramsWindow()" title="${escapeAttr(t('bottombar.programs_tooltip'))}">${refIcon('search')}</div>
-      <div class="bottom-tool" onclick="navigateTo('marketstats')" title="${escapeAttr(t('bottombar.marketstats_tooltip'))}">${refIcon('marketstats')}</div>
-      <div class="bottom-tool" onclick="navigateTo('mailbox')" title="${escapeAttr(t('bottombar.mailbox_tooltip'))}">${refIcon('mailbox')}</div>
+      ${editBtn}
+      <div class="bottom-tool" style="--nav-accent:#6f9fe8" onclick="navigateTo('marketstats')" ${navTooltipAttrs(t('bottombar.marketstats_tooltip'),appMeta('marketstats')[1],'top')}>${refIcon('marketstats')}</div>
+      <div class="bottom-tool" style="--nav-accent:${navAccent('mailbox')}" onclick="navigateTo('mailbox')" ${navTooltipAttrs(t('bottombar.mailbox_tooltip'),appMeta('mailbox')[1],'top')}>${refIcon('mailbox')}</div>
       <div class="bottom-date">${new Date().toLocaleTimeString(clockLocale,{hour:'2-digit',minute:'2-digit'})}<small>${new Date().toLocaleDateString(clockLocale,{day:'2-digit',month:'short',year:'numeric'})}</small></div>
     </div>`;
 }
@@ -4103,7 +4283,7 @@ function renderNavCustBody(){
       <div class="navcust-drag-handle"><span></span><span></span><span></span></div>
       <div class="navcust-slot-icon">${refIcon(id)}</div>
       <span class="navcust-slot-name">${escapeHtml(appDisplayName(id))}</span>
-      <button class="navcust-slot-remove" onclick="navRemoveItem('${id}')" title="${escapeAttr(t('navcust.remove'))}">✕</button>
+      <button class="navcust-slot-remove" onclick="navRemoveItem('${id}')" aria-label="${escapeAttr(t('navcust.remove'))}">✕</button>
     </div>`;
   }).join('') : `<div class="navcust-empty">${escapeHtml(t('navcust.empty_active'))}</div>`;
 
@@ -4193,8 +4373,9 @@ function renderTopbar(){
       <div class="top-metric"><span class="mi" style="color:var(--violet)">${refIcon('legacy')}</span><span><b>${legacyReady?t('topbar.legacy_ready'):legacyLabel()}</b><small>${escapeHtml(t('topbar.legacy'))}</small></span></div>
     </div>
     <div class="top-actions">
-      <button class="top-icon-btn ${state.unreadNotif>0?'has-unread':''}" onclick="toggleNotifPanel(event)" title="${escapeAttr(t('topbar.notifications'))}">${refIcon('bell')}${state.unreadNotif>0?`<span class="bell-badge">${Math.min(99,state.unreadNotif)}</span>`:''}</button>
-      <button class="top-profile" onclick="switchProfile()" title="${escapeAttr(t('topbar.switch_profile'))}"><span class="avatar">${initials}</span><span><b>${escapeHtml(activeProfileName||'Autohaus')}</b><small>${escapeHtml(t('topbar.ceo'))}</small></span></button>
+      <button class="top-icon-btn ${state.unreadNotif>0?'has-unread':''}" onclick="toggleNotifPanel(event)" aria-label="${escapeAttr(t('topbar.notifications'))}">${refIcon('bell')}${state.unreadNotif>0?`<span class="bell-badge">${Math.min(99,state.unreadNotif)}</span>`:''}</button>
+      <button class="top-profile" onclick="switchProfile()" aria-label="${escapeAttr(t('topbar.switch_profile'))}"><span class="avatar">${initials}</span><span><b>${escapeHtml(activeProfileName||'Autohaus')}</b><small>${escapeHtml(t('topbar.ceo'))}</small></span></button>
+      <button class="top-exit-btn" onclick="showExitConfirmation('button')" aria-label="${escapeAttr(currentLanguage()==='de'?'Spiel beenden':'Quit game')}" title="${escapeAttr(currentLanguage()==='de'?'Spiel beenden':'Quit game')}">${refIcon('exit')}</button>
     </div>
   `;
 }
@@ -4234,6 +4415,7 @@ function navEditIcon(){
 }
 
 function renderSidebar(){
+  ensureNavTooltipLayer();
   const sidebar = document.getElementById('sidebar');
   if(sidebar) sidebar.className = 'ref-dock';
   const unreadMail = (state.offers||[]).filter(o=>o.unread).length;
@@ -4250,17 +4432,17 @@ function renderSidebar(){
     return n ? `<span class="badge">${Math.min(99,n)}</span>` : '';
   };
   const dock = dockIds.map(id=>{
-    const label = escapeHtml(appDisplayName(id));
-    return `<div class="dock-item ${currentPage===id?'active':''}" onclick="navigateTo('${id}')" title="${label}">
+    const meta=appMeta(id), label=escapeHtml(meta[0]);
+    return `<div class="dock-item ${currentPage===id?'active':''}" style="--nav-accent:${navAccent(id)}" onclick="navigateTo('${id}')" ${navTooltipAttrs(meta[0],meta[1],'side')}>
     ${refIcon(id)}<span class="lbl">${label}</span>${badgeFor(id)}
   </div>`;
   }).join('');
   const rep = clamp(Math.round(legacyIndex().successRate||0),0,100);
-  const editDockBtn = `<div class="dock-edit-btn" onclick="openNavCustomize('dock')" title="${escapeAttr(t('sidebar.customize'))}">${navEditIcon()}<span>${escapeHtml(t('sidebar.customize'))}</span></div>`;
+  const editDockBtn = `<div class="dock-edit-btn" onclick="openNavCustomize('dock')" ${navTooltipAttrs(t('sidebar.customize'),'','side')}>${navEditIcon()}<span>${escapeHtml(t('sidebar.customize'))}</span></div>`;
   document.getElementById('sidebar').innerHTML = `
-    <div class="dock-list">${dock}<div class="dock-item ${document.getElementById('programOverlay')?'active':''}" onclick="openProgramsWindow()" title="${escapeAttr(t('sidebar.programs'))}">${refIcon('apps')}<span class="lbl">${escapeHtml(t('sidebar.programs'))}</span></div>${editDockBtn}</div>
+    <div class="dock-list">${dock}${editDockBtn}</div>
     <div class="dock-spacer"></div>
-    <div class="dock-ring" onclick="navigateTo('legacy')" title="${escapeAttr(t('sidebar.reputation'))} &amp; Legacy"><span class="ring" style="--p:${rep}"><span>${rep}%</span></span><small>${escapeHtml(t('sidebar.reputation'))}</small></div>
+    <div class="dock-ring" style="--nav-accent:${navAccent('legacy')}" onclick="navigateTo('legacy')" ${navTooltipAttrs(appMeta('legacy')[0],appMeta('legacy')[1],'side')}><span class="ring" style="--p:${rep}"><span>${rep}%</span></span><small>${escapeHtml(t('sidebar.reputation'))}</small></div>
   `;
   renderBottomBar();
 }
@@ -4353,6 +4535,7 @@ function renderPageContent(){
     if(quietClockRender && samePage) quietUpdatePageContent(el, html);
     else el.innerHTML = html;
     el.dataset.renderedPage = currentPage;
+    el.classList.toggle('business-insights-page', currentPage==='insights');
     el.scrollTop = prevScroll;
     restoreActiveChatScroll(chatScroll);
     if(!chatScroll) keepActiveChatAtBottom();
@@ -4486,18 +4669,22 @@ function enhancePremiumUi(){
       }, true);
     }
     document.querySelectorAll('[title]').forEach(el=>{
-      if(el.matches('input,textarea,select,option')) return;
       const t = (el.getAttribute('title')||'').trim();
       if(!t) return;
-      el.dataset.tip = t;
       el.setAttribute('aria-label', el.getAttribute('aria-label') || t);
+      if(currentPage==='insights' && el.closest('#pagecontent')) el.dataset.insightTooltip = t;
       el.removeAttribute('title');
     });
-    document.querySelectorAll('.dash-kpi-value,.stat-card .num,.stock-count,.claims-total,.review-score strong,.top-metric b,.bottom-status strong,.legacy-metric .val').forEach((el,idx)=>{
+    document.querySelectorAll('[data-tip]').forEach(el=>el.removeAttribute('data-tip'));
+    document.querySelectorAll('[data-insight-tooltip]').forEach(el=>{
+      if(!(currentPage==='insights' && el.closest('#pagecontent'))) el.removeAttribute('data-insight-tooltip');
+    });
+    const insightRoot = currentPage==='insights' ? document.getElementById('pagecontent') : null;
+    insightRoot?.querySelectorAll('.stat-card .num,.stock-count,.claims-total,.review-score strong,.bottom-status strong,.legacy-metric .val').forEach(el=>{
       if(el.dataset.polished) return;
       el.dataset.polished = '1';
       el.classList.add('premium-number');
-      if(!el.dataset.tip && el.textContent.trim()) el.dataset.tip = el.textContent.trim();
+      if(!el.dataset.insightTooltip && el.textContent.trim()) el.dataset.insightTooltip = el.textContent.trim();
     });
   });
 }
@@ -4526,7 +4713,7 @@ function renderAchievementStrip(){
       </div>
       <div class="progress"><div style="width:${pct}%;background:linear-gradient(90deg,#2fb87c,#d4af6a,#ef5da8);"></div></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;">
-        ${(recent.length?recent:ACHIEVEMENTS.slice(0,5)).map(a=>`<span title="${a.label}: ${a.desc}" style="width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:${unlocked.includes(a.id)?'color-mix(in srgb,'+achievementColor(a.rarity)+' 18%, transparent)':'rgba(255,255,255,.04)'};border:1px solid ${unlocked.includes(a.id)?achievementColor(a.rarity):'var(--line)'};font-size:15px;opacity:${unlocked.includes(a.id)?'1':'.35'};filter:${unlocked.includes(a.id)?'none':'grayscale(1)'};">${a.icon}</span>`).join('')}
+        ${(recent.length?recent:ACHIEVEMENTS.slice(0,5)).map(a=>`<span aria-label="${escapeAttr(a.label)}" style="width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:${unlocked.includes(a.id)?'color-mix(in srgb,'+achievementColor(a.rarity)+' 18%, transparent)':'rgba(255,255,255,.04)'};border:1px solid ${unlocked.includes(a.id)?achievementColor(a.rarity):'var(--line)'};font-size:15px;opacity:${unlocked.includes(a.id)?'1':'.35'};filter:${unlocked.includes(a.id)?'none':'grayscale(1)'};">${a.icon}</span>`).join('')}
       </div>
     </div>`;
 }
@@ -4704,7 +4891,7 @@ function dashRevenueChart(){
   const areaPts = `${PAD},${py(0).toFixed(1)} ${revPts} ${(W-PAD)},${py(0).toFixed(1)}`;
   const D = t('dashboard');
   return `<div class="dash-panel revenue-panel">
-    <div class="dash-panel-head"><b>${escapeHtml(D.revenue_title)}</b><button class="dash-range-btn" onclick="cycleDashRevenueRange()" title="${escapeAttr(D.revenue_range_tooltip)}">${escapeHtml(dashRevenueRangeLabel())}</button></div>
+    <div class="dash-panel-head"><b>${escapeHtml(D.revenue_title)}</b><button class="dash-range-btn" onclick="cycleDashRevenueRange()" aria-label="${escapeAttr(D.revenue_range_tooltip)}">${escapeHtml(dashRevenueRangeLabel())}</button></div>
     <div class="chart-legend"><span><i style="background:var(--emerald)"></i>${escapeHtml(D.legend_profit)}</span><span><i style="background:var(--violet)"></i>${escapeHtml(D.legend_revenue)}</span><span class="revenue-sum">${money(totalRevenue)} ${escapeHtml(D.total_revenue_suffix)}</span></div>
     <div class="line-chart">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
@@ -4714,12 +4901,7 @@ function dashRevenueChart(){
         <polyline points="${profitPts}" fill="none" stroke="var(--emerald)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"></polyline>
       </svg>
       <div class="line-cols">${buckets.map(b=>{
-        const pct = totalRevenue ? Math.round((b.value/totalRevenue)*100) : 0;
-        const avgSale = b.count ? Math.round(b.value/b.count) : 0;
-        return `<div class="line-col" tabindex="0">
-          <small>${b.label}</small>
-          <em class="bar-tooltip"><b>${b.label}</b><br>${escapeHtml(D.tip_period)}: ${gameDateShort(b.from)} – ${gameDateShort(b.to)}<br>${escapeHtml(D.tip_revenue)}: ${money(b.value)}<br>${escapeHtml(D.tip_profit)}: ${money(b.profit)}<br>${escapeHtml(D.tip_sales)}: ${b.count}<br>${escapeHtml(D.tip_avg_sale)}: ${money(avgSale)}<br>${escapeHtml(D.tip_share)}: ${pct}%</em>
-        </div>`;
+        return `<div class="line-col"><small>${b.label}</small></div>`;
       }).join('')}</div>
     </div>
   </div>`;
@@ -6186,10 +6368,8 @@ function renderEcuOptionResults(r){
   const selected = new Set(r.customerChoices || []);
   const okCount = r.options.filter(o=>o.ok).length;
   const rows = r.options.map(o=>{
-    const stateText = o.ok ? (selected.has(o.id) ? E.opt_state_approved : E.opt_state_possible) : E.opt_state_blocked;
-    const detail = o.ok ? (o.dyno ? t('ecu.opt_detail_expected',{before:o.dyno.beforePower, after:o.dyno.afterPower, pct:o.dyno.powerGainPct, price:money(o.price)}) : t('ecu.opt_detail_price',{price:money(o.price)})) : localizeDisplayText(o.reason || E.opt_detail_unavailable);
     const short = o.ok ? (selected.has(o.id) ? t('ecu.opt_short_approved',{price:money(o.price)}) : money(o.price)) : localizeDisplayText(o.reason || E.opt_short_blocked);
-    return `<div class="ecu-option ${o.ok?'ok':'blocked'} ${selected.has(o.id)?'selected':''}" data-ecutip-title="${escapeHtml(o.fullLabel||o.label)}" data-ecutip="${escapeHtml(`${stateText} ${detail}`)}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><i>${o.ok?'✓':'×'}</i><b>${escapeHtml(o.fullLabel||o.label)}</b><span>${escapeHtml(short)}</span></div>`;
+    return `<div class="ecu-option ${o.ok?'ok':'blocked'} ${selected.has(o.id)?'selected':''}"><i>${o.ok?'✓':'×'}</i><b>${escapeHtml(o.fullLabel||o.label)}</b><span>${escapeHtml(short)}</span></div>`;
   }).join('');
   return `<div class="ecu-options"><div class="dash-panel-head"><b>${escapeHtml(E.analysis_option_title)}</b><span>${escapeHtml(t('ecu.options_possible',{ok:okCount, total:r.options.length}))}</span></div><div class="ecu-option-list">${rows}</div></div>`;
 }
@@ -6227,7 +6407,7 @@ function renderEcuLabDetails(r){
       <div><span>${escapeHtml(E.duration_label)}</span><b>${escapeHtml(t('ecu.hours_suffix',{n:analysis.duration}))}</b></div>
       <div><span>${escapeHtml(E.price_label)}</span><b>${money(r.quote||0)}</b></div>
       <div><span>${escapeHtml(E.risk_label)}</span><b>${analysis.risk.toFixed(1).replace('.',currentLanguage()==='de'?',':'.')}%</b></div>
-      <div data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${escapeAttr(ecuRequestMessage(r))}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"><span>${escapeHtml(E.wish_label)}</span><b>${escapeHtml(wishLabel)}</b></div>
+      <div><span>${escapeHtml(E.wish_label)}</span><b>${escapeHtml(wishLabel)}</b></div>
     </div>
     ${renderEcuOptionResults(r)}
     ${dynoFold}
@@ -6254,11 +6434,10 @@ function renderEcuRequestCard(r, isSelected=false){
   const E = t('ecu');
   const active = !['completed','declined','failed'].includes(r.status);
   const canDrag = r.status==='accepted' && isSelected;
-  const tipAttrs = r.message ? `data-ecutip-title="${escapeAttr(t('ecu.customer_wish_title',{name:r.customerName}))}" data-ecutip="${escapeAttr(ecuRequestMessage(r))}" onmouseenter="ecuTipShow(event,this)" onmouseleave="ecuTipHide()"` : '';
-  return `<div class="ecu-request ${active?'active':''} ${isSelected?'selected':''}" onclick="selectEcuRequest('${r.id}')" ${isSelected?'':tipAttrs}>
+  return `<div class="ecu-request ${active?'active':''} ${isSelected?'selected':''}" onclick="selectEcuRequest('${r.id}')">
     <div class="offer-head"><span><b>${escapeHtml(r.customerName)}</b> - ${escapeHtml(ecuDefField(def,'short')||r.requestedLabel)}</span><span class="persona">${ecuStatusLabel(r.status)}</span></div>
     <div class="ecu-compact-status"><b>${escapeHtml(r.car.brand)} ${escapeHtml(r.car.model)}</b><span>${escapeHtml(r.car.engine)} · ${r.car.power} PS · ${escapeHtml(r.car.year||'')}</span></div>
-    ${isSelected && r.message ? `<div class="ecu-wish" ${tipAttrs}><i>${escapeHtml(E.wish_label)}</i><span>${escapeHtml(ecuRequestMessage(r))}</span></div>` : ''}
+    ${isSelected && r.message ? `<div class="ecu-wish"><i>${escapeHtml(E.wish_label)}</i><span>${escapeHtml(ecuRequestMessage(r))}</span></div>` : ''}
     ${r.status==='new'?`<div class="row-actions"><button class="btn btn-primary" onclick="event.stopPropagation();acceptEcuRequest('${r.id}')">${escapeHtml(E.accept)}</button><button class="btn btn-ghost" onclick="event.stopPropagation();declineEcuRequest('${r.id}')">${escapeHtml(E.decline)}</button></div>`:''}
     ${canDrag?`<div onclick="event.stopPropagation()">${renderEcuVehicleDragCard(r)}</div>`:''}
     ${r.status==='accepted' && !isSelected?`<div class="ecu-step-note compact"><b>${escapeHtml(E.ready_note_title)}</b><span>${escapeHtml(E.ready_note_sub)}</span></div>`:''}
@@ -12187,7 +12366,7 @@ function renderLegacyScoreBars(index){
     const tip = tips[c.key] || '';
     return `
     <div class="legacy-score-row">
-      <div class="name" ${tip?`data-tip="${escapeAttr(tip)}"`:''}>${c.label}</div>
+      <div class="name" ${tip?`aria-label="${escapeAttr(tip)}"`:''}>${c.label}</div>
       <div class="legacy-progress"><span style="--w:${pct}%;"></span><em class="legacy-progress-pct">${pct>=8?pct+'%':''}</em></div>
       <div class="pts">${c.points.toFixed(1)}/${c.max}</div>
     </div>
@@ -12859,6 +13038,40 @@ function globalDayProgressPercent(){
   const dayDuration = clamp(state.dayDurationMs || DEFAULT_DAY_DURATION_MS, MIN_DAY_DURATION_MS, MAX_DAY_DURATION_MS);
   return clamp(Math.round((dayElapsedMs/dayDuration)*100),0,100);
 }
+function cancelExitConfirmation(){
+  window.appLifecycle?.cancelQuit?.();
+  closeModal();
+}
+async function confirmSafeExit(){
+  const button = document.getElementById('confirmExitButton');
+  if(button?.disabled) return;
+  if(button){ button.disabled=true; button.textContent=currentLanguage()==='de'?'Speichere …':'Saving …'; }
+  try{
+    await flushPendingSave();
+    await window.appLifecycle?.confirmQuit?.();
+  }catch(error){
+    console.error('Sicheres Beenden fehlgeschlagen',error);
+    if(button){ button.disabled=false; button.textContent=currentLanguage()==='de'?'Spiel beenden':'Quit game'; }
+    notify(currentLanguage()==='de'?'Beenden nicht möglich: Spielstand konnte nicht gespeichert werden.':'Could not quit: the game could not be saved.','warn');
+    renderTopbar();
+  }
+}
+function showExitConfirmation(){
+  if(document.querySelector('.exit-confirm-modal')) return;
+  const de = currentLanguage()==='de';
+  showModal(`<div class="exit-confirm-modal">
+    <span class="exit-confirm-icon">${refIcon('exit')}</span>
+    <div><h3>${escapeHtml(de?'Automotive Empire wirklich beenden?':'Quit Automotive Empire?')}</h3><p>${escapeHtml(de?'Dein aktueller Spielstand wird vor dem Beenden sicher gespeichert.':'Your current game will be saved safely before quitting.')}</p></div>
+    <div class="exit-confirm-actions"><button class="btn btn-ghost" onclick="cancelExitConfirmation()">${escapeHtml(de?'Abbrechen':'Cancel')}</button><button class="btn btn-danger" id="confirmExitButton" onclick="confirmSafeExit()">${escapeHtml(de?'Spiel beenden':'Quit game')}</button></div>
+  </div>`,'exit-modal');
+  const overlay=document.getElementById('modalOverlay');
+  if(overlay) overlay.onclick=e=>{ if(e.target===overlay) cancelExitConfirmation(); };
+}
+function initAppLifecycleBridge(){
+  if(!window.appLifecycle || document.documentElement.dataset.lifecycleBridge==='1') return;
+  document.documentElement.dataset.lifecycleBridge='1';
+  window.appLifecycle.onQuitRequested(()=>showExitConfirmation('system'));
+}
 
 const PRICE_UPDATE_MS = 180000; // 3 Minuten Echtzeit zwischen Marktpreis-Aktualisierungen
 let priceElapsedMs = 0;
@@ -12896,7 +13109,7 @@ function startGameClock(){
     } else {
       const bar = document.getElementById('dayProgress');
       if(bar) bar.style.width = globalDayProgressPercent()+'%';
-      refreshWorkshopProgressIndicators();
+      if(document.visibilityState==='visible' && currentPage==='workshop') refreshWorkshopProgressIndicators();
     }
     if(priceElapsedMs >= PRICE_UPDATE_MS){
       priceElapsedMs = 0;
@@ -13333,6 +13546,8 @@ function installDragSelectionGuard(){
 }
 async function init(){
   installDragSelectionGuard();
+  installProgramLauncherShortcuts();
+  initAppLifecycleBridge();
   await loadAppRuntimeInfo();
   initUpdaterBridge();
   // Hintergruende aus assets/backgrounds/ erkennen; nach 2,5s weiterladen, Scan laeuft dann im Hintergrund fertig.

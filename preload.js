@@ -1,13 +1,20 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('storage', {
-    get: async (key) => {
-        console.log(`[Preload] storage.get called for ${key}`);
-        return await ipcRenderer.invoke('storage-get', key);
-    },
-    set: (key, value) => {
-        console.log(`[Preload] storage.set called for ${key}`);
-        return ipcRenderer.invoke('storage-set', key, value);
+    get: (key) => ipcRenderer.invoke('storage-get', key),
+    set: (key, value) => ipcRenderer.invoke('storage-set', key, value)
+});
+
+contextBridge.exposeInMainWorld('appLifecycle', {
+    requestQuit: () => ipcRenderer.invoke('app-quit-request'),
+    confirmQuit: () => ipcRenderer.invoke('app-quit-confirm'),
+    cancelQuit: () => ipcRenderer.invoke('app-quit-cancel'),
+    toggleFullscreen: () => ipcRenderer.invoke('app-toggle-fullscreen'),
+    onQuitRequested: (callback) => {
+        if (typeof callback !== 'function') return () => {};
+        const handler = (_event, payload) => callback(payload);
+        ipcRenderer.on('app-quit-requested', handler);
+        return () => ipcRenderer.removeListener('app-quit-requested', handler);
     }
 });
 
@@ -29,4 +36,3 @@ contextBridge.exposeInMainWorld('appInfo', {
 contextBridge.exposeInMainWorld('backgrounds', {
     list: () => ipcRenderer.invoke('backgrounds-list')
 });
-console.log('[Preload] window.storage registered successfully.');
