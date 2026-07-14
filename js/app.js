@@ -1,4 +1,9 @@
 /* =============================== CONSTANTS =============================== */
+const PM = window.performanceManager;
+function queueUiFrame(key,task){
+  if(PM) PM.queueRender(key,task);
+  else requestAnimationFrame(task);
+}
 const APPS = [
   {id:'dashboard', name:'Dashboard', icon:'DA'},
   {id:'market', name:'Fahrzeugbörse', icon:'MK'},
@@ -639,21 +644,17 @@ function applyAppBackground(id, instant=false){
       return;
     }
     appBackgroundLoadState[bg.id] = 'loading';
-    const img = new Image();
-    img.onload = ()=>{
-      appBackgroundLoadState[bg.id] = 'ok';
-      if((state && state.backgroundId) === bg.id) applyAppBackground(bg.id, instant);
-    };
-    img.onerror = ()=>{
-      appBackgroundLoadState[bg.id] = 'fail';
-      if((state && state.backgroundId) === bg.id){
+    PM.cacheAsset(bg.url).then(result=>{
+      appBackgroundLoadState[bg.id] = result ? 'ok' : 'fail';
+      if((state && state.backgroundId) !== bg.id) return;
+      if(result) applyAppBackground(bg.id, instant);
+      else{
         state.backgroundId = 'standard';
         applyAppBackground('standard', true);
         renderApp(currentPage);
         scheduleSave();
       }
-    };
-    img.src = bg.url;
+    });
     return;
   }
   document.body.classList.toggle('has-app-bg', !!bg.url);
@@ -2072,6 +2073,7 @@ async function upsertProfileMeta(profileId, patch){
   await saveProfiles(profiles);
 }
 function renderGameShell(){
+  PM?.resetSession();
   applyTheme();
   document.getElementById('app').innerHTML = `
     <div id="topbar"></div>
@@ -2087,6 +2089,8 @@ function renderGameShell(){
   enhancePremiumUi();
 }
 async function renderProfileLogin(){
+  disposeProgramsWindow();
+  PM?.resetSession();
   document.body.classList.remove('theme-light');
   document.body.classList.remove('has-app-bg');
   const profiles = await loadProfiles();
@@ -2750,6 +2754,7 @@ function startProfileGame(){
   recordMarketSnapshot();
   renderTopbar();
   navigateTo('dashboard');
+  scheduleProgramsWindowWarmup();
   scheduleSave();
   if(!gameClockStarted){
     startGameClock();
@@ -2801,6 +2806,7 @@ async function flushPendingSave(){
 }
 function scheduleSave(){
   if(!activeProfileId) return;
+  PM?.markWindowsDirty(currentPage);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
     try{
@@ -3792,6 +3798,11 @@ function openWindow(appId){
   navigateTo(appId);
 }
 function navigateTo(appId){
+  const pageHost = document.getElementById('pagecontent');
+  if(pageHost && currentPage && currentPage!==appId){
+    captureActiveDrafts();
+    PM?.suspendWindow(currentPage,pageHost);
+  }
   currentPage = appId;
   if(appId==='reviews') markReviewsSeen();
   renderSidebar();
@@ -3930,7 +3941,7 @@ function ensureNavTooltipLayer(){
   document.addEventListener('focusin',e=>{ const el=e.target.closest?.(tooltipSelector); if(el) show(el); });
   document.addEventListener('focusout',e=>{ if(e.target.closest?.(tooltipSelector)) hide(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') hide(); });
-  addEventListener('resize',position); document.addEventListener('scroll',position,true);
+  addEventListener('resize',position,{passive:true}); document.addEventListener('scroll',position,{capture:true,passive:true});
 }
 function appBadgeValue(appId){
   if(appId==='mailbox') return (state.offers||[]).filter(o=>o.unread).length;
@@ -3941,26 +3952,64 @@ function appBadgeValue(appId){
   if(appId==='deliveries') return (state.deliveries||[]).filter(d=>!['completed','pickup_completed'].includes(d.status)).length;
   return 0;
 }
+let programForwardAnimationVariant = false;
+let programsWindowWarmupHandle = null;
+function scheduleProgramsWindowWarmup(){
+  if(programsWindowWarmupHandle !== null || document.getElementById('programOverlay')) return;
+  const profileId = activeProfileId;
+  const warmup = ()=>{
+    programsWindowWarmupHandle = null;
+    if(!profileId || profileId !== activeProfileId || !document.getElementById('pagecontent') || document.getElementById('programOverlay')) return;
+    openProgramsWindow();
+    closeProgramsWindow();
+  };
+  programsWindowWarmupHandle = 'requestIdleCallback' in window
+    ? requestIdleCallback(warmup,{timeout:1800})
+    : setTimeout(warmup,900);
+}
+function stopProgramsForwardAnimation(){
+  const overlay = document.getElementById('programOverlay');
+  overlay?.classList.remove('launcher-forward-a','launcher-forward-b');
+}
+function startProgramsForwardAnimation(overlay){
+  stopProgramsForwardAnimation();
+  programForwardAnimationVariant = !programForwardAnimationVariant;
+  overlay.classList.add(programForwardAnimationVariant?'launcher-forward-a':'launcher-forward-b');
+}
 function openProgramsWindow(){
+  PM?.startMeasure(document.getElementById('programOverlay')?'programs:reuse':'programs:first');
   const existing = document.getElementById('programOverlay');
   if(existing){
-    existing.hidden = false;
-    existing.style.display = '';
-    existing.parentElement?.appendChild(existing);
-    existing.classList.remove('launcher-forward');
-    void existing.offsetWidth;
-    existing.classList.add('launcher-forward');
+    let refreshLiveData = false;
+    if(existing.dataset.programLanguage !== currentLanguage()){
+      existing.dataset.programLanguage = currentLanguage();
+      renderProgramsGrid(document.getElementById('programSearch')?.value || '');
+    } else {
+      refreshLiveData = true;
+    }
+    existing.classList.remove('is-hidden');
+    existing.inert = false;
+    existing.setAttribute('aria-hidden','false');
+    startProgramsForwardAnimation(existing);
     document.getElementById('programLauncherButton')?.classList.add('active');
-    document.getElementById('programSearch')?.focus();
+    if(refreshLiveData) queueMicrotask(updateProgramsLiveData);
+    requestAnimationFrame(()=>{
+      const body = document.getElementById('programBody');
+      if(body) body.scrollTop = programMenuScrollTop;
+      document.getElementById('programSearch')?.focus();
+      PM?.endMeasure('programs:reuse');
+    });
     return;
   }
   const overlay = document.createElement('div');
   overlay.className = 'program-overlay';
   overlay.id = 'programOverlay';
+  overlay.dataset.programLanguage = currentLanguage();
+  overlay.setAttribute('aria-hidden','false');
   const recentIds = ['market','mailbox','workshop','finance'];
   const recentLabel = currentLanguage()==='de' ? 'Zuletzt benutzt' : 'Recently used';
   const quickLinks = recentIds.map(id=>{
-    const meta=appMeta(id), hero=new URL(`assets/programs/heroes/${PROGRAM_HEROES[id]||'settings.jpg'}`,document.baseURI).href;
+    const meta=appMeta(id), hero=programHeroUrl(PROGRAM_HEROES[id]||'settings.jpg',960);
     return `<button class="program-quick" style="--app-a:${PROGRAM_APP_ACCENTS[id]||meta[2]};--quick-hero:url(&quot;${escapeAttr(hero)}&quot;)" onclick="closeProgramsWindow();navigateTo('${id}')"><span>${refIcon(id)}</span><b>${escapeHtml(meta[0])}</b></button>`;
   }).join('');
   overlay.innerHTML = `<div class="program-window" onclick="event.stopPropagation()">
@@ -3969,7 +4018,7 @@ function openProgramsWindow(){
       <div class="program-recent"><span class="program-recent-label">★ ${escapeHtml(recentLabel)}</span><div class="program-quick-list">${quickLinks}</div></div>
       <div class="program-search-wrap">
         <svg class="program-search-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input class="program-search" id="programSearch" placeholder="${escapeAttr(t('programs.search_placeholder'))}" oninput="renderProgramsGrid(this.value)" onkeydown="if(event.key==='Escape') closeProgramsWindow();">
+        <input class="program-search" id="programSearch" placeholder="${escapeAttr(t('programs.search_placeholder'))}" oninput="filterProgramsGrid(this.value)" onkeydown="if(event.key==='Escape') closeProgramsWindow();">
         <button class="program-filter-btn" onclick="document.getElementById('programSearch')?.focus()" aria-label="Filter" title="Filter">${refIcon('apps')}</button>
       </div>
       <button class="program-close" onclick="closeProgramsWindow()">×</button>
@@ -3980,13 +4029,30 @@ function openProgramsWindow(){
   document.getElementById('app').appendChild(overlay);
   document.getElementById('programLauncherButton')?.classList.add('active');
   renderProgramsGrid('');
-  requestAnimationFrame(()=>document.getElementById('programSearch')?.focus());
+  requestAnimationFrame(()=>{
+    if(!overlay.classList.contains('is-hidden')) document.getElementById('programSearch')?.focus();
+    PM?.endMeasure('programs:first');
+  });
 }
+let programMenuScrollTop = 0;
 function closeProgramsWindow(){
+  const overlay = document.getElementById('programOverlay');
+  if(overlay){
+    stopProgramsForwardAnimation();
+    programMenuScrollTop = document.getElementById('programBody')?.scrollTop || 0;
+    document.getElementById('programSearch')?.blur();
+    overlay.classList.add('is-hidden');
+    overlay.classList.remove('launcher-forward');
+    overlay.inert = true;
+    overlay.setAttribute('aria-hidden','true');
+  }
+  document.getElementById('programLauncherButton')?.classList.remove('active');
+}
+function disposeProgramsWindow(){
   programHeroObserver?.disconnect();
   programHeroObserver = null;
   document.getElementById('programOverlay')?.remove();
-  document.getElementById('programLauncherButton')?.classList.remove('active');
+  programMenuScrollTop = 0;
 }
 function installProgramLauncherShortcuts(){
   if(document.documentElement.dataset.programLauncherShortcuts==='1') return;
@@ -4032,14 +4098,32 @@ const PROGRAM_HERO_POSITIONS = {
   design:['42% 52%','38% 50%'], updates:['55% 50%','60% 48%'], settings:['58% 50%','64% 48%']
 };
 let programHeroObserver = null;
+const PROGRAM_HERO_WIDTHS = [960,1280,1920];
+const PROGRAM_HERO_HOVER_SCALE = 1.018;
+function programHeroUrl(hero,width){
+  return new URL(`assets/programs/heroes/optimized/${width}/${hero}`,document.baseURI).href;
+}
+function programHeroWidthForElement(el){
+  const rect = el.getBoundingClientRect();
+  const coverWidth = Math.max(rect.width,rect.height*(16/9));
+  const required = Math.ceil(coverWidth*Math.max(1,devicePixelRatio||1)*PROGRAM_HERO_HOVER_SCALE);
+  return PROGRAM_HERO_WIDTHS.find(width=>width>=required) || PROGRAM_HERO_WIDTHS[PROGRAM_HERO_WIDTHS.length-1];
+}
 function installProgramHeroLazyLoading(){
   programHeroObserver?.disconnect();
   const body = document.getElementById('programBody');
   const media = [...document.querySelectorAll('.program-card-media[data-program-hero]')];
   const load = el=>{
     if(!el?.dataset.programHero) return;
-    el.style.backgroundImage = `url("${el.dataset.programHero.replace(/"/g,'%22')}")`;
+    const hero = el.dataset.programHero;
+    const heroUrl = programHeroUrl(hero,programHeroWidthForElement(el));
     delete el.dataset.programHero;
+    const apply = ()=>{ el.style.backgroundImage = `url("${heroUrl.replace(/"/g,'%22')}")`; };
+    const rect = el.getBoundingClientRect(), rootRect = body.getBoundingClientRect();
+    const priority = rect.bottom>=rootRect.top && rect.top<=rootRect.bottom ? 0 : 1;
+    const cached = PM?.cacheAsset(heroUrl,priority);
+    if(cached) cached.then(image=>{ if(image && el.isConnected) apply(); });
+    else apply();
   };
   if(!body || !('IntersectionObserver' in window)){ media.forEach(load); return; }
   programHeroObserver = new IntersectionObserver(entries=>entries.forEach(entry=>{
@@ -4137,10 +4221,68 @@ function programLiveStats(id){
     default: return [];
   }
 }
-function renderProgramsGrid(q){
+function updateProgramCardLiveData(id){
+  const card = document.querySelector(`.program-card[data-program-id="${id}"]`);
+  if(!card) return;
+  const status = programCardStatus(id);
+  const statusEl = card.querySelector('[data-program-status]');
+  if(statusEl && statusEl.dataset.value !== status){
+    statusEl.dataset.value = status;
+    const dot = document.createElement('i');
+    dot.setAttribute('aria-hidden','true');
+    statusEl.replaceChildren(dot,document.createTextNode(status));
+  }
+  const badgeValue = Math.min(99,appBadgeValue(id));
+  const stack = card.querySelector('.program-card-icon-stack');
+  let badge = stack?.querySelector('[data-program-badge]');
+  if(badgeValue){
+    if(!badge){
+      badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.dataset.programBadge = '';
+      stack?.appendChild(badge);
+    }
+    if(badge.textContent !== String(badgeValue)) badge.textContent = String(badgeValue);
+  } else {
+    badge?.remove();
+  }
+  const stats = programLiveStats(id);
+  const statsEl = card.querySelector('[data-program-stats]');
+  const statsKey = JSON.stringify(stats);
+  if(statsEl && statsEl.dataset.value !== statsKey){
+    const fragment = document.createDocumentFragment();
+    stats.forEach(value=>{
+      const line = document.createElement('span');
+      line.textContent = value;
+      fragment.appendChild(line);
+    });
+    statsEl.replaceChildren(fragment);
+    statsEl.dataset.value = statsKey;
+    statsEl.hidden = !stats.length;
+  }
+}
+function updateProgramsLiveData(){
+  PROGRAM_CATEGORIES.forEach(category=>category.ids.forEach(updateProgramCardLiveData));
+}
+function filterProgramsGrid(q){
   const body = document.getElementById('programBody');
   if(!body) return;
   const query = (q||'').trim().toLowerCase();
+  let visibleCards = 0;
+  body.querySelectorAll('.program-card').forEach(card=>{
+    const visible = !query || (card.dataset.programSearch||'').includes(query);
+    card.hidden = !visible;
+    if(visible) visibleCards++;
+  });
+  body.querySelectorAll('.program-section').forEach(section=>{
+    section.hidden = !section.querySelector('.program-card:not([hidden])');
+  });
+  const empty = body.querySelector('.program-empty');
+  if(empty) empty.hidden = visibleCards > 0;
+}
+function renderProgramsGrid(q){
+  const body = document.getElementById('programBody');
+  if(!body) return;
   let cardIndex = 0;
   const card = (id, categoryKey)=>{
     const app = APPS.find(a=>a.id===id); if(!app) return '';
@@ -4149,20 +4291,20 @@ function renderProgramsGrid(q){
     const stats = programLiveStats(id);
     const accent = PROGRAM_APP_ACCENTS[id] || PROGRAM_CATEGORY_ACCENTS[categoryKey] || meta[2];
     const hero = PROGRAM_HEROES[id] || 'settings.jpg';
-    const heroPath = new URL(`assets/programs/heroes/${hero}`, document.baseURI).href;
     const heroPositions = PROGRAM_HERO_POSITIONS[id] || ['50% 50%','50% 50%'];
     const status = programCardStatus(id);
     const delay = Math.min(cardIndex++ * 24, 360);
-    return `<div class="program-card program-card-${id}" style="--app-a:${accent};--card-delay:${delay}ms;--hero-pos:${heroPositions[0]};--hero-pos-narrow:${heroPositions[1]}" onclick="closeProgramsWindow();navigateTo('${id}')">
-      <span class="program-card-media" data-program-hero="${escapeAttr(heroPath)}" aria-hidden="true"></span>
+    const searchText = `${meta[0]} ${id} ${meta.join(' ')}`.toLowerCase();
+    return `<div class="program-card program-card-${id}" data-program-id="${id}" data-program-search="${escapeAttr(searchText)}" style="--app-a:${accent};--card-delay:${delay}ms;--hero-pos:${heroPositions[0]};--hero-pos-narrow:${heroPositions[1]}" onclick="closeProgramsWindow();navigateTo('${id}')">
+      <span class="program-card-media" data-program-hero="${escapeAttr(hero)}" aria-hidden="true"></span>
       <div class="program-card-top">
-        <span class="program-card-icon-stack"><span class="program-icon">${refIcon(id)}</span>${badge?`<span class="badge">${Math.min(99,badge)}</span>`:''}</span>
+        <span class="program-card-icon-stack"><span class="program-icon">${refIcon(id)}</span>${badge?`<span class="badge" data-program-badge>${Math.min(99,badge)}</span>`:''}</span>
       </div>
-      <div class="program-card-copy"><b>${escapeHtml(meta[0])}</b><span class="program-live-status"><i></i>${escapeHtml(status)}</span><small>${escapeHtml(meta[1])}</small></div>
+      <div class="program-card-copy"><b>${escapeHtml(meta[0])}</b><span class="program-live-status" data-program-status data-value="${escapeAttr(status)}"><i></i>${escapeHtml(status)}</span><small>${escapeHtml(meta[1])}</small></div>
       <div class="program-hover-info">
         <div class="phi-head"><span class="phi-dot"></span><b>${escapeHtml(meta[0])}</b></div>
         <p>${escapeHtml(meta[1])}</p>
-        ${stats.length?`<div class="phi-stats">${stats.map(s=>`<span>${escapeHtml(s)}</span>`).join('')}</div>`:''}
+        <div class="phi-stats" data-program-stats data-value="${escapeAttr(JSON.stringify(stats))}"${stats.length?'':' hidden'}>${stats.map(s=>`<span>${escapeHtml(s)}</span>`).join('')}</div>
         <div class="phi-open">${escapeHtml(t('programs.open_cta'))}</div>
       </div>
     </div>`;
@@ -4171,15 +4313,12 @@ function renderProgramsGrid(q){
     const categoryMeta = (PROGRAM_CATEGORY_LABELS[currentLanguage()]||PROGRAM_CATEGORY_LABELS.de)[key];
     const label = categoryMeta?.[0] || t(`programs.categories.${key}.label`);
     const icon = categoryMeta?.[1] || '';
-    const cards = ids.filter(id=>{
-      const app = APPS.find(a=>a.id===id);
-      const meta = appMeta(id);
-      return app && (!query || `${meta[0]} ${id} ${meta.join(' ')}`.toLowerCase().includes(query));
-    }).map(id=>card(id,key)).join('');
-    return cards ? `<section class="program-section program-section-${key}" style="--section-a:${PROGRAM_CATEGORY_ACCENTS[key] || '#9aa7b8'}"><div class="program-section-title"><span class="pst-label"><i>${icon}</i>${escapeHtml(label)}</span></div><div class="program-grid">${cards}</div></section>` : '';
+    const cards = ids.filter(id=>APPS.some(app=>app.id===id)).map(id=>card(id,key)).join('');
+    return cards ? `<section class="program-section program-section-${key}" data-program-category="${key}" style="--section-a:${PROGRAM_CATEGORY_ACCENTS[key] || '#9aa7b8'}"><div class="program-section-title"><span class="pst-label"><i>${icon}</i>${escapeHtml(label)}</span></div><div class="program-grid">${cards}</div></section>` : '';
   }).join('');
-  body.innerHTML = html ? `<div class="program-sections">${html}</div>` : `<div class="program-empty">${escapeHtml(t('programs.empty'))}</div>`;
+  body.innerHTML = `<div class="program-sections">${html}</div><div class="program-empty" hidden>${escapeHtml(t('programs.empty'))}</div>`;
   installProgramHeroLazyLoading();
+  filterProgramsGrid(q);
 }
 function navEditIcon(){
   return `<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
@@ -4207,9 +4346,9 @@ function renderBottomBar(){
   }).join('');
   const editBtn = `<button class="bottom-tool bottom-edit-tool" onclick="openNavCustomize('bottom')" ${navTooltipAttrs(t('sidebar.customize'),'','top')}>${navEditIcon()}</button>`;
   const clockLocale = localeMeta().numberLocale || 'en-US';
-  bar.innerHTML = `<div class="bottom-logo"><img src="assets/logos/app-logo.png" alt=""></div><div class="bottom-title"><b>Automotive Empire</b><small>${escapeHtml(t('bottombar.brand_sub'))}</small></div>
+  const html = `<div class="bottom-logo"><img src="assets/logos/app-logo.png" alt=""></div><div class="bottom-title"><b>Automotive Empire</b><small>${escapeHtml(t('bottombar.brand_sub'))}</small></div>
     <span class="savebadge" id="savebadge"><span class="sdot"></span><span><b>${escapeHtml(t('bottombar.autosaved_title'))}</b><small>${escapeHtml(t('bottombar.autosaved_sub'))}</small></span></span>
-    <button id="programLauncherButton" class="program-launcher-button ${document.getElementById('programOverlay')?'active':''}" onclick="openProgramsWindow()" ondblclick="event.preventDefault();closeProgramsWindow();navigateTo('dashboard')" ${navTooltipAttrs(t('sidebar.programs'),t('bottombar.programs_tooltip'),'top')}>${refIcon('apps')}<span>${escapeHtml(t('sidebar.programs'))}</span></button>
+    <button id="programLauncherButton" class="program-launcher-button ${document.getElementById('programOverlay') && !document.getElementById('programOverlay').classList.contains('is-hidden')?'active':''}" onclick="openProgramsWindow()" ondblclick="event.preventDefault();closeProgramsWindow();navigateTo('dashboard')" ${navTooltipAttrs(t('sidebar.programs'),t('bottombar.programs_tooltip'),'top')}>${refIcon('apps')}<span>${escapeHtml(t('sidebar.programs'))}</span></button>
     <div class="bottom-tabs">${tabs}</div>
     <div class="bottom-tools">
       ${editBtn}
@@ -4217,6 +4356,7 @@ function renderBottomBar(){
       <div class="bottom-tool" style="--nav-accent:${navAccent('mailbox')}" onclick="navigateTo('mailbox')" ${navTooltipAttrs(t('bottombar.mailbox_tooltip'),appMeta('mailbox')[1],'top')}>${refIcon('mailbox')}</div>
       <div class="bottom-date">${new Date().toLocaleTimeString(clockLocale,{hour:'2-digit',minute:'2-digit'})}<small>${new Date().toLocaleDateString(clockLocale,{day:'2-digit',month:'short',year:'numeric'})}</small></div>
     </div>`;
+  PM?.setHTML(bar,html);
 }
 
 /* ===== NAV CUSTOMIZE MODAL ===== */
@@ -4349,14 +4489,18 @@ function navDrop(e, targetId){
 }
 
 function renderTopbar(){
-
-  const currentIndex = legacyIndex();
-  const cal = currentCalendar();
-  const initials = (activeProfileName||'AE').split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
-  const successRate = Math.round(currentIndex.successRate||0);
-  const legacyReady = isLegacySaleAvailable();
-  const delta = todaysDelta();
-  document.getElementById('topbar').innerHTML = `
+  const topData = PM?.memo('topbar-data',`${PM.sessionRevision}:${currentLanguage()}`,()=>{
+    const currentIndex = legacyIndex();
+    return {
+      cal:currentCalendar(),
+      initials:(activeProfileName||'AE').split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase(),
+      successRate:Math.round(currentIndex.successRate||0),
+      legacyReady:isLegacySaleAvailable(),
+      delta:todaysDelta(),
+    };
+  }) || {cal:currentCalendar(),initials:'AE',successRate:0,legacyReady:false,delta:todaysDelta()};
+  const {cal,initials,successRate,legacyReady,delta} = topData;
+  const html = `
     <div class="ref-brand">
       <span class="ref-brand-mark"><img src="assets/logos/app-logo.png" alt=""></span>
       <span class="ref-brand-copy"><b>Automotive Empire</b><small>${escapeHtml(t('topbar.brand_sub'))}</small></span>
@@ -4378,6 +4522,7 @@ function renderTopbar(){
       <button class="top-exit-btn" onclick="showExitConfirmation('button')" aria-label="${escapeAttr(currentLanguage()==='de'?'Spiel beenden':'Quit game')}" title="${escapeAttr(currentLanguage()==='de'?'Spiel beenden':'Quit game')}">${refIcon('exit')}</button>
     </div>
   `;
+  PM?.setHTML(document.getElementById('topbar'),html);
 }
 function toggleNotifPanel(e){
   if(e) e.stopPropagation();
@@ -4418,9 +4563,13 @@ function renderSidebar(){
   ensureNavTooltipLayer();
   const sidebar = document.getElementById('sidebar');
   if(sidebar) sidebar.className = 'ref-dock';
-  const unreadMail = (state.offers||[]).filter(o=>o.unread).length;
-  const actionableWishes = (state.searchOrders||[]).filter(o=>o.status==='open' && (state.inventory||[]).some(c=>matchesOrder(c,o))).length;
-  const contractsAtRisk = activeClaimActionCount();
+  const navStats = PM?.memo('sidebar-stats',`${PM.sessionRevision}:${currentLanguage()}`,()=>({
+    unreadMail:(state.offers||[]).filter(o=>o.unread).length,
+    actionableWishes:(state.searchOrders||[]).filter(o=>o.status==='open' && (state.inventory||[]).some(c=>matchesOrder(c,o))).length,
+    contractsAtRisk:activeClaimActionCount(),
+    reputation:clamp(Math.round(legacyIndex().successRate||0),0,100),
+  })) || {unreadMail:0,actionableWishes:0,contractsAtRisk:0,reputation:0};
+  const {unreadMail,actionableWishes,contractsAtRisk,reputation:rep} = navStats;
   const dockIds = getDockItems();
   const badgeFor = id=>{
     let n = 0;
@@ -4437,13 +4586,13 @@ function renderSidebar(){
     ${refIcon(id)}<span class="lbl">${label}</span>${badgeFor(id)}
   </div>`;
   }).join('');
-  const rep = clamp(Math.round(legacyIndex().successRate||0),0,100);
   const editDockBtn = `<div class="dock-edit-btn" onclick="openNavCustomize('dock')" ${navTooltipAttrs(t('sidebar.customize'),'','side')}>${navEditIcon()}<span>${escapeHtml(t('sidebar.customize'))}</span></div>`;
-  document.getElementById('sidebar').innerHTML = `
+  const html = `
     <div class="dock-list">${dock}${editDockBtn}</div>
     <div class="dock-spacer"></div>
     <div class="dock-ring" style="--nav-accent:${navAccent('legacy')}" onclick="navigateTo('legacy')" ${navTooltipAttrs(appMeta('legacy')[0],appMeta('legacy')[1],'side')}><span class="ring" style="--p:${rep}"><span>${rep}%</span></span><small>${escapeHtml(t('sidebar.reputation'))}</small></div>
   `;
+  PM?.setHTML(document.getElementById('sidebar'),html);
   renderBottomBar();
 }
 
@@ -4527,12 +4676,24 @@ function renderPageContent(){
   };
   const el = document.getElementById('pagecontent');
   if(el && fns[currentPage]){
+    const measureName = `page:${currentPage}`;
+    PM?.startMeasure(measureName);
+    const switchingPage = el.dataset.renderedPage && el.dataset.renderedPage !== currentPage;
+    if(switchingPage && PM?.restoreWindow(currentPage,el)){
+      el.dataset.renderedPage = currentPage;
+      el.classList.toggle('business-insights-page',currentPage==='insights');
+      scrollActiveMarketSearchMatch();
+      enhancePremiumUi();
+      PM?.endMeasure(measureName);
+      return;
+    }
     const samePage = el.dataset.renderedPage === currentPage;
     const prevScroll = samePage ? el.scrollTop : 0;
     el.classList.toggle('quiet-rerender', quietClockRender && samePage);
     const chatScroll = captureActiveChatScroll();
     const html = fns[currentPage]();
     if(quietClockRender && samePage) quietUpdatePageContent(el, html);
+    else if(PM) PM.setHTML(el,html);
     else el.innerHTML = html;
     el.dataset.renderedPage = currentPage;
     el.classList.toggle('business-insights-page', currentPage==='insights');
@@ -4541,6 +4702,8 @@ function renderPageContent(){
     if(!chatScroll) keepActiveChatAtBottom();
     scrollActiveMarketSearchMatch();
     enhancePremiumUi();
+    PM?.discardWindow(currentPage);
+    PM?.endMeasure(measureName);
   }
 }
 function scrollActiveMarketSearchMatch(){
@@ -4613,6 +4776,7 @@ function isEditingElement(el){
   return !!el.isContentEditable;
 }
 function renderAllOpen(){
+  PM?.markWindowsDirty(currentPage);
   applyTheme();
   applyAppBackground(state?.backgroundId || 'standard', true);
   renderTopbar();
@@ -4627,6 +4791,7 @@ function renderAllOpen(){
 }
 function refreshProgressChrome(){
   if(!state || !document.getElementById('topbar') || !document.getElementById('sidebar')) return;
+  PM?.markWindowsDirty(currentPage);
   renderTopbar();
   renderSidebar();
   if(['dashboard','legacy','insights'].includes(currentPage) && !isEditingElement(document.activeElement)){
@@ -4637,6 +4802,7 @@ function refreshProgressChrome(){
 }
 function refreshClockChrome(){
   if(!state || !document.getElementById('topbar') || !document.getElementById('sidebar')) return;
+  PM?.markWindowsDirty(currentPage);
   renderTopbar();
   renderSidebar();
   const bar = document.getElementById('dayProgress');
@@ -4656,17 +4822,19 @@ function refreshClockChrome(){
 }
 
 function enhancePremiumUi(){
-  requestAnimationFrame(()=>{
+  queueUiFrame('premium-ui',()=>{
     if(!document.body.dataset.premiumPolishBound){
       document.body.dataset.premiumPolishBound = '1';
-      document.addEventListener('click', ev=>{
-        const btn = ev.target.closest('.btn,.top-icon-btn,.bottom-tool,.dock-item,.bottom-tab,.program-card');
-        if(!btn || btn.matches(':disabled')) return;
+      const confirmClick = (ev,delegatedTarget)=>{
+        const btn = delegatedTarget || ev.target.closest('.btn,.top-icon-btn,.bottom-tool,.dock-item,.bottom-tab,.program-card');
+        if(btn.matches(':disabled')) return;
         btn.classList.remove('premium-confirm');
         void btn.offsetWidth;
         btn.classList.add('premium-confirm');
         setTimeout(()=>btn.classList.remove('premium-confirm'), 560);
-      }, true);
+      };
+      if(PM) PM.delegate('premium-ui','click',document,'.btn,.top-icon-btn,.bottom-tool,.dock-item,.bottom-tab,.program-card',confirmClick,true);
+      else document.addEventListener('click',confirmClick,true);
     }
     document.querySelectorAll('[title]').forEach(el=>{
       const t = (el.getAttribute('title')||'').trim();
@@ -5750,7 +5918,10 @@ function renderInventory(){
 function invCard(c){
   normalizeVehicleIssues(c);
   const listed = state.listings[c.id];
-  const inWorkshop = state.workshopJobs.find(j=>j.carId===c.id);
+  const workshopJobs = state.workshopJobs||[];
+  const workshopToken = `${PM?.sessionRevision||0}:${workshopJobs.length}:${workshopJobs[0]?.carId||''}:${workshopJobs[workshopJobs.length-1]?.carId||''}`;
+  const workshopByCar = PM?.memo('workshop-by-car',workshopToken,()=>new Map(workshopJobs.map(job=>[job.carId,job])));
+  const inWorkshop = workshopByCar ? workshopByCar.get(c.id) : workshopJobs.find(job=>job.carId===c.id);
   const reserved = c.reservedFor && c.reservedFor.expiresDay>state.day;
   const profit = c.marketValue - c.purchasePrice;
   const tier = tierInfo(c.brand, c.model);
@@ -5794,7 +5965,12 @@ function invCard(c){
     ${!listed && !inWorkshop && !reserved? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;justify-content:center;" onclick="quickTrade('${c.id}')">${escapeHtml(t('inventory.quick_trade_btn',{price:money(Math.round(c.marketValue*0.78))}))}</button>`:''}
   </div>`;
 }
-function findCar(id){ return state.inventory.find(c=>c.id===id); }
+function findCar(id){
+  const inventory = state.inventory||[];
+  const token = `${PM?.sessionRevision||0}:${inventory.length}:${inventory[0]?.id||''}:${inventory[inventory.length-1]?.id||''}`;
+  const index = PM?.memo('inventory-by-id',token,()=>new Map(inventory.map(car=>[car.id,car])));
+  return index ? index.get(id) : inventory.find(car=>car.id===id);
+}
 function showAcquisitionHistory(id){
   const c = findCar(id); if(!c || !c.acquisitionHistory) return;
   const IV = t('inventory');
@@ -7068,20 +7244,23 @@ function renderCustomers(){
     return `<h2 class="section-title">${escapeHtml(C.title)}</h2><div class="empty-state"><div class="ic">👤</div>${escapeHtml(C.empty)}</div>`;
   }
   const all = ids.map(id=>state.customers[id]);
+  const statusById = new Map(all.map(customer=>[customer.id,customerStatus(customer)]));
   const counts = {
     all: all.length,
-    financed: all.filter(c=>customerStatus(c).key==='financed').length,
-    leased: all.filter(c=>customerStatus(c).key==='leased').length,
-    bought: all.filter(c=>customerStatus(c).key==='bought').length,
+    financed: 0,
+    leased: 0,
+    bought: 0,
   };
+  statusById.forEach(status=>{ if(Object.hasOwn(counts,status.key)) counts[status.key]++; });
   const list = all
-    .filter(c=>customerFilter==='all' || customerStatus(c).key===customerFilter)
+    .filter(c=>customerFilter==='all' || statusById.get(c.id)?.key===customerFilter)
     .sort((a,b)=>{
-      const sa = customerStatus(a), sb = customerStatus(b);
+      const sa = statusById.get(a.id), sb = statusById.get(b.id);
       return sa.rank-sb.rank || (b.lastContactDay||0)-(a.lastContactDay||0);
     });
   if(!list.length) selectedCustomerId = null;
   else if(!selectedCustomerId || !list.some(c=>c.id===selectedCustomerId)) selectedCustomerId = list[0].id;
+  const activeOfferByCustomer = new Map((state.offers||[]).map(offer=>[offer.customerId,offer]));
   const tabs = [
     ['all',C.tab_all,counts.all],
     ['financed',C.tab_financed,counts.financed],
@@ -7089,8 +7268,8 @@ function renderCustomers(){
     ['bought',C.tab_bought,counts.bought],
   ].map(([key,label,count])=>`<button class="pill-tab ${customerFilter===key?'active':''}" onclick="setCustomerFilter('${key}')">${escapeHtml(label)} ${count}</button>`).join('');
   const listHtml = list.map(cust=>{
-    const activeThread = state.offers.find(o=>o.customerId===cust.id);
-    const status = customerStatus(cust);
+    const activeThread = activeOfferByCustomer.get(cust.id);
+    const status = statusById.get(cust.id);
     return `<div class="convo-item ${selectedCustomerId===cust.id?'active':''}" onclick="openCustomerProfile('${cust.id}')">
       <div class="top"><span>${cust.name}${activeThread?'<span class="unread-dot"></span>':''}</span><span style="color:${status.color};font-weight:800;">${status.label}</span></div>
       <div class="snippet">${escapeHtml(t('customers.purchases_count',{n:cust.purchases.length}))} · ${cust.persona} · ${escapeHtml(t('customers.satisfaction_inline',{n:cust.satisfaction}))}</div>
@@ -13545,6 +13724,8 @@ function installDragSelectionGuard(){
   }, true);
 }
 async function init(){
+  PM?.startMeasure('startup');
+  PM?.cacheAsset(new URL('assets/logos/app-logo.png',document.baseURI).href);
   installDragSelectionGuard();
   installProgramLauncherShortcuts();
   initAppLifecycleBridge();
@@ -13553,6 +13734,7 @@ async function init(){
   // Hintergruende aus assets/backgrounds/ erkennen; nach 2,5s weiterladen, Scan laeuft dann im Hintergrund fertig.
   await Promise.race([discoverAppBackgrounds(), new Promise(r=>setTimeout(r, 2500))]);
   await renderProfileLogin();
+  PM?.endMeasure('startup');
 }
 // Entfernt Altlasten des zurückgebauten Filialen-Systems; wird auch in nextDay() benötigt.
 function clearBranchFields(obj){

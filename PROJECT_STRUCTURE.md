@@ -13,7 +13,8 @@ Wichtig: Diese Dokumentation beschreibt den aktuellen Aufbau. Viele Spielsysteme
 | `js/` | JavaScript-Laufzeit der Anwendung. |
 | `data/` | Ausgelagerte Datenbloecke wie Changelog, Fahrzeuge und Achievements. |
 | `assets/` | Grafische Assets wie Logos, App-Icon und Hintergruende. |
-| `assets/programs/heroes/` | Einzelne, aus der Programme-Referenz zugeschnittene Hero-Motive fuer alle 23 Programmkarten. |
+| `assets/programs/heroes/` | Originale 4K-Hero-Motive fuer alle 23 Programmkarten sowie displaygerechte JPEG-Derivate unter `optimized/960/`, `optimized/1280/` und `optimized/1920/`. Die Runtime waehlt anhand realer Kartengroesse und DPR die kleinste scharfe Variante. |
+| `Performance Analysis/` | Technische, messwertorientierte Performance-Analysen. Enthaelt aktuell genau den Programme-Menue-Bericht `Performance Analysis Report.txt`. |
 | `scripts/` | Node-/Build-Hilfsscripts. |
 | `build/` | Build-/Installer-Ressourcen, soweit vorhanden. |
 | `dist/` | Release-Build-Ausgabe. Generiert, nicht als Quellstruktur behandeln. |
@@ -43,15 +44,17 @@ Aktueller Hinweis: CSS ist derzeit in einer Datei gebuendelt. Wenn spaeter weite
 
 | Datei | Aufgabe | Wichtige Funktionen / Bereiche | Abhaengigkeiten |
 | --- | --- | --- | --- |
-| `js/app.js` | Hauptlaufzeit des Spiels. Enthaelt aktuell die meisten Systeme und startet die Anwendung. | `init()`, Login/Profile, Navigation, Rendering, State-Migration, Speicheraufrufe, Kundenlogik, Fahrzeuge, Werkstatt, ECU-Tuning, Finanzierung, Vertraege, Lieferungen, Design, Updates & News, Auto-Updater-Bridge, UI-Helfer. | Muss nach `data/changelog.js`, `data/vehicles.js`, `data/achievements.js` und `data/ecu.js` geladen werden. Nutzt `window.storage`, `window.updater`, `window.appInfo` aus `preload.js`. |
+| `js/performance-manager.js` | Zentrale technische Performance-Schicht. | DOM-/HTML-/Asset-/Memo-Caches, persistente Seitenfenster, Render-/Update-/Animationsqueues, Event-Scopes, Messpunkte und Session-Cleanup. | Muss direkt vor `js/app.js` geladen werden und stellt `window.performanceManager` bereit. |
+| `js/app.js` | Hauptlaufzeit des Spiels. Enthaelt aktuell die meisten Systeme und startet die Anwendung. | `init()`, Login/Profile, Navigation, Rendering, State-Migration, Speicheraufrufe, Kundenlogik, Fahrzeuge, Werkstatt, ECU-Tuning, Finanzierung, Vertraege, Lieferungen, Design, Updates & News, Auto-Updater-Bridge, UI-Helfer. | Muss nach `data/changelog.js`, `data/vehicles.js`, `data/achievements.js`, `data/ecu.js` und `js/performance-manager.js` geladen werden. Nutzt `window.storage`, `window.updater`, `window.appInfo` aus `preload.js`. |
 
 ### Wichtige Bereiche innerhalb von `js/app.js`
 
 | Bereich | Wo aktuell suchen | Hinweise |
 | --- | --- | --- |
 | App-Start | `init()` in `js/app.js`, `createWindow()` in `main.js` | Initialisiert Runtime-Infos, Lifecycle-Bridge, Hintergruende und Login; Electron startet standardmaessig im echten Vollbild und merkt eine bewusste Fenstermodus-Auswahl. |
+| Performance | `window.performanceManager` in `js/performance-manager.js` | Verwaltet UI-/DOM-/Asset-Caches, persistente Seiten-DOMs, Frame-Queues, Memoisierung, Listener-Scopes, Messwerte und kontrolliertes Session-Cleanup. |
 | Navigation | `navigateTo()`, `renderSidebar()`, `renderBottomBar()`, `installProgramLauncherShortcuts()` | Steuert Seitenwechsel, Dock und Bottom-Bar; der feste Programme-Launcher liegt außerhalb der scrollbaren Tabs und reagiert auf F1 sowie Strg+Leertaste. |
-| Programme-Fenster | `openProgramsWindow()`, `renderProgramsGrid()`, `PROGRAM_HEROES` | AAA-Steuerungspanel mit Schnellzugriffen, asymmetrischem Kategorie-Raster, Live-Daten und 4K-Hero-Karten; Motive liegen in `assets/programs/heroes/`. |
+| Programme-Fenster | `openProgramsWindow()`, `renderProgramsGrid()`, `updateProgramsLiveData()`, `filterProgramsGrid()`, `PROGRAM_HEROES` | Persistentes AAA-Steuerungspanel: DOM, Listener und geladene 4K-Hero-Karten werden innerhalb einer Profilsitzung wiederverwendet; beim Oeffnen werden nur Live-Werte aktualisiert. Motive liegen in `assets/programs/heroes/`. |
 | Profile/Login | `renderProfileLogin()`, `createProfileFromLogin()`, `loadProfile()` | Nutzt native Speicherung ueber `window.storage`. |
 | State/Speicherlogik | `defaultState()`, `migrateState()`, `saveNow()`, `flushPendingSave()`, `storageGet()`, `storageSet()` | Interne Save-Keys nicht ohne Migration aendern. Renderer-Saves und native Dateischreibvorgaenge werden geordnet; der Exit-Ablauf wartet auf den letzten Save. |
 | Sicheres Beenden | `showExitConfirmation()`, `confirmSafeExit()`, `initAppLifecycleBridge()` | Exit-Button und Betriebssystem-Schliesswege laufen ueber dieselbe Save-Bestaetigung und die `window.appLifecycle`-Bridge. |

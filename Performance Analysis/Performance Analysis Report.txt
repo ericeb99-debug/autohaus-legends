@@ -1,0 +1,1579 @@
+======================================================================
+AUTOMOTIVE EMPIRE
+PROGRAMME MENU PERFORMANCE ANALYSIS
+======================================================================
+
+1. Allgemeine Informationen
+
+- Datum: 14.07.2026
+- Analysierte Version: Arbeitsstand des Repositorys vom 14.07.2026; package.json meldet 2.2.1. Die Version wurde nicht geaendert.
+- Betriebssystem: Microsoft Windows, Build 10.0.26200, x64
+- Verwendete Tools: Quellcode- und CSS-Inventur (ripgrep/PowerShell), Bildmetadatenmessung (System.Drawing), Electron/Chromium-Diagnoseversuch ueber Remote Debugging, Prozess- und Portpruefung, vorhandene PerformanceManager-Messpunkte
+- Ziel der Analyse: Ausschliesslich neue, messbar belegbare Flaschenhaelse des bestehenden Programme-Menues erfassen. Keine Optimierung, keine Designaenderung und keine Wiederholung bereits abgeschlossener Arbeiten.
+
+Messmethodik und Gueltigkeitsgrenzen
+
+Die statischen Messungen in diesem Bericht sind reproduzierbar und beziehen sich ausschliesslich auf den aktuellen Quellstand. Die Electron-Anwendung wurde gestartet. Die laufende Windows-Sitzung verweigerte jedoch den Zugriff auf den Chromium-Diagnoseport und anschliessend auch den kontrollierten Neustart der bereits laufenden Electron-Prozessgruppe. Damit konnten in dieser Ausfuehrungsumgebung keine Chrome-Performance-Traces, GPU-Traces, Paint-Flashing-Aufzeichnungen oder DevTools-Layer-Dumps exportiert werden.
+
+Aus diesem Grund werden keine FPS-, CPU-, GPU-, Paint-, Composite- oder Speicherwerte erfunden oder aus Sichtbeobachtungen abgeleitet. Nicht messbare Werte sind ausdruecklich als "nicht erfasst" markiert. Der Bericht trennt harte Quell-/Assetmessungen von Laufzeitmessungen. Fuer einen vollstaendigen dynamischen Baseline-Datensatz muss die Messmatrix in einer interaktiven Windows-Sitzung mit erreichbarem DevTools-Protokoll wiederholt werden.
+
+Unveraenderter Umfang
+
+- Kein Quellcode des Spiels wurde geaendert.
+- Keine offensichtliche Fehlerkorrektur wurde vorgenommen, weil ohne Laufzeittrace keine sichere Kausalitaet fuer eine sofortige Aenderung vorlag.
+- package.json, GAME_VERSION und Updates & News blieben unveraendert.
+- Bestehende Optimierungen wurden weder wiederholt noch rueckgaengig gemacht.
+
+======================================================================
+
+2. Performance-Messungen
+
+Programme-Menue oeffnen
+
+- Durchschnitts-FPS: nicht erfasst (Diagnoseport in der Windows-Sitzung nicht erreichbar)
+- Minimum FPS: nicht erfasst
+- Maximum FPS: nicht erfasst
+- Durchschnittliche Framezeit: nicht erfasst
+- Langsamster Frame: nicht erfasst
+- Long Tasks: nicht erfasst
+- CPU-Auslastung: nicht erfasst
+- GPU-Auslastung: nicht erfasst
+- Speicherverbrauch: nicht erfasst
+- Harte Quellmessung: Beim Wiedereroeffnen werden 23 Karten aktualisiert. Pro Karte erfolgen mindestens drei lokale querySelector-Aufrufe; damit entstehen mindestens 69 Kartensuchen, zusaetzlich zu Statusberechnungen. Danach wird durch "void existing.offsetWidth" synchron Layoutinformation abgefragt.
+- Harte Animationsmessung: Wiedereroeffnen startet zwei Animationen mit jeweils 220 ms (Overlay und Fenster). Erstaufbau verwendet 200 ms Overlay-, 320 ms Fenster- und 380 ms Kartenanimationen mit gestaffelten Delays bis 360 ms.
+
+Programme-Menue schliessen
+
+- Durchschnitts-FPS / Minimum / Maximum: nicht erfasst
+- Durchschnittliche Framezeit / langsamster Frame: nicht erfasst
+- Long Tasks / CPU / GPU: nicht erfasst
+- Speicherverbrauch: nicht erfasst
+- Harte Quellmessung: ein scrollTop-Read, ein Fokuswechsel (blur), zwei Klassenmutationen, inert-Aktivierung und aria-hidden-Mutation. Die Sichtbarkeitsumschaltung dauert gemaess CSS 160 ms.
+
+Langsames Scrollen
+
+- Durchschnitts-FPS / Minimum / Maximum: nicht erfasst
+- Durchschnittliche Framezeit / langsamster Frame: nicht erfasst
+- Long Tasks / CPU / GPU / Speicher: nicht erfasst
+- Harte Quellmessung: genau ein eigener Scroll-Container (#programBody). Der globale Tooltip-Handler lauscht passiv und im Capture-Modus auf jedem document-scroll und ruft position() auf; ohne aktiven Tooltip beendet sich position() sofort.
+- Harte Rendering-Inventur: bis zu 23 bildtragende Karten, sechs Sektionen, vier Schnellzugriffe und eine grossflaechige Overlay-/Fenster-Glaskaskade koennen im Scrollpfad liegen.
+
+Schnelles Scrollen
+
+- Durchschnitts-FPS / Minimum / Maximum: nicht erfasst
+- Durchschnittliche Framezeit / langsamster Frame: nicht erfasst
+- Long Tasks / CPU / GPU / Speicher: nicht erfasst
+- Intersection-Observer: 23 Ziele, root = #programBody, Vorladezone 320 px ober- und unterhalb des Viewports. Jedes Bild wird nach dem ersten Schnittpunkt wieder abgemeldet.
+
+Hover ueber mehrere Karten
+
+- Durchschnitts-FPS / Minimum / Maximum: nicht erfasst
+- Durchschnittliche Framezeit / langsamster Frame: nicht erfasst
+- Long Tasks / CPU / GPU / Speicher: nicht erfasst
+- Harte Effektmessung pro Karte: gleichzeitig animierbar sind Karte (Transform, Schatten, Border), Hero (Scale), Icon (Transform, Schatten, Border) und optional globale Icon-Regeln. Die Hover-Infobox ist im aktuellen CSS dauerhaft display:none und nimmt daher nicht am sichtbaren Hover-Rendering teil.
+
+Suchfunktion benutzen
+
+- Durchschnitts-FPS / Minimum / Maximum: nicht erfasst
+- Durchschnittliche Framezeit / langsamster Frame: nicht erfasst
+- Long Tasks / CPU / GPU / Speicher: nicht erfasst
+- Harte Operationsmessung je input-Ereignis: 23 Karten werden iteriert und ihr hidden-Zustand wird geschrieben; anschliessend werden sechs Sektionen iteriert und je Sektion querySelector('.program-card:not([hidden])') ausgefuehrt; danach eine Suche nach .program-empty. Das sind 30 explizite DOM-Such-/Pruefschritte plus bis zu 29 hidden-Schreibvorgaenge pro Tasteneingabe. Kein Debounce ist vorhanden.
+
+Programm starten
+
+- Durchschnitts-FPS / Minimum / Maximum: nicht erfasst
+- Durchschnittliche Framezeit / langsamster Frame: nicht erfasst
+- Long Tasks / CPU / GPU / Speicher: nicht erfasst
+- Harte Ablaufmessung: Kartenklick fuehrt synchron closeProgramsWindow() und danach navigateTo(id) aus. Das Programme-Menue bleibt als inertes DOM erhalten.
+
+Rueckkehr ins Programme-Menue
+
+- Durchschnitts-FPS / Minimum / Maximum: nicht erfasst
+- Durchschnittliche Framezeit / langsamster Frame: nicht erfasst
+- Long Tasks / CPU / GPU / Speicher: nicht erfasst
+- Harte Ablaufmessung: DOM-Wiederverwendung ist aktiv. Bei unveraenderter Sprache wird nur updateProgramsLiveData() ausgefuehrt. Die vorherige Scrollposition wird im naechsten requestAnimationFrame wiederhergestellt.
+
+======================================================================
+
+3. Rendering-Analyse
+
+- Paint: dynamische Paint-Zeiten konnten ohne Trace nicht erfasst werden. Statisch vorhanden sind grossflaechige halbtransparente Hintergruende, mehrere Schatten und Filter.
+- Composite: dynamische Composite-Zeiten und Compositor-Thread-Auslastung nicht erfasst.
+- Rasterisierung: dynamische Rasterzeiten nicht erfasst. Alle 23 Hero-Dateien messen 3840 x 2160 Pixel.
+- Layer: reale Layer-Anzahl nicht erfasst; DOM- oder CSS-Elementanzahl darf nicht als Layer-Anzahl ausgegeben werden.
+- Overdraw: Pixel-Overdraw nicht erfasst. Die sichtbare Kaskade besteht mindestens aus Seiteninhalt, Vollbild-Overlay, Fenster, Sektionen, Kartenbild, zwei Karten-Gradienten und Inhalts-/Iconebenen.
+- Paint Flashing / Layer Borders / Rendering Performance: wegen nicht erreichbarer DevTools-Sitzung nicht aufgezeichnet.
+- SVG/Icon-Rendering: jede der 23 Karten erzeugt mindestens ein Inline-SVG im Icon; vier Schnellzugriffe enthalten weitere Inline-SVGs. Pfad- und Paint-Zeiten nicht erfasst.
+- Text-Rendering: pro Karte werden Titel, Live-Status und Beschreibung gerendert; Container Queries mit cqw-Schriftgroessen sind auf jeder Karte aktiv. Laufzeitkosten nicht erfasst.
+- Rendering-Flaschenhaelse: als sichere Risikotraeger identifiziert sind die synchrone Layoutabfrage beim Oeffnen sowie die hohe Zahl gefilterter/transparenter Flaechen. Ihr konkreter Frameverlust muss noch dynamisch quantifiziert werden.
+
+======================================================================
+
+4. GPU-Analyse
+
+- GPU-Auslastung: nicht erfasst.
+- Layer-Anzahl: nicht erfasst.
+- Layer-Promotion: keine programme-spezifische will-change- oder translateZ-Deklaration gefunden. Ob Chromium einzelne Transform-/Filterelemente automatisch promoted, ist ohne Layer-Dump nicht belegbar.
+- Composite-Probleme: nicht dynamisch erfasst.
+- GPU-Flaschenhaelse: noch nicht als Laufzeitursache bewiesen.
+- Statische Filterinventur bei aktivem App-Hintergrund: Vollbild-Overlay blur(14px), Programmfenster blur(34px), jede Karte blur(30px), Karten-Icon blur(14px), vier Schnellzugriffsicons blur(8px), Suchfeld blur(16px). Bei 23 Karten ergeben sich bis zu 52 programme-spezifische Backdrop-Filter-Flaechen im DOM. Sichtbarkeit und tatsaechliche Layerbildung muessen per Layer-Dump bestaetigt werden.
+- Weitere Filter: Karten-SVGs nutzen drop-shadow; Kategorietitel, Statuspunkte und mehrere Karten-/Fensterflaechen nutzen leuchtende Box-Shadows. Kein mix-blend-mode und keine programme-spezifische CSS-Maske wurden im untersuchten Regelblock gefunden.
+
+======================================================================
+
+5. Speicheranalyse
+
+- RAM: Prozesswert nicht belastbar erfasst; die Sandbox verweigerte den vollstaendigen Prozesszugriff.
+- GPU-Speicher: nicht erfasst.
+- Garbage Collection: keine GC-Ereignisse aufgezeichnet.
+- Moegliche Leaks: keine neue Leak-Aussage ohne Heap-Snapshots. Der IntersectionObserver wird beim Neuinstallieren und beim Dispose getrennt; beobachtete Ziele werden nach dem Laden einzeln entfernt. Diese vorhandene Bereinigung ist positiv.
+- Assetmessung: 23 JPEG-Hero-Dateien, zusammen 33.473.521 Bytes (31,92 MiB komprimiert).
+- Dekodierobergrenze: 23 Bilder x 3840 x 2160 x 4 Bytes = 762.839.040 Bytes bzw. 727,73 MiB RGBA, falls alle gleichzeitig in voller Aufloesung dekodiert resident waeren. Das ist eine mathematische Obergrenze, kein gemessener Resident- oder GPU-Speicherwert.
+- Einzeldateien: 1,04 bis 1,84 MB; alle 8.294.400 Pixel. Groesste Datei: bank.jpg mit 1.836.840 Bytes.
+- Asset-Cache: PerformanceManager behaelt pro URL ein Promise/Image-Ladeergebnis in assetCache. Nach erstem vollstaendigem Besuch koennen bis zu 23 Hero-URLs in diesem Cache stehen. Ob Chromium dekodierte Pixel behaelt, entscheidet der Browser und wurde nicht gemessen.
+
+======================================================================
+
+6. Scroll-Analyse
+
+- Scroll Performance: FPS/Framezeiten nicht erfasst.
+- Paint waehrend Scrollen: nicht erfasst; Paint Flashing fehlt aus den oben genannten Sitzungsgruenden.
+- Layout Thrashing: im Scroll-Handler selbst wurde kein read/write-Wechsel des Programme-Menues gefunden. Der globale Tooltip-Scrollhandler kann bei aktivem Tooltip getBoundingClientRect(), offsetWidth und offsetHeight lesen und danach left/top schreiben. Karten besitzen keine Tooltip-Attribute; fuer den normalen Karten-Scrollpfad ist deshalb kein aktiver Tooltip belegt.
+- Event Handler: ein passiver document-scroll-Capture-Handler aus der globalen Navigationstooltip-Schicht; kein eigener scroll-, wheel- oder mousemove-Handler am Programme-Menue gefunden.
+- Reflows: keine Forced-Reflow-Warnung waehrend Scrollen aufgezeichnet.
+- Sticky/fixed: Overlay ist fixed; im Programme-Regelblock wurde kein sticky Element gefunden. Das Fenster ist nicht fixed, sondern Kind des fixed Overlays.
+- Scroll Container: genau ein vertikaler Container, #programBody, overflow-y:auto und overflow-x:hidden.
+- Ursache moeglicher Ruckler: noch nicht kausal gemessen. Filter-/Transparenzkaskade und 4K-Rasterisierung sind priorisierte Trace-Kandidaten, nicht als Ursache behauptete Fakten.
+
+======================================================================
+
+7. Interaktionsanalyse
+
+- Hover: vier sichtbare Eigenschaftsgruppen pro Karte koennen reagieren (Karte, Hero, Icon, SVG-Regeln). Gemessene CSS-Dauern: Karte 200 ms, Icon 210 ms; Hero besitzt im lokalen Regelblock keine eigene transition-Deklaration und kann deshalb unmittelbar skalieren.
+- Klicks: Karten nutzen Inline-onclick. Ablauf ist Schliessen gefolgt von Navigation.
+- Pointer Events: kein programme-spezifischer pointermove/mousemove-Handler gefunden. Globale pointerover/pointerout-Handler fuer Navigationstooltips sind vorhanden, selektieren jedoch nur Elemente mit Tooltip-Datenattributen.
+- Reaktionszeiten: Event-to-Paint-Latenz nicht erfasst.
+- Event Handler: Overlay besitzt einen Click-Handler; jede Karte und jeder Schnellzugriff besitzt einen Inline-Click-Handler. Doppelte Registrierung wurde in diesem Bereich nicht gefunden.
+
+======================================================================
+
+8. Oeffnen / Schliessen
+
+- Dauer Oeffnen: JavaScript-End-to-End-Zeit nicht erfasst. CSS: Erstoeffnung Overlay 200 ms, Fenster 320 ms, Karten 380 ms plus bis 360 ms Staffelung; Wiederoeffnung Overlay und Fenster jeweils 220 ms.
+- Dauer Schliessen: CSS-Sichtbarkeitsphase 160 ms.
+- Animation: Optik blieb unveraendert; nur Inventur vorgenommen.
+- Moegliche Ruckler: nicht visuell oder tracebasiert quantifiziert.
+- Sicherer Oeffnungsbefund: updateProgramsLiveData() liest/aktualisiert 23 Karten, danach erzwingt offsetWidth eine synchrone Layoutauflösung, bevor launcher-forward gesetzt wird.
+- Sicherer Schliessbefund: Fokuswechsel und Visibility-/Opacity-Umschaltung laufen im selben synchronen Handler; die konkrete Framewirkung ist nicht gemessen.
+
+======================================================================
+
+9. Gefundene Flaschenhaelse
+
+--------------------------------------------
+
+Name
+
+Synchroner Layout-Flush beim Wiedereroeffnen
+
+Beschreibung
+
+openProgramsWindow() entfernt launcher-forward, liest unmittelbar danach existing.offsetWidth und setzt die Klasse erneut. Die Layoutabfrage ist absichtlich synchron und zwingt Chromium, ausstehende Style-/Layoutarbeit vor Fortsetzung aufzulösen. Sie liegt exakt im kritischen Oeffnungspfad.
+
+Messwerte
+
+1 explizite offsetWidth-Abfrage pro Wiedereroeffnung; davor bis zu 23 Karten-Liveupdates mit mindestens 69 lokalen querySelector-Aufrufen; danach zwei 220-ms-Animationen. Laufzeit in Millisekunden noch nicht erfasst.
+
+Betroffene Datei
+
+js/app.js
+
+Betroffene Funktion
+
+openProgramsWindow(), Zeile 3968 im analysierten Stand
+
+Prioritaet
+
+Sehr hoch fuer die naechste Trace-Messung
+
+Geschaetzter Performanceverlust
+
+Nicht geschaetzt; ohne Trace waere eine Prozent- oder Millisekundenangabe eine Vermutung.
+
+Empfohlene Loesung
+
+Zunaechst im Performance-Trace die Forced-Layout-Dauer und den Invalidierungsumfang messen. Nur bei bestaetigtem Anteil die Animations-Neustartlogik ohne synchrone Geometrieabfrage entkoppeln; Optik und Animation unveraendert erhalten.
+
+--------------------------------------------
+
+Name
+
+Ungebuendelte synchrone Suchmutation pro Tasteneingabe
+
+Beschreibung
+
+Jedes input-Ereignis durchsucht alle Karten, schreibt hidden, durchsucht danach alle Sektionen erneut nach sichtbaren Karten und aktualisiert den Leerzustand. Reads und Writes werden innerhalb derselben synchronen Funktion gemischt.
+
+Messwerte
+
+23 Kartenpruefungen + 6 Sektionssuchen + 1 Empty-Suche = 30 DOM-Such-/Pruefschritte; bis zu 29 hidden-Schreibvorgaenge pro Eingabe; kein Debounce. Laufzeit/Forced-Layout-Anteil nicht erfasst.
+
+Betroffene Datei
+
+js/app.js
+
+Betroffene Funktion
+
+filterProgramsGrid(), Zeilen 4225-4239 im analysierten Stand
+
+Prioritaet
+
+Hoch fuer die naechste Trace-Messung
+
+Geschaetzter Performanceverlust
+
+Nicht geschaetzt.
+
+Empfohlene Loesung
+
+Im naechsten Lauf Event-to-Paint und Recalculate-Style/Layout pro Zeichen messen. Erst danach Reads/Writes phasenweise buendeln oder die Sektionssichtbarkeit aus dem bereits ermittelten Kartenergebnis ableiten. Suchverhalten und Optik nicht aendern.
+
+--------------------------------------------
+
+Name
+
+4K-Hero-Decodier- und Rasterbudget
+
+Beschreibung
+
+Alle Kartenmotive liegen als 3840-x-2160-JPEG vor, obwohl die sichtbaren Karten deutlich kleiner sind. Lazy Loading reduziert den Sofortumfang, die Vorladezone betraegt jedoch 320 px und der Asset-Cache merkt jede geladene URL.
+
+Messwerte
+
+23 Dateien; 31,92 MiB komprimiert; 8.294.400 Pixel je Bild; mathematische RGBA-Obergrenze 727,73 MiB. Reale Decode-, Raster- und Resident-Werte nicht erfasst.
+
+Betroffene Datei
+
+assets/programs/heroes/*.jpg; js/app.js
+
+Betroffene Funktion
+
+installProgramHeroLazyLoading(), PROGRAM_HEROES
+
+Prioritaet
+
+Hoch fuer Decode-/Memory-Trace, aber noch keine Freigabe zur Asset-Aenderung
+
+Geschaetzter Performanceverlust
+
+Nicht geschaetzt.
+
+Empfohlene Loesung
+
+Image Decode-, Raster- und GPU-Memory-Ereignisse waehrend Erstoeffnung und schnellem Scrollen messen. Nur bei Nachweis optisch verlustfreie, displaygerechte Derivate oder Chromium-srcset/aehnliche Auswahl pruefen; Hero-Illustrationen und sichtbare Qualitaet muessen identisch bleiben.
+
+--------------------------------------------
+
+Name
+
+Hohe Backdrop-Filter-Flaechenzahl im sichtbaren Kartenbaum
+
+Beschreibung
+
+Overlay, Fenster, Karten, Icons, Schnellzugriffsicons und Suchfeld verwenden verschachtelte Backdrop-Filter. Das ist eine objektive Effektinventur; ein GPU-Flaschenhals ist ohne Layer-/GPU-Trace noch nicht bewiesen.
+
+Messwerte
+
+Bis zu 52 programme-spezifische Backdrop-Filter-Flaechen im DOM bei aktivem App-Hintergrund: 1 Overlay + 1 Fenster + 23 Karten + 23 Kartenicons + 4 Schnellzugriffsicons + 1 Suchfeld. Blur-Radien: 8 bis 34 px.
+
+Betroffene Datei
+
+css/main.css
+
+Betroffene Funktion
+
+.program-overlay, .program-window, .program-card, .program-icon, .program-quick span, .program-search
+
+Prioritaet
+
+Hoch fuer GPU-/Layer-Trace
+
+Geschaetzter Performanceverlust
+
+Nicht geschaetzt.
+
+Empfohlene Loesung
+
+Mit Layer Borders, Rendering-Statistik und GPU-Trace reale Layerzahl, Offscreen-Passes und Rasterkosten messen. Keine Blur-, Glas- oder Schattenreduktion ohne Messnachweis; moegliche Loesungen muessen pixelgleich bleiben.
+
+--------------------------------------------
+
+Name
+
+Serielle Live-Daten-Aktualisierung vor der Oeffnungsanimation
+
+Beschreibung
+
+Beim Wiedereroeffnen werden alle 23 Karten synchron aktualisiert, bevor das Overlay sichtbar geschaltet und die Animation neu gestartet wird. Mehrere Statusfunktionen filtern oder zaehlen Spielzustandsarrays.
+
+Messwerte
+
+23 Funktionsaufrufe; mindestens 69 lokale querySelector-Aufrufe, zusaetzliche Array-filter-/Zaehllaeufe je nach App-Status sowie DOM-Mutationen nur bei Wertunterschied. Gesamtdauer nicht erfasst.
+
+Betroffene Datei
+
+js/app.js
+
+Betroffene Funktion
+
+updateProgramsLiveData(), updateProgramCardLiveData(), programCardStatus(), programLiveStats()
+
+Prioritaet
+
+Mittel bis hoch fuer CPU-Sampling
+
+Geschaetzter Performanceverlust
+
+Nicht geschaetzt.
+
+Empfohlene Loesung
+
+CPU-Profil mit Funktionsaufschluesselung direkt beim Wiedereroeffnen erfassen. Nur belegte teure Statusberechnungen oder DOM-Suchen gezielt behandeln; bestehende Live-Daten beibehalten.
+
+======================================================================
+
+10. Priorisierte Optimierungsliste
+
+Diese Reihenfolge ist eine Priorisierung fuer die naechste Messung, keine Freigabe zur Umsetzung. Mangels dynamischer Tracewerte waere eine behauptete Gewinnrangfolge unserioes.
+
+1. Forced Layout im Oeffnungspfad quantifizieren: updateProgramsLiveData -> offsetWidth -> launcher-forward.
+2. Backdrop-/Layer-/Rasterkosten beim Oeffnen, Scrollen und Hover mit GPU-/Rendering-Trace quantifizieren.
+3. Hero-Decode-, Raster- und GPU-Speicherereignisse bei Erstkontakt und schnellem Scrollen erfassen.
+4. Suchpfad pro Zeichen mit Event-to-Paint, Recalculate Style und Layout messen.
+5. Live-Daten-CPU-Profil beim Wiedereroeffnen nach Einzelfunktionen aufschluesseln.
+6. Schliesspfad (blur, inert, Klassen-/ARIA-Mutationen, 160-ms-Transition) separat tracen.
+
+======================================================================
+
+11. Zusammenfassung
+
+- Was ist aktuell die groesste Bremse? Mit dem vorliegenden Lauf kann keine groesste Laufzeitbremse belastbar benannt werden. Der staerkste direkt belegte kritische Pfad ist der synchrone Layout-Flush beim Wiedereroeffnen; seine Dauer ist noch offen.
+- Warum wirkt das Menue noch laggy? Eine kausale Aussage erfordert die fehlenden Frame-/GPU-Traces. Der Quellstand zeigt mehrere plausible, messwuerdige Kosten im selben Interaktionsfenster: 23 Live-Updates, synchroner Layout-Flush, verschachtelte Backdrop-Filter und 4K-Rasterassets. Sie werden nicht ohne Trace als Ursache ausgegeben.
+- Welche Probleme wurden sicher gemessen? Eine explizite offsetWidth-Layoutabfrage im Oeffnungspfad; 30 Suchoperationen/Pruefschritte plus bis zu 29 hidden-Schreibvorgaenge je Suchinput; 23 4K-Heros mit 31,92 MiB komprimiert und 727,73 MiB mathematischer RGBA-Obergrenze; bis zu 52 Backdrop-Filter-Flaechen im Programme-DOM; mindestens 69 lokale Kartensuchen pro Live-Refresh.
+- Welche Optimierungen versprechen den groessten Gewinn? Noch keine darf anhand dieser Teilmessung serioes versprochen werden. Zuerst Forced Layout, Layer/Backdrop und Bild-Decoding dynamisch quantifizieren.
+- Welche Optimierungen waeren unnoetig? Die bereits abgeschlossenen Wiederverwendungs-, DOM-Neuerstellungs-, Listener-, Such-, Live-Daten-, Speicher-, GPU-, Layout- und Plattformoptimierungen erneut pauschal umzusetzen. Ebenfalls unnoetig waeren Designreduktionen ohne Tracebeleg.
+- Welche bestehenden Optimierungen funktionieren bereits gut? DOM-Wiederverwendung ist im Code aktiv; Live-DOM wird nur bei geaenderten Werten mutiert; Hero-Lazy-Loading nutzt einen scrollcontainerspezifischen IntersectionObserver und meldet geladene Ziele ab; kein programme-spezifischer mousemove/pointermove-Handler wurde gefunden; Observer-Cleanup ist vorhanden; kein vollstaendiger Neuaufbau bei normaler Rueckkehr.
+- Welche Bereiche sollten als Naechstes optimiert werden? Zunaechst keiner ohne Messabschluss. Als naechste Diagnosebereiche gelten Forced Layout beim Oeffnen, GPU-/Layerkosten der Glasflaechen, Hero-Decoding/Rasterisierung, Such-Event-to-Paint und CPU-Kosten der Live-Daten.
+
+Abschlussstatus
+
+Die statische Analyse ist vollstaendig dokumentiert. Die geforderte dynamische Profilserie (FPS, Framezeiten, Long Tasks, CPU, GPU, Paint, Composite, Raster, Layer und Speicher je Szenario) konnte wegen der beschriebenen Diagnoseblockade nicht erhoben werden und bleibt bewusst als nicht erfasst ausgewiesen. Keine Zahl in diesem Bericht wurde geschaetzt oder erfunden.
+
+======================================================================
+12. Runtime Performance Analysis
+======================================================================
+
+Status und Messaufbau
+
+Die im ersten Bericht dokumentierte Diagnoseblockade wurde geloest, ohne Spielcode, CSS, Bilder oder Animationen zu aendern. Alle zuvor vorhandenen Abschnitte bleiben unveraendert erhalten; dieser Abschnitt liefert die fehlenden Laufzeitdaten nach.
+
+- Start: Electron einmalig mit --remote-debugging-port=9222 und --dev
+- Runtime: Electron 33.4.11, Chromium 130.0.6723.191
+- Betriebssystem: Windows 10.0.26200 x64
+- Anzeige: 1920 x 1080, Device Pixel Ratio 1; App-Viewport 1920 x 1079
+- Logische Prozessoren: 12
+- Werkzeuge: Chromium DevTools Protocol, Performance.getMetrics, Tracing, Performance Timeline, Long-Task-Observer, requestAnimationFrame-Timeline, LayerTree, SystemInfo.getProcessInfo, Windows-Prozessspeicher
+- Trace-Kategorien: devtools.timeline, disabled-by-default-devtools.timeline, frame, blink, cc, gpu, viz, V8 CPU Profiler und memory-infra
+- Testzustand: bestehendes Profil "test", Dashboard als Ausgangspunkt, Programme-Menue-DOM bereits persistent vorhanden
+- Messlaeufe: ein erster Trace-Lauf und ein zweiter warmer Kontrolllauf mit zusaetzlichen RAM-/JS-Heap-Snapshots
+
+Wichtige Interpretationsgrenzen
+
+1. Die FPS-Werte wurden waehrend vollstaendig aktivem Chromium-Tracing gemessen. Sie enthalten daher den realen Profiling-Overhead und sind als Diagnosewerte, nicht als ungeprofilete Endnutzer-Benchmark zu lesen.
+2. Main-Thread-CPU ist TaskDuration / Wandzeit. Renderer- und GPU-Prozess-CPU stammen aus Chromium SystemInfo. Werte ueber 100 % sind auf dem 12-Thread-System moeglich, weil ein Prozess mehrere Threads gleichzeitig auslastet.
+3. GPU-Prozess-CPU ist keine direkte GPU-Engine-Auslastung. Chromium lieferte in dieser Sitzung keinen normierten GPU-Engine-Prozentwert. Parallel laufende GPU-/Viz-Tracezeiten wurden nicht faelschlich zu einer Prozentzahl addiert.
+4. GPU Memory als belegter VRAM-Wert wurde vom verwendeten Chromium-Protokoll nicht bereitgestellt. Dokumentiert werden deshalb GPU-Prozess-Working-Set und Private Bytes, ausdruecklich nicht als VRAM bezeichnet.
+5. RAM-Snapshots des zweiten Laufs enthalten den aktiven Tracing-Service. Sie sind reale Messwerte der Messsitzung, aber keine Leerlaufwerte eines Release-Builds.
+
+Primaerer Trace-Lauf: Uebersicht
+
+Situation | Dauer | Avg FPS | Min FPS | Max FPS | Avg Frame | Schlechtester Frame | >16,7 ms | >33 ms | Long Tasks
+Oeffnen | 1.212,5 ms | 18,40 | 3,20 | 80,21 | 54,358 ms | 312,4 ms | 16 | 7 | 1 x 92 ms
+Schliessen | 706,2 ms | 105,26 | 17,12 | 243,90 | 9,500 ms | 58,4 ms | 7 | 2 | 0
+Langsames Scrollen | 2.195,9 ms | 44,26 | 16,03 | 120,48 | 22,595 ms | 62,4 ms | 79 | 7 | 0
+Schnelles Scrollen | 1.105,6 ms | 47,28 | 26,60 | 80,00 | 21,153 ms | 37,6 ms | 39 | 1 | 0
+Hover | 1.398,5 ms | 54,06 | 12,00 | 120,48 | 18,499 ms | 83,3 ms | 35 | 3 | 0
+Suche | 1.358,8 ms | 35,78 | 8,28 | 120,48 | 27,950 ms | 120,8 ms | 28 | 10 | 1 x 57 ms
+Programm oeffnen | 1.355,3 ms | 52,85 | 2,89 | 120,48 | 18,922 ms | 345,8 ms | 11 | 4 | 3 x 50/50/56 ms
+Rueckkehr | 1.217,1 ms | 35,96 | 6,85 | 80,00 | 27,810 ms | 145,9 ms | 40 | 6 | 1 x 52 ms
+
+Kontrolllauf im warmen Zustand: zentrale Framewerte
+
+Situation | Avg FPS | Avg Frame | Schlechtester Frame | >16,7 ms | >33 ms | Long Tasks
+Oeffnen | 43,71 | 22,878 ms | 79,2 ms | 49 | 2 | 0
+Schliessen | 57,48 | 17,397 ms | 95,9 ms | 15 | 3 | 0
+Langsames Scrollen | 35,79 | 27,938 ms | 54,1 ms | 76 | 15 | 0
+Schnelles Scrollen | 37,70 | 26,526 ms | 50,0 ms | 38 | 12 | 0
+Suche | 29,25 | 34,190 ms | 141,6 ms | 31 | 13 | 1 x 61 ms
+Programm oeffnen | 75,63 | 13,222 ms | 166,7 ms | 10 | 5 | 0
+Rueckkehr | 37,37 | 26,759 ms | 150,0 ms | 39 | 7 | 1 x 59 ms
+
+Der Kontrolllauf bestaetigt die Ruckler bei Suche, Scrollen und Rueckkehr. Die starken Abweichungen einzelner FPS-Werte zwischen den Laeufen zeigen zugleich, dass Decode-/Cachezustand und Tracing-Parallelitaet relevant sind. Es wird deshalb kein einzelner FPS-Wert ausserhalb seines jeweiligen Messlaufs verallgemeinert.
+
+Detailmessungen je Situation - primaerer Trace-Lauf
+
+Programme-Menue oeffnen
+
+- Main Thread: 517,559 ms TaskDuration; 42,69 % der Messzeit
+- Renderer-Prozess-CPU: 168,69 % (mehrere Threads)
+- GPU-Prozess-CPU: 305,32 % (mehrere Threads; keine GPU-Engine-Auslastung)
+- JavaScript: 51,059 ms Trace-Summe; Performance-Metrik ScriptDuration 5,914 ms
+- Recalculate Style: 39,181 ms Performance-Metrik; 23,299 ms selektierte Trace-Events
+- Layout: 82,586 ms Performance-Metrik; 72,218 ms selektierte Layout-Events
+- Paint: 36,077 ms
+- Composite/Commit: 16,724 ms
+- Rasterisierung: 330,270 ms
+- Garbage Collection: 7,370 ms
+- Event Handler: 33,751 ms
+- Bild-Decoding: 1.685,278 ms summierte parallele Worker-Zeit
+- Maximale Layer-Anzahl: 106
+- DOM Nodes: 6.175
+- Bestaetigtes Forced Style/Layout: Document::UpdateStyleAndLayout 75,935 ms; Blink.ForcedStyleAndLayout.UpdateTime 75,933 ms
+- Langsamster belegter Main-Thread-Task: RunTask 92,543 ms
+- Langsamster einzelner Bild-Decode-Task: 89,201 ms; Decode/Scale-Einzelereignis 75,122 ms
+
+Programme-Menue schliessen
+
+- Main Thread: 670,343 ms; 94,92 %
+- Renderer-Prozess-CPU: 175,31 %
+- GPU-Prozess-CPU: 525,00 %
+- JavaScript: 22,891 ms; ScriptDuration 2,595 ms
+- Recalculate Style: 75,306 ms Metrik; 41,741 ms Trace
+- Layout: 39,939 ms Metrik; 11,152 ms Trace
+- Paint: 58,915 ms
+- Composite/Commit: 22,339 ms
+- Rasterisierung: 8,775 ms
+- Garbage Collection: 3,216 ms
+- Event Handler: 0 ms
+- Bild-Decoding: 57,726 ms; groesster Decode 28,545 ms
+- Maximale Layer-Anzahl: 106
+- Schlechtester Main-Thread-Task: 18,785 ms; Commit-Wartezeit 15,311 ms
+
+Langsames Scrollen
+
+- Main Thread: 1.203,019 ms; 54,78 %
+- Renderer-Prozess-CPU: 88,44 %
+- GPU-Prozess-CPU: 381,28 %
+- JavaScript: 429,846 ms; ScriptDuration 174,508 ms
+- Recalculate Style: 63,171 ms Metrik; 22,800 ms Trace
+- Layout: 49,971 ms Metrik; 21,222 ms Trace
+- Paint: 85,039 ms
+- Composite/Commit: 44,428 ms
+- Rasterisierung: 21,589 ms
+- Garbage Collection: 0 ms
+- Event Handler: 5,121 ms
+- Bild-Decoding: 237,161 ms; einzelne Decode-Tasks 35,622 ms und 32,664 ms
+- Maximale Layer-Anzahl: 106
+- Long Tasks: keine
+
+Schnelles Scrollen
+
+- Main Thread: 418,428 ms; 37,85 %
+- Renderer-Prozess-CPU: 100,75 %
+- GPU-Prozess-CPU: 411,45 %
+- JavaScript: 57,709 ms; ScriptDuration 8,099 ms
+- Recalculate Style: 35,598 ms Metrik; 12,653 ms Trace
+- Layout: 28,157 ms Metrik; 11,038 ms Trace
+- Paint: 47,890 ms
+- Composite/Commit: 25,391 ms
+- Rasterisierung: 10,270 ms
+- Garbage Collection: 0 ms
+- Event Handler: 1,968 ms
+- Bild-Decoding: 0 ms
+- Maximale Layer-Anzahl: 106
+- Schlechtester Main-Thread-Task: 14,618 ms EvaluateScript
+
+Hover ueber mehrere Karten
+
+- Main Thread: 580,457 ms; 41,51 %
+- Renderer-Prozess-CPU: 111,12 %
+- GPU-Prozess-CPU: 438,00 %
+- JavaScript: 21,210 ms; ScriptDuration 3,311 ms
+- Recalculate Style: 53,408 ms Metrik; 20,923 ms Trace
+- Layout: 38,525 ms Metrik; 15,990 ms Trace
+- Paint: 68,515 ms
+- Composite/Commit: 48,421 ms
+- Rasterisierung: 25,887 ms
+- Garbage Collection: 0 ms
+- Event Handler: 0,422 ms
+- Bild-Decoding: 90,251 ms; groesste Decode-Tasks 23,865 ms und 21,894 ms
+- Maximale Layer-Anzahl: 111; Anstieg um 5 gegenueber dem 106-Layer-Ausgangspunkt
+- Direkte JavaScript-/Eventkosten waren niedrig; die gemessene Arbeit lag ueberwiegend in Style, Layout, Paint, Composite und Bild-Decoding.
+
+Suchfeld benutzen
+
+- Main Thread: 752,760 ms; 55,40 %
+- Renderer-Prozess-CPU: 149,01 %
+- GPU-Prozess-CPU: 372,28 %
+- JavaScript: 33,710 ms; ScriptDuration 3,727 ms
+- Recalculate Style: 82,443 ms Metrik; 34,626 ms Trace
+- Layout: 79,840 ms Metrik; 60,932 ms Trace
+- Paint: 65,721 ms
+- Composite/Commit: 22,783 ms
+- Rasterisierung: 103,072 ms
+- Garbage Collection: 4,309 ms
+- Event Handler: 2,035 ms
+- Bild-Decoding: 1.218,147 ms parallele Worker-Zeit
+- Maximale Layer-Anzahl: 109
+- Long Task: 57 ms
+- Commit-Wartezeiten: 54,677 ms und 42,925 ms
+- Bestaetigung im Kontrolllauf: 1.344,651 ms Decode, 108,018 ms Raster, 98,954 ms Layout-Metrik, 81,750 ms Style-Metrik und Long Task 61 ms
+
+Programm oeffnen
+
+- Main Thread: 1.170,746 ms; 86,38 %
+- Renderer-Prozess-CPU: 159,21 %
+- GPU-Prozess-CPU: 387,34 %
+- JavaScript: 76,400 ms; ScriptDuration 27,159 ms
+- Recalculate Style: 89,866 ms Metrik; 55,927 ms Trace
+- Layout: 72,506 ms Metrik; 42,894 ms Trace
+- Paint: 89,846 ms
+- Composite/Commit: 34,351 ms
+- Rasterisierung: 27,036 ms
+- Garbage Collection: 4,275 ms
+- Event Handler: 50,037 ms
+- Bild-Decoding: 465,533 ms
+- Maximale Layer-Anzahl: 155
+- DOM Nodes nach Navigation: 9.713
+- Long Tasks: 50 ms, 50 ms und 56 ms
+- Laengster EventDispatch: 49,761 ms; laengster EvaluateScript-Task 50,086 ms; Commit-Wartezeit 51,909 ms
+
+Rueckkehr ins Programme-Menue
+
+- Main Thread: 667,388 ms; 54,83 %
+- Renderer-Prozess-CPU: 128,56 %
+- GPU-Prozess-CPU: 388,83 %
+- JavaScript: 133,913 ms; ScriptDuration 36,781 ms
+- Recalculate Style: 73,309 ms Metrik; 46,701 ms Trace
+- Layout: 30,498 ms Metrik; 12,909 ms Trace
+- Paint: 86,336 ms
+- Composite/Commit: 29,006 ms
+- Rasterisierung: 18,763 ms
+- Garbage Collection: 3,742 ms
+- Event Handler: 0,214 ms
+- Bild-Decoding: 443,217 ms
+- Maximale Layer-Anzahl: 155
+- Long Task: 52 ms, aufgeloest als TimerFire -> FunctionCall (52,104 ms)
+- Commit-Wartezeit: 37,508 ms
+- Bestaetigung im Kontrolllauf: 600,690 ms Decode, 90,474 ms Paint, Long Task 59 ms und Commit-Wartezeit 55,937 ms
+
+RAM, JavaScript-Heap und GPU-Prozessspeicher - warmer Kontrolllauf
+
+Situation | Gesamt-Working-Set Ende | Renderer WS Ende | GPU-Prozess WS Ende | JS Heap Start -> Ende
+Oeffnen | 1.865,93 MiB | 796,10 MiB | 783,01 MiB | 6,67 -> 6,71 MiB
+Schliessen | 1.819,66 MiB | 795,07 MiB | 736,52 MiB | 6,68 -> 6,68 MiB
+Langsames Scrollen | 1.879,79 MiB | 802,84 MiB | 789,02 MiB | 6,69 -> 6,72 MiB
+Schnelles Scrollen | 1.636,63 MiB | 608,67 MiB | 739,45 MiB | 6,77 -> 6,78 MiB
+Suche | 1.879,19 MiB | 760,46 MiB | 829,48 MiB | 6,78 -> 6,76 MiB
+Programm oeffnen | 1.866,03 MiB | 759,66 MiB | 818,23 MiB | 6,76 -> 6,64 MiB
+Rueckkehr | 1.871,67 MiB | 772,93 MiB | 810,39 MiB | 6,61 -> 6,64 MiB
+
+Der JS-Heap blieb ueber die Messreihe eng bei rund 6,6 bis 6,8 MiB. Es wurde kein monoton wachsender JS-Heap und damit in dieser kurzen Messreihe kein JavaScript-Leak nachgewiesen. Das grosse Prozess-Working-Set liegt hauptsaechlich im Renderer- und GPU-Prozess und schliesst Bild-/Raster-/Tracing-Caches ein.
+
+GPU Memory
+
+- Direkter belegter VRAM: nicht vom Protokoll geliefert, daher nicht geraten.
+- Reale Ersatzmessung: GPU-Prozess-Working-Set im warmen Lauf 736,52 bis 829,48 MiB am Szenarioende.
+- GPU-Prozess Private Bytes schwankten stark und enthielten Chromium-/Treiberreservierungen; sie werden nicht als VRAM interpretiert.
+
+Schlechteste Frames und belegte Begleitereignisse
+
+Die folgenden Frames sind alle Frames des primaeren Laufs ueber 33 ms. Eine exakte 1:1-Zuordnung eines rAF-Intervalls zu parallel laufenden Worker-/GPU-Ereignissen wurde vom Trace nicht fuer jedes Intervall geliefert. Deshalb werden nur die im selben Szenario eindeutig aufgezeichneten dominanten Ereignisse genannt; nicht korrelierbare Einzelbilder werden nicht mit einer erfundenen Ursache versehen.
+
+Oeffnen
+
+- Frames: 312,4; 162,5; 154,2; 104,2; 91,7; 45,8; 45,8 ms
+- Dominante belegte Ereignisse: RunTask 92,543 ms; Forced Style/Layout 75,933 ms; ImageDecodeTask 89,201 ms; Raster gesamt 330,270 ms
+- Betroffene Funktion/Datei: openProgramsWindow(), updateProgramsLiveData(), js/app.js; Bildpfad installProgramHeroLazyLoading()
+- Betroffene CSS-Regeln: .program-overlay, .program-window, .program-card, .program-card-media
+- Paint: ja; Composite: ja; Layout: ja; JavaScript: ja; GPU-/Worker-Arbeit: ja; Bild-Decoding: ja; Forced Layout: ja; Forced Reflow: Chromium meldete ForcedStyleAndLayout, keinen separaten ForcedReflow-Namen
+
+Schliessen
+
+- Frames: 58,4; 41,6 ms
+- Dominante belegte Ereignisse: ImageDecodeTask 29,181 ms; RunTask 18,785 ms; WaitForCommitCompletion 15,311 ms
+- Funktion/Datei: closeProgramsWindow(), js/app.js
+- CSS: .program-overlay.is-hidden, .program-overlay
+- Paint: ja; Composite: ja; Layout: ja; JavaScript gering; Bild-Decoding: ja; Forced Layout/Reflow: nicht im Trace bestaetigt
+
+Langsames Scrollen
+
+- Frames: 62,4; 41,6; 33,4; 33,3; 33,3; 33,3; 33,3 ms
+- Dominante Ereignisse: Decode-Tasks 35,622 und 32,664 ms; Decode Image 33,710 ms; Paint gesamt 85,039 ms; JavaScript-Trace 429,846 ms
+- Funktion/Datei: scrollTop-rAF-Testpfad; installProgramHeroLazyLoading(), js/app.js
+- CSS: .program-body, .program-card, .program-card-media
+- Paint/Composite/Layout/JavaScript/GPU/Bild-Decoding: ja; Forced Layout/Reflow: nicht bestaetigt
+
+Schnelles Scrollen
+
+- Frame: 37,6 ms
+- Dominantes Main-Thread-Ereignis: EvaluateScript 14,582 ms; kein Bild-Decoding
+- Funktion/Datei: Scrollpfad von #programBody; kein teurer programme-spezifischer Scroll-Handler nachgewiesen
+- CSS: .program-body und sichtbare Karten-/Glasregeln
+- Paint/Composite/Layout/JavaScript/GPU: ja; Bild-Decoding: nein; Forced Layout/Reflow: nicht bestaetigt
+
+Hover
+
+- Frames: 83,3; 54,1; 41,7 ms
+- Dominante Ereignisse: ImageDecodeTasks 23,865 und 21,894 ms; Composite 48,421 ms; Paint 68,515 ms; Layeranstieg 106 -> 111
+- Funktion/Datei: CSS-Hoverpfad der .program-card; kein relevanter JS-Eventhandler nachgewiesen
+- CSS: .program-card:hover, .program-card:hover .program-card-media, .program-card:hover .program-icon
+- Paint/Composite/Layout/GPU/Bild-Decoding: ja; JavaScript/Event Handler: nur 21,210/0,422 ms gesamt; Forced Layout/Reflow: nicht bestaetigt
+
+Suche
+
+- Frames: 120,8; 104,2; 100,1; 70,9; 58,3; 50,0; 45,9; 37,5; 37,4; 33,3 ms
+- Dominante Ereignisse: Long Task 57 ms; WaitForCommitCompletion 54,677 und 42,925 ms; Raster 103,072 ms; Layout 79,840 ms; Style 82,443 ms; Decode 1.218,147 ms
+- Funktion/Datei: filterProgramsGrid(), js/app.js
+- CSS: .program-grid, .program-section, .program-card, .program-card-media sowie [hidden]-bedingte Sichtbarkeits-/Rasteraenderungen
+- Paint/Composite/Layout/JavaScript/GPU/Bild-Decoding: ja; Forced Layout/Reflow: kein entsprechender Trace-Name in diesem Szenario
+
+Programm oeffnen
+
+- Frames: 345,8; 83,2; 79,1; 58,4 ms
+- Dominante Ereignisse: drei Long Tasks 50/50/56 ms; EventDispatch 49,761 ms; EvaluateScript 50,086 ms; WaitForCommitCompletion 51,909 ms
+- Funktion/Datei: Karten-onclick -> closeProgramsWindow() -> navigateTo('market'), js/app.js
+- CSS: ausblendendes Programme-Overlay plus neu gerenderte Zielseite
+- Paint/Composite/Layout/JavaScript/GPU/Bild-Decoding: ja; Forced Layout/Reflow: nicht als eigener Trace-Name bestaetigt
+
+Rueckkehr
+
+- Frames: 145,9; 79,1; 66,7; 45,8; 41,6; 37,5 ms
+- Dominante Ereignisse: TimerFire/FunctionCall 52,104 ms; WaitForCommitCompletion 37,508 ms; Decode 443,217 ms; Paint 86,336 ms
+- Funktion/Datei: openProgramsWindow() und gleichzeitig aufgezeichneter Timerpfad, js/app.js
+- CSS: .program-overlay.launcher-forward, .program-window, .program-card-media
+- Paint/Composite/Layout/JavaScript/GPU/Bild-Decoding: ja; Forced Layout/Reflow: in diesem Rueckkehr-Trace nicht separat bestaetigt
+
+Paint Flashing, Layer Borders und Overdraw
+
+- Paint-Flashing-Daten wurden als Paint-/PrePaint-Traceevents numerisch erfasst; eine dauerhafte visuelle Overlay-Aufzeichnung wurde nicht als zusaetzliche Datei angelegt.
+- LayerTree lieferte reale Maximalwerte von 106 bis 155 Layern im ersten Lauf und bis 162 im Kontrolllauf. Hover erhoehte die Layerzahl im ersten Lauf von 106 auf 111.
+- Ein normierter Pixel-Overdraw-Prozentwert wurde vom CDP-Trace nicht geliefert. Overdraw wird deshalb weiterhin nicht numerisch behauptet.
+- Composite/Commit wurde pro Szenario gemessen und ist oben dokumentiert.
+
+======================================================================
+13. Runtime Bottlenecks
+======================================================================
+
+--------------------------------------------
+
+Name
+
+Bild-Decoding und Rasterarbeit der Hero-Bilder
+
+Messwerte
+
+- Oeffnen: 1.685,278 ms parallele Decode-Zeit; einzelne Tasks bis 89,201 ms; Raster 330,270 ms
+- Suche: 1.218,147 ms Decode und 103,072 ms Raster; Kontrolllauf 1.344,651 ms Decode und 108,018 ms Raster
+- Langsames Scrollen: einzelne Decode-Tasks bis 35,622 ms
+- Rueckkehr: 443,217 ms Decode; Kontrolllauf 600,690 ms
+
+Ursache
+
+Chromium dekodiert und skaliert die 3840-x-2160-Hero-JPEGs auf Worker-Threads. Die Decode-Tasks fallen zeitlich mit langsamen Frames und Commit-/Rasterarbeit zusammen. Schnelles Scrollen nach erfolgtem Laden zeigte dagegen 0 ms Decode, womit der Decode-Anteil klar vom Cache-/Sichtbarkeitszustand abhaengt.
+
+Betroffene Datei
+
+assets/programs/heroes/*.jpg; js/app.js
+
+Betroffene Funktion
+
+installProgramHeroLazyLoading(), PROGRAM_HEROES
+
+Geschaetzter Anteil am Performanceverlust
+
+Kein einzelner Prozentwert, weil Decode-Worker parallel arbeiten und Summen nicht durch die Wandzeit dividiert werden duerfen. Der Anteil ist durch Einzel-Tasks von 21 bis 89 ms und die Korrelation mit langsamen Frames eindeutig relevant.
+
+Prioritaet
+
+1
+
+--------------------------------------------
+
+Name
+
+Synchrones Forced Style/Layout beim Oeffnen
+
+Messwerte
+
+- ForcedStyleAndLayout.UpdateTime 75,933 ms im ersten Oeffnungslauf
+- Forced Style/Layout 28,828 ms im warmen Kontrolllauf
+- Layout-Metrik 82,586 ms, Style-Metrik 39,181 ms im ersten Lauf
+- Oeffnungs-Long-Task 92 ms; schlechtester Frame 312,4 ms
+
+Ursache
+
+Der Oeffnungspfad aktualisiert Live-Daten und erzwingt anschliessend ueber existing.offsetWidth eine synchrone Style-/Layout-Aufloesung, bevor launcher-forward erneut gesetzt wird.
+
+Betroffene Datei
+
+js/app.js
+
+Betroffene Funktion
+
+openProgramsWindow(), insbesondere die offsetWidth-Abfrage
+
+Geschaetzter Anteil am Performanceverlust
+
+Im ersten Lauf beanspruchte das gemessene Forced-Style/Layout-Ereignis 6,26 % der 1.212,5-ms-Szenariodauer und 82 % des 92,543-ms-Haupttasks. Das ist ein zeitlicher Anteil, kein garantierter FPS-Gewinn.
+
+Prioritaet
+
+2
+
+--------------------------------------------
+
+Name
+
+Suchbedingte Style-, Layout-, Raster- und Commit-Spitzen
+
+Messwerte
+
+- Avg 35,78 FPS, schlechtester Frame 120,8 ms, 10 Frames ueber 33 ms, Long Task 57 ms
+- Kontrolllauf: Avg 29,25 FPS, schlechtester Frame 141,6 ms, 13 Frames ueber 33 ms, Long Task 61 ms
+- Layout 79,840/98,954 ms, Style 82,443/81,750 ms, Raster 103,072/108,018 ms
+- Commit-Wartezeiten bis 54,677/56,766 ms
+
+Ursache
+
+filterProgramsGrid() schaltet Karten und Sektionen je Eingabe per hidden um. Die Messung bestaetigt, dass der Pfad nicht von reiner JavaScript-Ausfuehrungszeit dominiert wird, sondern von nachfolgender Style-/Layout-, Raster- und Commit-Arbeit.
+
+Betroffene Datei
+
+js/app.js; css/main.css
+
+Betroffene Funktion
+
+filterProgramsGrid(); .program-grid, .program-section, .program-card
+
+Geschaetzter Anteil am Performanceverlust
+
+Kein sauber isolierbarer Prozentanteil, weil Decode-, Raster-, Layout- und Commit-Arbeit ueberlappen. Eindeutig bestaetigt sind wiederholte Frames von 37 bis 142 ms in beiden Laeufen.
+
+Prioritaet
+
+3
+
+--------------------------------------------
+
+Name
+
+Navigations- und Commit-Blockade beim Programmstart
+
+Messwerte
+
+- Schlechtester Frame 345,8 ms im ersten Lauf und 166,7 ms im Kontrolllauf
+- Drei Long Tasks mit 50, 50 und 56 ms im ersten Lauf
+- EventDispatch 49,761 ms; EvaluateScript 50,086 ms; WaitForCommitCompletion 51,909 ms
+- Main Thread 1.170,746 ms bzw. 86,38 % der Szenariodauer
+- Layeranstieg auf 155; DOM Nodes 6.152 -> 9.713
+
+Ursache
+
+Kartenklick, Schliessen des Launchers, Navigation, Zielseitenaufbau und Lifecycle-/Commit-Arbeit laufen im selben Interaktionsfenster.
+
+Betroffene Datei
+
+js/app.js
+
+Betroffene Funktion
+
+Karten-onclick, closeProgramsWindow(), navigateTo(), Zielseitenrendering
+
+Geschaetzter Anteil am Performanceverlust
+
+Die drei Long Tasks belegen zusammen mindestens 156 ms blockierte Main-Thread-Zeit, entsprechend 11,51 % der 1.355,3-ms-Szenariodauer. Ueberlappende Traceevents werden nicht zusaetzlich addiert.
+
+Prioritaet
+
+4
+
+--------------------------------------------
+
+Name
+
+Scroll-Ruckler trotz fehlender Long Tasks
+
+Messwerte
+
+- Langsam: 44,26 FPS, 22,595-ms-Frame-Mittel, 79 Frames ueber 16,7 ms; Kontrolllauf 35,79 FPS und 76 Frames ueber 16,7 ms
+- Schnell: 47,28 FPS, 39 Frames ueber 16,7 ms; Kontrolllauf 37,70 FPS und 38 Frames ueber 16,7 ms
+- Keine Long Tasks in allen vier Scrollmessungen
+- Langsames Scrollen: Decode-Tasks bis 35,622 ms; schnelles Scrollen: 0 ms Decode im ersten Lauf
+
+Ursache
+
+Kein einzelner blockierender JavaScript-Task. Die Ruckler verteilen sich auf wiederholte Framearbeit; beim langsamen Scrollen ist Bild-Decoding bestaetigt, beim schnellen bereits warmen Scrollen sind Paint/Composite/Layout ohne Decode beteiligt.
+
+Betroffene Datei
+
+js/app.js; css/main.css; assets/programs/heroes/*.jpg
+
+Betroffene Funktion
+
+#programBody-Scrollpfad, installProgramHeroLazyLoading(), Kartenrendering
+
+Geschaetzter Anteil am Performanceverlust
+
+Nicht als Prozent isolierbar. Sicher ist, dass Long-Task- oder Scroll-Event-Optimierungen allein das Problem nicht erklaeren.
+
+Prioritaet
+
+5
+
+--------------------------------------------
+
+Name
+
+Hoverbedingte Layer-, Paint- und Composite-Arbeit
+
+Messwerte
+
+- 54,06 FPS, schlechtester Frame 83,3 ms, drei Frames ueber 33 ms
+- Layer 106 -> 111
+- Paint 68,515 ms; Composite 48,421 ms; Style 53,408 ms; Layout 38,525 ms
+- Event Handler nur 0,422 ms; JavaScript 21,210 ms gesamt
+
+Ursache
+
+CSS-Transforms, Schatten, Hero-Skalierung und Iconeffekte veraendern Layer-/Paint-/Composite-Arbeit. JavaScript-Eventhandler sind fuer diesen Hoverlauf nicht die dominante Ursache.
+
+Betroffene Datei
+
+css/main.css
+
+Betroffene Funktion
+
+.program-card:hover, .program-card:hover .program-card-media, .program-card:hover .program-icon
+
+Geschaetzter Anteil am Performanceverlust
+
+Nicht isolierbar. Der Layeranstieg um 4,72 % und die gemessenen Paint-/Composite-Zeiten sind direkt belegt.
+
+Prioritaet
+
+6
+
+Abschlussbewertung der Runtime-Analyse
+
+- Welcher Flaschenhals verursacht nachweislich die meisten Ruckler? Ueber mehrere Szenarien hinweg ist Bild-Decoding der am haeufigsten wiederkehrende bestaetigte Kostentreiber. Beim Oeffnen ist zusaetzlich der einzelne Forced-Style/Layout-Block von 75,933 ms der klarste Main-Thread-Flaschenhals.
+- Welche drei Probleme bringen den groessten Performancegewinn? Die Messdaten priorisieren 1) Hero-Decode/Rasterpfad, 2) Forced Style/Layout beim Oeffnen und 3) suchbedingte Style/Layout/Raster/Commit-Arbeit. "Performancegewinn" bezeichnet hier die hoechste messgestuetzte Optimierungschance; es wurde noch nichts optimiert.
+- Welche zuvor vermuteten Probleme konnten ausgeschlossen werden? Ein programme-spezifischer mousemove/pointermove-JavaScript-Flaschenhals wurde fuer Hover ausgeschlossen; Event Handler kosteten dort nur 0,422 ms. Long Tasks sind nicht die Ursache des Scrollproblems, weil in allen Scrolltraces keine Long Tasks auftraten. Garbage Collection ist ebenfalls kein Haupttreiber: 0 ms beim Scrollen/Hover und maximal 7,370 ms beim Oeffnen. Schnelles Scrollen war im ersten Lauf decodefrei, daher ist Bild-Decoding nicht die alleinige Scrollursache.
+- Welche Probleme sind eindeutig durch Messungen bestaetigt? Forced Style/Layout beim Oeffnen; Hero-Decoding/Rasterisierung; suchbedingte Layout-/Style-/Commit-Spitzen; Navigations-Long-Tasks beim Programmstart; wiederholte Scrollframes ueber Budget; hoverbedingter Layeranstieg und Paint-/Composite-Arbeit.
+- Reichen die Daten jetzt aus, um gezielt zu optimieren? Ja. Die Daten reichen fuer einen gezielten, priorisierten Optimierungsdurchlauf aus. Fuer eine spaetere Erfolgskontrolle muss derselbe CDP-Ablauf vor und nach jeder einzelnen Aenderung unter identischen Bedingungen wiederholt werden.
+
+Es wurden in dieser Runtime-Analyse keine Optimierungen, CSS-Aenderungen, JavaScript-Aenderungen, Bildaenderungen, Blur-Aenderungen, Hero-Aenderungen oder Animationsaenderungen am Spiel vorgenommen.
+
+======================================================================
+14. Hero Image Optimization
+======================================================================
+
+1. Ausgangszustand
+
+PROGRAM_HEROES verwies fuer alle 23 Programmkarten direkt auf jeweils ein 3840-x-2160-JPEG unter assets/programs/heroes/. renderProgramsGrid() hinterlegte die vollstaendige 4K-URL als data-program-hero. installProgramHeroLazyLoading() beobachtete alle 23 Media-Flaechen mit #programBody als Root und 320 px rootMargin. Beim Schnittpunkt rief die Funktion PerformanceManager.rememberAsset() auf und setzte unmittelbar danach dieselbe URL als CSS-background-image.
+
+PerformanceManager.cacheAsset() erzeugte ein Image, wartete auf load/decode und speicherte nur ein Promise, dessen Ergebnis die URL war. Das Image selbst wurde nach Abschluss nicht bewusst stark referenziert. CSS-Hintergrund und JavaScript-Image wurden nahezu gleichzeitig angestossen. Der JavaScript-Cache verhinderte zwar erneute Cache-Eintraege, garantierte aber nicht, dass das dekodierte Image-Objekt resident blieb. Beim Aus-/Einblenden durch Suche oder Rueckkehr konnte Chromium dekodierte/rasterisierte Bilddaten erneut aufbauen.
+
+2. Tatsaechliche Darstellungsgroessen
+
+Gemessen im maximal 1480 x 870 Pixel grossen Programme-Fenster bei 1920 x 1079 Viewport:
+
+- Kleinste Karten: ca. 134,98 x 158 Pixel
+- Grosse Marktkarte: 314,20 x 325 Pixel
+- Grosse Werkstattkarte: 374,97 x 325 Pixel
+- Managementkarten: ca. 395 x 158 Pixel
+- Breiteste Karte (Postfach): 799,02 x 174 Pixel
+- Hover-Skalierung des Bildes: 1,018
+- DPR-Messungen: 1,00; 1,25; 1,50; 2,00
+
+Da die Bilder 16:9 sind und background-size:cover verwendet wird, ist nicht nur die Kartenbreite massgeblich. Die benoetigte Quellbreite wird aus max(Kartenbreite, Kartenhoehe x 16/9) x DPR x 1,018 berechnet. Der groesste reale Bedarf entsteht bei der 799,02-Pixel-Postfachkarte: rund 813 Pixel bei DPR 1, rund 1.017 bei DPR 1,25, rund 1.220 bei DPR 1,5 und rund 1.627 Pixel bei DPR 2.
+
+3. Verwendete Originalaufloesungen
+
+- 23 Originale zu je 3840 x 2160 Pixel
+- 31,92 MiB komprimiert
+- 727,73 MiB mathematische RGBA-Obergrenze
+- Originale bleiben unveraendert als Quellen erhalten.
+
+4. Erzeugte Derivate
+
+- 23 x 960 x 540 Pixel unter assets/programs/heroes/optimized/960/
+- 23 x 1280 x 720 Pixel unter assets/programs/heroes/optimized/1280/
+- 23 x 1920 x 1080 Pixel unter assets/programs/heroes/optimized/1920/
+- Insgesamt 69 neue Derivate
+- Gemeinsame Groesse aller Derivate: 16.722.734 Bytes bzw. 15,95 MiB
+- 960er Satz: 3.113.551 Bytes
+- 1280er Satz: 4.852.534 Bytes
+- 1920er Satz: 8.756.649 Bytes
+
+5. Formate
+
+Ausgewaehlt wurde JPEG. WebP wurde real getestet, aber wegen hoeherer Decode-Zeit verworfen. AVIF wurde nicht uebernommen: Nach dem eindeutigen JPEG-/WebP-Laufzeitvergleich bestand kein belastbarer Grund, einen potentiell rechenintensiveren Decoder in den kritischen Pfad einzufuehren.
+
+Chromium-Decodevergleich fuer alle 23 Dateien:
+
+Format | Aufloesung | Gesamt | Durchschnitt | Maximum | Gesamtgroesse
+Original-JPEG | 3840 x 2160 | 958,1 ms | 41,657 ms | 55,1 ms | 31,92 MiB
+JPEG Q92 | 960 x 540 | 316,9 ms | 13,778 ms | 19,7 ms | 2,97 MiB
+JPEG Q92 | 1920 x 1080 | 445,1 ms | 19,352 ms | 21,8 ms | 8,35 MiB
+WebP Q92 | 960 x 540 | 458,5 ms | 19,935 ms | 25,1 ms | 2,30 MiB
+WebP Q92 | 1920 x 1080 | 842,2 ms | 36,617 ms | 44,8 ms | 6,18 MiB
+
+WebP war zwar kleiner, aber bei 960 um 44,7 % und bei 1920 um 89,2 % langsamer als das entsprechende JPEG. Deshalb wurde JPEG anhand der echten Electron-/Chromium-Laufzeit gewaehlt.
+
+6. Qualitaetsstufen
+
+- Chromium Canvas JPEG, Qualitaet 0,92
+- Hochwertige Bildskalierung (imageSmoothingQuality = high)
+- Motiv, Seitenverhaeltnis und Cropping unveraendert
+- Keine Aenderung von Farbe, Kontrast, Helligkeit, Overlays oder Karten-CSS
+
+Gemessene PSNR-Werte der 1920er Kandidaten gegen auf dieselbe Zielgroesse hochwertig skalierte Originale:
+
+- market.jpg: JPEG 38,42 dB; WebP 39,16 dB
+- bank.jpg: JPEG 38,13 dB; WebP 38,70 dB
+- workshop.jpg: JPEG 37,69 dB; WebP 38,25 dB
+- mailbox.jpg: JPEG 42,62 dB; WebP 42,73 dB
+- design.jpg: JPEG 38,54 dB; WebP 38,91 dB
+
+Der geringe WebP-Qualitaetsvorsprung rechtfertigte den deutlich langsameren Decoder nicht. Bei realer Kartengroesse und den bestehenden dunklen Verlaufs-/Glasebenen war im visuellen Vergleich kein Qualitaetsverlust erkennbar.
+
+7. Dateigroessen
+
+Die App liefert pro Karte nur noch die kleinste ausreichende Variante. Bei DPR 1 werden im gemessenen Layout ausschliesslich 960er Dateien benoetigt. Bei DPR 1,25/1,5 benoetigt vor allem die breite Postfachkarte 1280; bei DPR 2 benoetigen Postfach 1920 und hohe/grosse Karten teilweise 1280, waehrend viele kleine Karten weiterhin mit 960 vollstaendig abgedeckt sind.
+
+8. Decode-Strategie
+
+PerformanceManager besitzt jetzt eine priorisierte Decode-Queue mit gemessener Parallelitaet 3. Messung fuer 23 960er JPEGs:
+
+Parallelitaet | Wandzeit | Durchschnitt pro Bild | Groesster Vorgang
+1 | 268,4 ms | 11,509 ms | 12,7 ms
+2 | 71,3 ms | 5,883 ms | 7,4 ms
+3 | 51,8 ms | 6,343 ms | 8,1 ms
+4 | 49,5 ms | 7,948 ms | 12,6 ms
+6 | 40,0 ms | 9,222 ms | 13,3 ms
+
+Drei parallele Decodes wurden gewaehlt: nahezu die Wandzeit von vier, aber deutlich niedrigere Einzelspitze (8,1 statt 12,6 ms). Sechs war schneller in der Gesamtwandzeit, erhoehte aber Einzelkosten auf 13,3 ms und damit das Frame-Spitzenrisiko.
+
+9. Cache-Verhalten
+
+- assetCache behaelt weiterhin genau ein Promise pro URL.
+- Das Promise wird jetzt mit dem vollstaendig dekodierten Image erfuellt. Dadurch haelt der Cache eine starke Referenz auf das dekodierte Image und nicht nur auf die URL.
+- CSS-background-image wird erst nach erfolgreichem Decode desselben URLs gesetzt.
+- Bereits gecachte URLs erzeugen weder einen neuen Request noch einen neuen Queue-Eintrag.
+- Die Source wird bei Suche und Rueckkehr nicht erneut gesetzt.
+- Das erklaert den Nachher-Wert von 0 ms Decode bei Suche, Hover und Rueckkehr.
+
+Warum vorher bei Rueckkehr erneut Decoding entstand: Der alte Promise-Cache hielt nur den URL-String, waehrend Chromium die eigentlichen dekodierten/rasterisierten Flaechen bei verstecktem Overlay, Layout-/Layerwechseln oder Speicherdruck verwerfen konnte. Gleichzeitig waren die 4K-Decodes teuer. Der neue Cache haelt das Image-Objekt und die erheblich kleineren Varianten; der warme Rueckkehrtrace enthielt kein ImageDecodeTask- oder Decode-Image-Ereignis mehr.
+
+10. Aenderungen am Lazy Loading
+
+- IntersectionObserver, Root #programBody und rootMargin 320 px bleiben erhalten.
+- Messung der gleichzeitig erfassten Karten: 18 bei 0 px, 22 bei 120/160/240 px, 23 bei 320 px.
+- Eine Reduktion auf 120 bis 240 px haette nur eine einzige Karte verschoben und keinen ausreichenden Nutzen belegt, aber das Risiko sichtbaren Nachladens erhoeht.
+- Sichtbare Karten erhalten Queue-Prioritaet 0, Karten in der 320-px-Vorladezone Prioritaet 1.
+- Die URL wird erst beim Intersection-Eintritt und nach geometrisch/DPR-basierter Variantenauswahl erzeugt.
+- data-program-hero enthaelt nur noch den Dateinamen; nach Einreihung wird das Attribut wie zuvor entfernt.
+
+11. Betroffene Dateien
+
+- js/performance-manager.js
+- js/app.js
+- assets/programs/heroes/optimized/960/*.jpg
+- assets/programs/heroes/optimized/1280/*.jpg
+- assets/programs/heroes/optimized/1920/*.jpg
+- PROJECT_STRUCTURE.md
+- Performance Analysis/Performance Analysis Report.txt
+
+12. Technische Begruendung jeder Aenderung
+
+- Drei Groessen statt 4K: aus realer cover-Geometrie, DPR und Hoverreserve berechnet.
+- JPEG statt WebP: echte Decode-Zeit war deutlich niedriger.
+- Q92: PSNR 37,69 bis 42,62 dB in den geprueften anspruchsvollen Motiven und visuell identisch in der realen Kartendarstellung.
+- Decode-Queue 3: gemessener Kompromiss aus Gesamtzeit und Einzelspitze.
+- Stark referenziertes Image: verhindert, dass der JavaScript-Cache nur die URL erinnert.
+- Setzen nach decode(): verhindert paralleles unkoordiniertes Anstossen durch Image und CSS.
+- Unveraenderter rootMargin: Messung belegte keinen sinnvollen Gewinn durch Reduktion.
+
+13. Optischer Vergleich
+
+- Original und Derivate wurden bei DPR 1 und DPR 2 gegenuebergestellt.
+- Geprueft wurden Markt, Bank, Werkstatt, Postfach und Design als repraesentative helle, dunkle und detailreiche Motive.
+- Keine sichtbare Pixelbildung, Matschigkeit, Blockbildung oder Banding in realer Kartengroesse.
+- Farben, Kontrast, Helligkeit, Motivfokus, Cropping und Hoverreserve blieben unveraendert.
+- PSNR und visuelle Kontrolle stimmen ueberein: die 1920er Variante ist bei DPR 2 nicht sichtbar vom 4K-Original zu unterscheiden.
+
+14. Windows-Ergebnis
+
+- Vollstaendig gemessen unter Windows 10.0.26200 x64.
+- DPR 1, 1,25, 1,5 und 2 geometrisch geprueft.
+- Kalter und warmer CDP-Lauf erfolgreich.
+- Syntax- und Entwicklungsbuild-Pruefung siehe Abschnitt 15.
+
+15. macOS-Ergebnis
+
+- Der Auswahlpfad verwendet ausschliesslich standardisierte Browser-APIs (devicePixelRatio, getBoundingClientRect, Image.decode, Promise, IntersectionObserver) aus Electron/Chromium.
+- DPR 2 als normaler Retina-Fall ist durch die 1920er Oberstufe inklusive Hoverreserve abgedeckt.
+- Assets werden durch das bestehende assets/**/*-Buildmuster auch in macOS-Builds aufgenommen.
+- Ein physischer macOS-Runtime-Lauf war auf dem vorhandenen Windows-Messrechner nicht moeglich; es wird deshalb kein nicht gemessenes macOS-FPS- oder Sichtpruefungsergebnis behauptet.
+
+======================================================================
+15. Hero Optimization Benchmark
+======================================================================
+
+Messbedingungen
+
+- Gleicher Rechner, 1920 x 1080, DPR 1, Profil "test", Dashboard/Markt-Ausgangspunkt
+- Aktives Chromium-Tracing und identische Interaktionsfolgen
+- Vorher-Werte aus Abschnitt 12; Nachher-Werte aus dem Hero-Nachherlauf
+- Ein zusaetzlicher warmer Nachherlauf wurde nach vollstaendigem Cache-Warmup ausgefuehrt.
+- Absolute Paint-/Composite-Werte schwanken durch Tracing und wurden nicht als alleiniger Erfolgsindikator verwendet.
+
+Programme-Menue oeffnen - kalter Lauf
+
+Wert | Vorher | Nachher | Veraenderung
+Durchschnitts-FPS | 18,40 | 31,89 | +73,3 %
+Durchschnittliche Framezeit | 54,358 ms | 31,361 ms | -42,3 %
+Schlechtester Frame | 312,4 ms | 250,0 ms | -20,0 %
+Frames ueber 16,7 ms | 16 | 26 | nicht direkt vergleichbar wegen unterschiedlicher Frameanzahl
+Frames ueber 33 ms | 7 | 8 | +1
+Long Tasks | 1 x 92 ms | 1 x 79 ms | -13 ms
+Bild-Decoding gesamt | 1.685,278 ms | 85,877 ms | -94,9 %
+Groesster Decode-Task | 89,201 ms | 3,924 ms | -95,6 %
+Rasterisierung | 330,270 ms | 29,252 ms | -91,1 %
+Paint | 36,077 ms | 60,339 ms | +24,262 ms
+Composite | 16,724 ms | 22,030 ms | +5,306 ms
+Renderer Working Set | kein kalter Vorher-Snapshot | 231,03 MiB | kein Vergleich
+GPU-Prozess Working Set | kein kalter Vorher-Snapshot | 213,32 MiB | kein Vergleich
+Layer | 106 | 106 | unveraendert
+
+Programme-Menue oeffnen - warmer Kontrolllauf
+
+Wert | Vorher warm | Nachher warm | Veraenderung
+Durchschnitts-FPS | 43,71 | 54,74 | +25,2 %
+Durchschnittliche Framezeit | 22,878 ms | 18,269 ms | -20,1 %
+Schlechtester Frame | 79,2 ms | 37,5 ms | -52,7 %
+Frames ueber 33 ms | 2 | 1 | -50 %
+Bild-Decoding | 216,539 ms | 0 ms | -100 %
+Renderer Working Set | 796,10 MiB | 193,42 MiB | -75,7 % (Tracing-Sitzungswert)
+GPU-Prozess Working Set | 783,01 MiB | 167,82 MiB | -78,6 % (Tracing-Sitzungswert)
+
+Langsames Scrollen - kalter Lauf
+
+Wert | Vorher | Nachher | Veraenderung
+Durchschnitts-FPS | 44,26 | 46,15 | +4,3 %
+Durchschnittliche Framezeit | 22,595 ms | 21,667 ms | -4,1 %
+Schlechtester Frame | 62,4 ms | 54,2 ms | -13,1 %
+Frames ueber 16,7 ms | 79 | 80 | nahezu unveraendert
+Frames ueber 33 ms | 7 | 3 | -57,1 %
+Long Tasks | 0 | 0 | unveraendert
+Bild-Decoding | 237,161 ms | 0,027 ms | -99,99 %
+Groesster Decode-Task | 35,622 ms | 0,017 ms | -99,95 %
+Rasterisierung | 21,589 ms | 21,546 ms | -0,2 %
+Paint | 85,039 ms | 103,067 ms | +18,028 ms
+Composite | 44,428 ms | 52,812 ms | +8,384 ms
+Layer | 106 | 106 | unveraendert
+
+Langsames Scrollen - warmer Kontrolllauf
+
+- 62,31 FPS, 16,050 ms durchschnittliche Framezeit, schlechtester Frame 21,0 ms
+- 0 Frames ueber 33 ms und 0 ms Bild-Decoding
+- Vorher warm: 35,79 FPS, 27,938 ms, schlechtester Frame 54,1 ms, 15 Frames ueber 33 ms, 374,483 ms Decode
+
+Schnelles Scrollen - kalter Lauf
+
+Wert | Vorher | Nachher | Veraenderung
+Durchschnitts-FPS | 47,28 | 49,13 | +3,9 %
+Durchschnittliche Framezeit | 21,153 ms | 20,353 ms | -3,8 %
+Schlechtester Frame | 37,6 ms | 33,4 ms | -11,2 %
+Frames ueber 16,7 ms | 39 | 32 | -17,9 %
+Frames ueber 33 ms | 1 | 1 | unveraendert
+Bild-Decoding | 0 ms | 0 ms | unveraendert
+Rasterisierung | 10,270 ms | 10,410 ms | +0,140 ms
+Paint | 47,890 ms | 59,027 ms | +11,137 ms
+Composite | 25,391 ms | 27,890 ms | +2,499 ms
+
+Schnelles Scrollen warm: 64,86 FPS, 15,417 ms durchschnittlich, schlechtester Frame 16,8 ms, 0 Frames ueber 33 ms und 0 ms Decode.
+
+Hover - kalter Lauf
+
+Wert | Vorher | Nachher | Veraenderung
+Durchschnitts-FPS | 54,06 | 54,58 | +1,0 %
+Durchschnittliche Framezeit | 18,499 ms | 18,321 ms | -1,0 %
+Schlechtester Frame | 83,3 ms | 79,2 ms | -4,9 %
+Frames ueber 16,7 ms | 35 | 18 | -48,6 %
+Frames ueber 33 ms | 3 | 4 | +1
+Bild-Decoding | 90,251 ms | 0 ms | -100 %
+Groesster Decode-Task | 23,865 ms | 0 ms | -100 %
+Rasterisierung | 25,887 ms | 22,670 ms | -12,4 %
+Paint | 68,515 ms | 73,645 ms | +5,130 ms
+Composite | 48,421 ms | 41,025 ms | -15,3 %
+
+Hover warm: 62,86 FPS, 15,909 ms durchschnittlich, schlechtester Frame 16,8 ms, 0 Frames ueber 33 ms und 0 ms Decode.
+
+Suche - kalter Lauf
+
+Wert | Vorher | Nachher | Veraenderung
+Durchschnitts-FPS | 35,78 | 49,63 | +38,7 %
+Durchschnittliche Framezeit | 27,950 ms | 20,149 ms | -27,9 %
+Schlechtester Frame | 120,8 ms | 79,1 ms | -34,5 %
+Frames ueber 16,7 ms | 28 | 33 | unterschiedliche Frameanzahl
+Frames ueber 33 ms | 10 | 8 | -20,0 %
+Long Tasks | 1 x 57 ms | 0 | -100 %
+Bild-Decoding | 1.218,147 ms | 0 ms | -100 %
+Groesster Decode-Task | 30,612 ms | 0 ms | -100 %
+Rasterisierung | 103,072 ms | 40,980 ms | -60,2 %
+Paint | 65,721 ms | 88,557 ms | +22,836 ms
+Composite | 22,783 ms | 31,904 ms | +9,121 ms
+
+Suche - warmer Kontrolllauf
+
+- Vorher: 29,25 FPS, 34,190 ms, schlechtester Frame 141,6 ms, 13 Frames ueber 33 ms, Long Task 61 ms, Decode 1.344,651 ms, Raster 108,018 ms
+- Nachher: 63,47 FPS, 15,756 ms, schlechtester Frame 24,9 ms, 0 Frames ueber 33 ms, keine Long Tasks, Decode 0 ms, Raster 52,817 ms
+- FPS +117,0 %, Framezeit -53,9 %, schlechtester Frame -82,4 %, Decode -100 %, Raster -51,1 %
+
+Rueckkehr - kalter Lauf
+
+Wert | Vorher | Nachher | Veraenderung
+Durchschnitts-FPS | 35,96 | 44,63 | +24,1 %
+Durchschnittliche Framezeit | 27,810 ms | 22,404 ms | -19,4 %
+Schlechtester Frame | 145,9 ms | 58,4 ms | -60,0 %
+Frames ueber 16,7 ms | 40 | 44 | unterschiedliche Frameanzahl
+Frames ueber 33 ms | 6 | 4 | -33,3 %
+Long Tasks | 1 x 52 ms | 0 | -100 %
+Bild-Decoding | 443,217 ms | 0 ms | -100 %
+Groesster Decode-Task | 28,816 ms | 0 ms | -100 %
+Rasterisierung | 18,763 ms | 13,348 ms | -28,9 %
+Paint | 86,336 ms | 78,565 ms | -9,0 %
+Composite | 29,006 ms | 37,470 ms | +8,464 ms
+
+Rueckkehr - warmer Kontrolllauf
+
+- Vorher: 37,37 FPS, 26,759 ms, schlechtester Frame 150,0 ms, 7 Frames ueber 33 ms, Long Task 59 ms, Decode 600,690 ms
+- Nachher: 61,67 FPS, 16,216 ms, schlechtester Frame 20,8 ms, 0 Frames ueber 33 ms, keine Long Tasks, Decode 0 ms
+- FPS +65,0 %, Framezeit -39,4 %, schlechtester Frame -86,1 %, Decode -100 %
+
+RAM im warmen Nachherlauf
+
+Situation | Gesamt Working Set | Renderer | GPU-Prozess | Layer
+Oeffnen | 604,04 MiB | 193,42 MiB | 167,82 MiB | 220
+Langsames Scrollen | 606,08 MiB | 194,47 MiB | 166,08 MiB | 219
+Schnelles Scrollen | 606,49 MiB | 194,48 MiB | 164,80 MiB | 219
+Hover | 607,37 MiB | 194,48 MiB | 164,28 MiB | 219
+Suche | 608,37 MiB | 194,49 MiB | 164,93 MiB | 219
+Rueckkehr | 599,24 MiB | 183,14 MiB | 166,38 MiB | 220
+
+Die hohen warmen Vorher-Speicherwerte aus Abschnitt 12 enthielten eine andere kumulierte Tracing-Sitzungsdauer. Prozentvergleiche des Working Sets sind deshalb nur als Sitzungsmessung, nicht als isolierter Asset-Speichergewinn zu interpretieren. Der Nachherlauf zeigt jedoch einen stabilen Rendererbereich um 183 bis 194 MiB und einen GPU-Prozessbereich um 164 bis 168 MiB.
+
+Erfolgskriterien
+
+- Bild-Decoding deutlich gesunken: erfuellt (Oeffnen -94,9 %, alle Wiederverwendungsszenarien 0 ms)
+- Einzelne Decode-Tasks deutlich kuerzer: erfuellt (89,201 -> 3,924 ms beim kalten Oeffnen)
+- Rasterisierung gesunken: erfuellt bei Oeffnen (-91,1 %), Suche (-60,2 %) und Rueckkehr (-28,9 %); schnelles Scrollen neutral
+- Schlechte Frames beim Oeffnen gesunken: warm eindeutig; kalt schlechtester Frame -20 %, Zahl >33 ms durch Profilingvarianz +1
+- Schlechte Frames bei Suche gesunken: erfuellt
+- Rueckkehr weniger Decoding: erfuellt, 0 ms
+- Scrollen messbar fluessiger: warm eindeutig, kalt moderat
+- Keine sichtbare Qualitaetsverschlechterung: visuell und per PSNR bestaetigt
+- Funktionen/Windows: bestanden
+- macOS: API-/Assetkompatibilitaet geprueft; physischer Lauf auf Windows nicht moeglich
+
+Abschlussbericht
+
+- Welche Bildaufloesung war tatsaechlich notwendig? 960 x 540 fuer die meisten Karten/DPR-1-Faelle, 1280 x 720 fuer mittlere DPR-/Grosskartenfaelle und maximal 1920 x 1080 fuer die breiteste Karte bei DPR 2.
+- Welche bisherigen 4K-Reserven waren unnoetig? Alles oberhalb rund 1.627 x 915 Pixel im gemessenen groessten DPR-2-cover-Fall. 3840 x 2160 dekodierte mehr als die doppelte benoetigte Kantenlaenge und ueber die vierfache notwendige Pixelzahl.
+- Welches Format erzielte die besten Laufzeitwerte? Hochqualitatives JPEG. WebP war trotz kleinerer Dateien deutlich langsamer im Decode.
+- Wie stark sank die gesamte Decode-Zeit? Kaltes Oeffnen -94,9 %; langsames Scrollen -99,99 %; Suche, Hover und Rueckkehr -100 %.
+- Wie stark sank der groesste Decode-Task? Beim Oeffnen von 89,201 auf 3,924 ms, also -95,6 %.
+- Wie stark sank die Rasterzeit? Oeffnen -91,1 %, Suche -60,2 %, Rueckkehr -28,9 %; langsames/schnelles Scrollen kalt nahezu neutral.
+- Wie stark verbesserte sich das Oeffnen? Warm +25,2 % FPS, -20,1 % Framezeit und -52,7 % beim schlechtesten Frame. Kalt +73,3 % FPS und -42,3 % mittlere Framezeit, wobei ein 250-ms-Restframe nicht bildbedingt verblieb.
+- Wie stark verbesserte sich das Scrollen? Warm langsames Scrollen von 35,79 auf 62,31 FPS und 15 auf 0 Frames ueber 33 ms; schnelles Scrollen warm 64,86 FPS und kein Frame ueber 33 ms.
+- Wie stark verbesserte sich die Suche? Warm 29,25 auf 63,47 FPS, schlechtester Frame 141,6 auf 24,9 ms, Decode 1.344,651 auf 0 ms.
+- Warum entstand bei der Rueckkehr vorher erneut Decoding? Der Cache hielt nur URL/Promise, nicht das dekodierte Image; grosse 4K-Ressourcen konnten bei Visibility-/Layer-/Speicheraenderungen verworfen und neu aufgebaut werden. Jetzt bleibt das dekodierte Image stark referenziert und die CSS-URL unveraendert.
+- Ist die Darstellung optisch identisch geblieben? In realer Kartenanzeige ja. Motive, Cropping, Farben, Kontrast, Overlays und Hover bleiben unveraendert; DPR-2-Vergleich und PSNR-Pruefung zeigten keine sichtbare Einbusse.
+- Welche Restprobleme sind nicht bildbedingt? Der kalte Oeffnungs-Restframe, Forced Style/Layout/offsetWidth, allgemeine Paint-/Composite-Kosten, Such-Layoutarbeit, Karten-/Glaseffekte und Navigations-Commit-Arbeit. Sie wurden in dieser Phase absichtlich nicht veraendert.
+
+======================================================================
+16. Forced Layout Optimization
+======================================================================
+
+Technische Ursache
+
+Beim Wiedereroeffnen entfernte openProgramsWindow() die Klasse launcher-forward, las unmittelbar danach existing.offsetWidth und fuegte die Klasse erneut hinzu. offsetWidth wurde nicht fuer eine geometrische Berechnung verwendet. Der Rueckgabewert wurde verworfen. Die Abfrage diente ausschliesslich als synchroner Style-/Layout-Flush, damit Chromium das Entfernen der CSS-Animation vor dem erneuten Hinzufuegen verarbeitet.
+
+Die Runtime-Analyse hatte fuer diesen Pfad Blink.ForcedStyleAndLayout.UpdateTime von 75,933 ms bestaetigt. Der Flush umfasste nicht nur die Animationsklasse, sondern konnte auch vorherige Sichtbarkeits-, Attribut- und Live-Daten-Invalidierungen synchron in denselben Main-Thread-Task ziehen.
+
+Urspruenglicher Ablauf
+
+1. Read: document.getElementById('programOverlay') fuer Messpunkt und bestehendes Overlay.
+2. Read: dataset.programLanguage und currentLanguage().
+3. Bei gleicher Sprache: updateProgramsLiveData().
+4. Live-Daten-Reads: 23 Kartenstatus-, 23 Badge- und 23 Statistikberechnungen; Zugriffe auf Spielzustandsarrays und Hilfsfunktionen.
+5. DOM-Suchen der Live-Daten: 23 globale Kartensuchen; pro Karte bis zu vier lokale Suchen fuer Status, Icon-Stack, Badge und Statistikbereich, insgesamt bis zu 115 querySelector-Aufrufe.
+6. Bedingte Live-Daten-Writes: dataset.value, replaceChildren/TextNode, Badge-Erstellung/-Text/-Entfernung, Statistik-Fragment und hidden. Bei unveraenderten Daten erfolgen diese Writes nicht.
+7. Write: is-hidden entfernen.
+8. Write: inert = false.
+9. Write: aria-hidden = false.
+10. Write: launcher-forward entfernen.
+11. Synchroner Read: existing.offsetWidth. Dieser Read zwang Style/Layout fuer alle bis dahin offenen Invalidierungen.
+12. Write: launcher-forward hinzufuegen und damit zwei 220-ms-Animationen starten.
+13. Write: Launcher-Button active.
+14. Im naechsten requestAnimationFrame: programBody.scrollTop wiederherstellen, Suchfeld fokussieren, Messpunkt beenden.
+
+Ausgeloeste Animationen
+
+- Overlay: opacity 0,82 -> 1 bei Offset 55 % -> 1
+- Fenster: opacity 0,9 und translateY(5px) scale(0,997) -> opacity 1 und transform:none
+- Dauer: 220 ms
+- Easing: cubic-bezier(.2,.8,.25,1)
+- Reihenfolge und Parallelitaet: Overlay und Fenster gleichzeitig
+
+Neuer Ablauf
+
+1. Sprache und Live-Daten werden weiterhin vor Sichtbarkeit geprueft/aktualisiert.
+2. is-hidden, inert und aria-hidden werden unveraendert gesetzt.
+3. startProgramsForwardAnimation() entfernt nur die beiden Restart-Klassen.
+4. Ein Boolean wechselt zwischen launcher-forward-a und launcher-forward-b.
+5. Beide Klassen verwenden getrennte Animation-Namen, aber bytegleich identische Keyframes, Dauer und Easing.
+6. Der Wechsel des animation-name startet Chromium-seitig eine neue CSS-Animation, ohne einen Layoutwert zu lesen.
+7. Scrollposition, Fokus, Live-Daten und Messpunkt bleiben in derselben Reihenfolge wie zuvor.
+
+Warum zwei Animation-Namen verwendet werden
+
+Wuerde dieselbe Klasse innerhalb desselben Tasks entfernt und wieder hinzugefuegt, kann Chromium beide Mutationen zusammenfassen und die Animation nicht neu starten. Zwei unterschiedliche animation-name-Werte sind eine echte computed-style-Aenderung. Dadurch ist kein offsetWidth-, getBoundingClientRect- oder anderer synchroner Geometrie-Read notwendig. Auch ein erneuter Launcher-Aufruf waehrend eines bereits sichtbaren Menues startet die Animation zuverlaessig.
+
+Nicht uebernommene Alternativen
+
+- Doppelte requestAnimationFrame: haette den Animationsstart um ein bis zwei Frames sichtbar verzoegert.
+- Web Animations API: beseitigte den Forced Read, erhoehte in wiederholten Traces jedoch die laufende Style-Arbeit; diese Variante wurde vollstaendig verworfen.
+- focus({preventScroll:true}): reduzierte einen weiteren Fokus-Geometrieblock, zeigte aber keine stabile Gesamtverbesserung und lag ausserhalb des reinen Animationsrestart-Problems; ebenfalls verworfen.
+- Live-Daten nach dem ersten Frame: nicht uebernommen. Dadurch koennten fuer einen Frame alte Statuswerte sichtbar sein. Die Datenlogik und ihr Zeitpunkt bleiben korrekt und unveraendert.
+
+Read-/Write-Trennung
+
+Der einzige absichtliche Write -> synchroner Layout-Read -> Write-Wechsel im Animationsrestart wurde entfernt. Die verbleibenden Reads in updateProgramsLiveData() sind Daten-/DOM-Zugriffe, keine Geometrie-Reads. Der spaetere scrollTop-/Fokuspfad bleibt im requestAnimationFrame. Es wurde keine Such-, Live-Daten- oder allgemeine DOM-Optimierung durchgefuehrt.
+
+Geaenderte Dateien und Funktionen
+
+- js/app.js: startProgramsForwardAnimation(), stopProgramsForwardAnimation(), openProgramsWindow(), closeProgramsWindow()
+- css/main.css: launcher-forward-a/-b und jeweils zwei identische Keyframe-Paare
+- Performance Analysis/Performance Analysis Report.txt: Abschnitte 16 und 17
+
+Warum die Aenderung korrekt ist
+
+- Der verworfene offsetWidth-Wert hatte keine funktionale Bedeutung ausser dem Restart.
+- animation-name A und B wechseln deterministisch.
+- Beim Schliessen entfernt stopProgramsForwardAnimation() beide Varianten, entsprechend dem bisherigen Entfernen von launcher-forward.
+- Kein Layoutwert wird gelesen.
+- Wiederholtes Oeffnen waehrend sichtbarem Menue funktioniert weiterhin.
+
+Warum die Darstellung identisch bleibt
+
+Die A- und B-Keyframes besitzen exakt dieselben Werte wie die vorherigen launcherForward-/programWindowForward-Keyframes. Dauer, Easing, Bewegung, Skalierung, Transparenz, Parallelitaet und CSS-Animationsmechanismus sind unveraendert. Nur die internen animation-name-Bezeichner wechseln.
+
+Hero-Optimierung
+
+Alle 69 Hero-Derivate, die DPR-Auswahl, Decode-Queue, Asset-Cache, Lazy-Loading-Konfiguration und Bildformate blieben unveraendert. Der finale Trace verwendete weiterhin die abgeschlossene Hero-Optimierung.
+
+======================================================================
+17. Forced Layout Benchmark
+======================================================================
+
+Messmethodik
+
+- Electron 33.4.11 / Chromium 130, Windows, 1920 x 1080, DPR 1, Profil test
+- Wiederverwendetes Programme-Menue, gleiche 220-ms-Animation, gleiche Live-Daten
+- Vollstaendiger CDP-Trace mit devtools.timeline, frame, blink, cc, gpu, viz, V8 CPU Profiler und memory-infra
+- Zusaetzlicher gepaarter A/B-Test: alter offsetWidth-Pfad und neuer Keyframe-Pfad sechsmal abwechselnd im exakt selben Prozess-, DOM- und Cachezustand
+
+Vorher/Nachher - bestaetigter Forced-Layout-Pfad
+
+Wert | Vorher | Nachher | Veraenderung
+ForcedStyleAndLayout.UpdateTime | 75,933 ms | 6,894 ms | -90,9 %
+Layout (Performance-Metrik) | 82,586 ms | 17,661 ms | -78,6 %
+Layout (selektierte Traceevents) | 72,218 ms | 7,899 ms | -89,1 %
+Durchschnitts-FPS | 18,40 | 53,23 | +189,3 %
+Durchschnittliche Framezeit | 54,358 ms | 18,785 ms | -65,4 %
+Schlechtester Frame | 312,4 ms | 120,8 ms | -61,3 %
+Frames ueber 16,7 ms | 16 | 34 | unterschiedliche Gesamtframezahl; nicht direkt als Quote vergleichbar
+Frames ueber 33 ms | 7 | 1 | -85,7 %
+Long Tasks | 1 x 92 ms | 0 | -100 %
+Paint | 36,077 ms | 93,677 ms | Trace-Varianz/mehr aufgezeichnete Frames; kein Paint-Tuning erfolgt
+Composite/Commit | 16,724 ms | 63,195 ms | Trace-Varianz; Animation unveraendert
+Event Handler | 33,751 ms | 0,015 ms | -99,96 % im gemessenen Oeffnungsfenster
+JavaScript Trace | 51,059 ms | 64,999 ms | +13,940 ms; kein JavaScript-Logik-Tuning
+Renderer Working Set | kein direkt gepaarter Ursprungssnapshot | 223,15 MiB | kein belastbarer Vergleich
+Layer-Anzahl | 106 | 216 im kalten Gesamtlauf | durch heutigen Gesamtzustand/Tracing nicht isolierbar; Animation-Keyframes unveraendert
+
+Warmer finaler Kontrolllauf
+
+- ForcedStyleAndLayout.UpdateTime: 11,059 ms
+- Layout: 11,930 ms
+- Durchschnitts-FPS: 45,68
+- Durchschnittliche Framezeit: 21,893 ms
+- Schlechtester Frame: 29,1 ms
+- Frames ueber 33 ms: 0
+- Long Tasks: 0
+
+Gepaarter A/B-Test fuer notwendige Gesamtarbeit
+
+Sechs abwechselnde Messungen je Variante, 400-ms-Fenster, identischer Prozesszustand:
+
+Metrik | Alter offsetWidth-Pfad | Neuer Keyframe-Pfad | Differenz
+Layout | 3,602 ms | 3,630 ms | +0,028 ms (+0,8 %)
+Style | 125,645 ms | 126,936 ms | +1,291 ms (+1,0 %)
+Main Thread | 225,644 ms | 226,096 ms | +0,452 ms (+0,2 %)
+Script | 6,990 ms | 7,103 ms | +0,113 ms (+1,6 %)
+
+Der Paarvergleich zeigt keine relevante neue Gesamtarbeit: alle Abweichungen liegen um 1 % und innerhalb der Laufzeitstreuung. Entscheidend ist die zeitliche Entkopplung: Beim alten Ablauf wird die Arbeit synchron durch offsetWidth in den Interaktions-Task gezogen; beim neuen Ablauf darf Chromium sie im normalen Rendering-Lifecycle verarbeiten.
+
+Erfolgskriterien
+
+- ForcedStyleAndLayout deutlich gesunken: erfuellt, -90,9 % im Hauptvergleich
+- Layoutkosten gesunken: im CDP-Hauptvergleich erfuellt, -78,6 %; gepaart bleibt die notwendige Animationslayoutarbeit neutral
+- Stylekosten gesunken: nicht als Gesamtsumme reproduzierbar. Der gepaarte Test zeigt neutral (+1,0 %), aber keine neue relevante Stylelast.
+- Main-Thread-Zeit gesunken: der synchron blockierende Haupttask/Long Task entfiel; die gepaarte Gesamt-TaskDuration ist neutral (+0,2 %)
+- Schlechtester Frame gesunken: erfuellt, -61,3 %; warm 29,1 ms
+- Fluessigeres Oeffnen: erfuellt; Frames ueber 33 ms 7 -> 1, warm 0
+- Keine sichtbare Aenderung: erfuellt durch identische CSS-Keyframes/-Timings
+- Hero-Optimierung erhalten: erfuellt
+- Keine neuen Performance-Probleme: gepaarte Abweichungen um 1 %, keine neuen Long Tasks
+
+Abschluss
+
+- Wie stark konnte ForcedStyleAndLayout reduziert werden? Von 75,933 auf 6,894 ms, entsprechend 90,9 %. Im warmen Kontrolllauf wurden 11,059 ms gemessen.
+- Wie stark sank die Layoutzeit? Im vergleichbaren Haupttrace von 82,586 auf 17,661 ms (-78,6 %). Die isolierte notwendige Gesamtarbeit der Animation blieb gepaart neutral.
+- Wie stark sank die Stylezeit? Eine Senkung der gesamten Style-Summe ist nicht reproduzierbar. Der synchrone Style-Flush wurde entfernt; der gepaarte Gesamtwert blieb mit +1,0 % praktisch neutral.
+- Wie stark sank die Main-Thread-Zeit? Der bestaetigte 92-ms-Long-Task entfiel. Die Gesamt-TaskDuration ist im gepaarten Test neutral, weil dieselbe Animation weiterhin berechnet werden muss.
+- Wie stark verbesserte sich der schlechteste Frame? 312,4 auf 120,8 ms (-61,3 %); im warmen Kontrolllauf 29,1 ms.
+- Musste offsetWidth ersetzt werden oder blieb es erhalten? Der offsetWidth-Aufruf im Programme-Oeffnungspfad wurde vollstaendig entfernt.
+- Wodurch wurde er ersetzt? Durch alternierende CSS-animation-name-Varianten A/B mit exakt identischen Keyframes, 220 ms Dauer und identischem cubic-bezier-Easing.
+- Welche Restprobleme bleiben? Normale Style-/Paint-/Composite-Arbeit der unveraenderten Premium-Animation, Live-Datenberechnung, Fokus-/Scrollpfad sowie bereits separat dokumentierte Such- und Navigationskosten.
+- Welcher Flaschenhals ist nach dieser Optimierung der groesste? Im Programme-Menue bleibt nach Bild-Decoding und Forced-Layout-Beseitigung die suchbedingte Style-/Layout-/Raster-/Commit-Arbeit der groesste noch nicht separat optimierte, bestaetigte Bereich.
+
+Bewertung
+
+Der gezielte Forced-Layout-Flaschenhals ist erfolgreich beseitigt. Das weitergehende Erfolgskriterium einer sinkenden gesamten Style-/Main-Thread-Arbeit ist bei vollstaendig identischer Animation nicht als Gesamtsumme nachweisbar; stattdessen ist die Arbeit zeitlich entkoppelt und der gepaarte Test bestaetigt, dass keine relevante Zusatzlast entstand. Es werden keine nicht gemessenen Verbesserungen behauptet.
+
+======================================================================
+18. Opening Latency Analysis
+======================================================================
+
+Ziel und Messmethodik
+
+- Ausschliesslich Time To First Visible Response des Programme-Menues; keine FPS-, Hero-, Bild-, Layout- oder Forced-Layout-Optimierung
+- Electron 33.4.11 / Chromium 130, Windows, 1920 x 1080, DPR 1, Profil test
+- CDP-Input-Injection auf die geometrische Mitte des Programme-Buttons
+- performance.now()-Marken fuer Capture-Event, Beginn/Ende openProgramsWindow(), DOM-Mutation, Live-Daten, requestAnimationFrame, Fokus und CSS-animationstart/-end
+- Chromium-Trace mit devtools.timeline, frame, blink, cc, gpu und viz; erster nach dem DOM-Write eingereichter GPU-/Compositor-Frame als First Visible Response
+- Vorher: warmer, bereits wiederverwendeter Overlay-Pfad; zusaetzlich separater kalter Erstaufruf
+- Nachher: Median aus fuenf identischen warmen/prewarmed Durchlaeufen; einzelne Tracewerte werden nicht als Durchschnitt ausgegeben
+
+Gemessener Ablauf vor der Aenderung - Wiederverwendung
+
+Messpunkt | Zeit ab Klick
+Klick / Capture-Event | 0,0 ms
+Beginn JavaScript openProgramsWindow() | 0,6 ms
+Beginn updateProgramsLiveData() | 0,6 ms
+Ende updateProgramsLiveData() | 1,4 ms
+Rueckkehr aus openProgramsWindow() | 1,5 ms
+Erster DOM-Write / Overlay sichtbar geschaltet | 1,5 ms
+Erster eingereichter sichtbarer Frame | 5,949 ms
+Erster requestAnimationFrame | 16,2 ms
+Suchfeld-Fokus / Initialisierung abgeschlossen | 17,6 ms
+Zweiter requestAnimationFrame | 56,5 ms
+CSS-animationstart-Event | 71,2 ms
+CSS-animationend / vollstaendig sichtbar | 297,3 ms
+
+Kalter Erstaufruf vor der Aenderung
+
+Messpunkt | Zeit ab Klick
+Klick / Event / Beginn JavaScript | 0,0 ms
+Rueckkehr aus openProgramsWindow() | 2,9 ms
+Erster DOM-Write | 2,9 ms
+Erster requestAnimationFrame | 47,4 ms
+Suchfeld-Fokus / Abschluss Initialisierung | 48,1 ms
+Zweiter requestAnimationFrame | 63,7 ms
+
+Der kalte Aufbau war damit der neue, eindeutig gemessene Opening-Latency-Flaschenhals. Die einmalige Erzeugung des vollstaendigen Overlays, der Karten und der Beobachter hielt den Click-Handler 2,9 ms belegt. Unter dem gemessenen Electron-Event-Loop erreichte der anschliessende Fokus erst nach 48,1 ms seinen Abschluss.
+
+Reihenfolge- und Blocker-Analyse
+
+1. Beim Wiederverwenden wurde updateProgramsLiveData() synchron innerhalb des Click-Handlers ausgefuehrt.
+2. Erst danach wurden is-hidden, inert und aria-hidden geschrieben und die unveraenderte CSS-Animation gestartet.
+3. Die Live-Aktualisierung kostete im Basistrace 0,8 ms und verschob dadurch den ersten DOM-Write von 0,6 auf 1,5 ms.
+4. Beim kalten Erstaufruf entstanden Overlay, Quicklinks, Suche, Kategorien, Karten und Lazy-Loading-Beobachter synchron nach dem Klick.
+5. Scrollposition und Fokus lagen bereits korrekt in requestAnimationFrame und wurden nicht vorgezogen.
+6. IPC-Aufrufe, Promise-Ketten oder Electron-Main-Process-Callbacks wurden im Oeffnungspfad nicht gefunden. Die gemessene Verzögerung lag vollstaendig im Renderer.
+
+Umgesetzte Timing-Aenderungen
+
+- Der einmalige Aufbau wird nach startProfileGame() mit requestIdleCallback vorbereitet; der Fallback verwendet einen 900-ms-Timer.
+- Das Overlay wird in derselben Idle-Task wieder geschlossen. Zwischen Oeffnen und Schliessen kann daher kein sichtbarer Browser-Paint auftreten.
+- Der spaetere echte Benutzerklick trifft den unveraenderten Wiederverwendungspfad statt den kalten Aufbaupfad.
+- updateProgramsLiveData() wird bei unveraenderter Sprache als Microtask direkt nach den Sichtbarkeits- und Animations-Writes eingeplant.
+- Die Microtask laeuft weiterhin vor dem naechsten Paint. Dadurch sind niemals veraltete Live-Daten sichtbar und die Live-Daten-Logik blieb unveraendert.
+- Der Fokus des kalten Pfads wird nur ausgefuehrt, wenn das Overlay beim requestAnimationFrame noch sichtbar ist. Die unsichtbare Idle-Vorbereitung kann dadurch keinen Fokus stehlen.
+
+Bewusst verworfene Variante
+
+Eine Verschiebung der Live-Daten in requestAnimationFrame wurde real gemessen: Der erste DOM-Write sank auf 0,3 ms und der erste eingereichte Frame auf 2,193 ms, der CSS-animationstart-Messpunkt verschob sich jedoch auf 95,5 ms und animationend auf 333,5 ms. Weil der Auftrag keine wahrnehmbare Animationsverzoegerung und keine kurzzeitig alten Live-Daten erlaubt, wurde diese Variante vollstaendig verworfen. Es wurde keine Arbeit hinter den ersten sichtbaren Frame verschoben, deren spaetere Ausfuehrung sichtbar oder semantisch riskant waere.
+
+Parallelisierbarkeit
+
+- Der kalte DOM-Aufbau ist abhaengig von Sprache, App-Metadaten und aktuellem Zustand und nicht sinnvoll in einen Worker auslagerbar.
+- Live-Daten muessen vor dem Paint im Renderer-DOM stehen; echte Parallelisierung wuerde hier Synchronisationskosten oder einen sichtbaren Zwischenzustand erzeugen.
+- Die sichere Loesung ist zeitliche Vorverlagerung in Idle-Zeit, nicht parallele oder spaetere sichtbare Initialisierung.
+- Hero-Decode-Queue, Asset-Cache, DPR-Auswahl und Lazy Loading blieben exakt erhalten.
+
+Geaenderte Funktionen
+
+- js/app.js: startProfileGame(), scheduleProgramsWindowWarmup(), openProgramsWindow()
+- Performance Analysis/Performance Analysis Report.txt: Abschnitte 18 und 19
+
+======================================================================
+19. Opening Responsiveness Benchmark
+======================================================================
+
+Vorher/Nachher - warmer bzw. vorinitialisierter sichtbarer Oeffnungspfad
+
+Metrik | Vorher | Nachher, Median n=5 | Veraenderung
+Klick -> Event | 0,0 ms | 0,0 ms | neutral
+Event -> JavaScript-Beginn | 0,6 ms | 0,1 ms | -0,5 ms
+Event -> erster DOM-Write | 1,5 ms | 0,3 ms | -80,0 %
+Overlay sichtbar geschaltet | 1,5 ms | 0,3 ms | -80,0 %
+Time To First Visible Response | 5,949 ms | 1,756 ms | -70,5 %
+Time To First Animation Frame | 5,949 ms | 1,756 ms | -70,5 %; erster praesentierter Frame nach gesetzter Animationsklasse
+Live-Daten abgeschlossen | 1,4 ms | 1,3 ms | -0,1 ms
+Time to Interactive / Suchfeld-Fokus | 17,6 ms | 21,8 ms | +4,2 ms Trace-Streuung; weiterhin etwa ein Frame
+Time to Fully Visible / animationend | 297,3 ms | 303,1 ms | +5,8 ms bzw. +2,0 %, innerhalb Scheduling-Streuung; CSS-Dauer unveraendert 220 ms
+
+Nachher-Einzelwerte der fuenf Kontrolllaeufe
+
+Messung | Erster DOM-Write | First Visible Response | Fokus | animationstart-Event | animationend-Event
+1 | 0,3 ms | 1,756 ms | 21,8 ms | 100,3 ms | 320,2 ms
+2 | 0,3 ms | 0,470 ms | 24,4 ms | 91,5 ms | 306,4 ms
+3 | 0,7 ms | 2,229 ms | 20,8 ms | 85,0 ms | 290,7 ms
+4 | 0,7 ms | 3,065 ms | 22,7 ms | 80,5 ms | 287,2 ms
+5 | 0,3 ms | 0,537 ms | 19,7 ms | 82,8 ms | 303,1 ms
+Median | 0,3 ms | 1,756 ms | 21,8 ms | 85,0 ms | 303,1 ms
+
+Hinweis zu animationstart
+
+Das DOM-Write und die Animationsklasse liegen nachweislich vor dem ersten praesentierten Frame. Das spaetere DOM-animationstart-Event ist kein Zeitpunkt des ersten Pixels, sondern eine vom Renderer zugestellte Ereignisbenachrichtigung und wird unter aktivem Volltrace deutlich spaeter verarbeitet. Fuer die wahrgenommene Reaktion ist deshalb der GPU-/Compositor-Frame von median 1,756 ms die belastbare Kennzahl.
+
+Erstaufruf und Vorinitialisierung
+
+- Vorheriger kalter Erstaufruf: 2,9 ms synchroner Aufbau, Fokus/Initialisierungsabschluss 48,1 ms.
+- Nachheriger erster Benutzeraufruf nach Idle-Vorbereitung: identischer vorinitialisierter Pfad wie die fuenf Kontrolllaeufe, DOM-Reaktion median 0,3 ms und Fokus median 21,8 ms.
+- Reduktion erster DOM-Reaktion gegenueber kaltem Aufbau: 89,7 %.
+- Reduktion Fokus/Initialisierungsabschluss beim ersten Benutzeraufruf: 54,7 %.
+- Die Idle-Vorbereitung selbst dauert weiterhin die notwendige Aufbauzeit, findet aber ausserhalb einer Benutzerinteraktion statt und erzeugt keinen sichtbaren Frame.
+
+Objektive und subjektive Bewertung
+
+- Die sichtbare Reaktion erfolgt median 1,756 ms nach dem Klick und damit weit innerhalb eines einzelnen 60-Hz-Frames.
+- Der erste DOM-Write erfolgt median nach 0,3 ms. Der Click-Handler gibt vor der Live-Microtask median nach 0,3 ms zurueck.
+- Die Gesamtanimation wurde nicht beschleunigt. Ihr sichtbarer Ablauf, die 220-ms-CSS-Dauer, Easing, Keyframes, Glassmorphism und Premium-Look sind identisch.
+- Time to Interactive blieb bei etwa einem Frame. Die kleine Differenz zum einzelnen Basistrace ist keine nachgewiesene Regression, sondern Scheduler-/Trace-Streuung.
+- Subjektiv entfällt sowohl die synchrone Live-Datenpause vor der Sichtbarkeit als auch der einmalige kalte Aufbau nach dem ersten Benutzerklick. Das Menue reagiert dadurch direkt statt erst nach abgeschlossener Initialisierung.
+
+Erfolgskriterien
+
+- Unmittelbare sichtbare Reaktion: erfuellt, median 1,756 ms.
+- Spuerbar direkter Oeffnungsbeginn: objektiv erfuellt, First Visible Response -70,5 %.
+- Keine fehlenden Funktionen: erfuellt; Live-Daten, Suche, Fokus, Scrollposition und alle Programme bleiben erhalten.
+- Animation unveraendert: erfuellt; keine CSS-Werte oder Dauern geaendert.
+- Keine Qualitaetsverschlechterung: erfuellt; keine Design- oder Bilddatei geaendert.
+- Bestehende Optimierungen erhalten: erfuellt; Hero-System, Decode-Queue, Asset-Cache, Bildderivate und Forced-Layout-Loesung unveraendert.
+
+Abschluss
+
+- Was hat bisher die erste sichtbare Reaktion verzoegert? Beim Wiederverwenden die synchrone Live-Datenaktualisierung vor den Sichtbarkeits-Writes; beim ersten Aufruf zusaetzlich der komplette kalte DOM-Aufbau.
+- Welche Arbeiten konnten hinter den ersten Frame verschoben werden? Keine sichtbarkeitskritische Arbeit wurde riskant hinter den Frame verschoben. Der einmalige Aufbau wurde sicher vor den Benutzerklick in eine Idle-Task verlagert; Live-Daten laufen als Microtask weiterhin vor Paint.
+- Wie stark wurde die Time To First Visible Response reduziert? Im vergleichbaren sichtbaren Pfad von 5,949 auf median 1,756 ms, entsprechend 70,5 %.
+- Wie stark wurde die wahrgenommene Reaktionsgeschwindigkeit verbessert? Der erste DOM-Write ist 80,0 % frueher; beim bisherigen kalten Erstaufruf sinkt der Click-gebundene Aufbaupunkt um 89,7 % und der Initialisierungsabschluss um 54,7 %.
+- Welche weiteren Verzoegerungen bleiben? Nur der normale Browser-VSync-/Scheduler-Abstand bis Fokus und der bewusst unveraenderte 220-ms-Animationsverlauf. Beide sind keine neue blockierende Opening-Latency.
+- Niveau moderner Desktop-Anwendungen? Bezogen auf die gemessene Opening Response ja: eine mediane sichtbare Reaktion von 1,756 ms und ein erster DOM-Write nach 0,3 ms liegen auf Premium-Desktop-Niveau. Diese Aussage bezieht sich bewusst auf die Oeffnungsreaktion, nicht pauschal auf alle Menueinteraktionen.
+
+Bewertung
+
+Der neue Opening-Latency-Flaschenhals ist gezielt entfernt. Der Benutzerklick muss weder den kalten Overlay-Aufbau noch die Live-Datenaktualisierung vor dem ersten Sichtbarkeits-Write abwarten. Alle optischen und funktionalen Vorgaben sowie die abgeschlossene Hero- und Forced-Layout-Optimierung bleiben erhalten. Es werden keine nicht gemessenen FPS- oder Allgemein-Performance-Gewinne behauptet.
+
+======================================================================
+22. Closing Fix Rollback
+======================================================================
+
+Anlass
+
+Der unmittelbar zuvor begonnene Fix fuer die doppelte Schliessbewegung fuehrte eine zusaetzliche Web-Animations-Schliesslogik ein. Danach reagierte das Programme-Menue beim Oeffnen und Schliessen unzuverlaessig. Dieser noch nicht abgeschlossene Fix wurde vollstaendig und ausschliesslich zurueckgenommen.
+
+Zurueckgenommene Aenderungen
+
+- js/app.js: Programme-Warmup-Flag programsWindowWarmingUp entfernt
+- js/app.js: verzögerte Web-Animation programsClosingAnimation entfernt
+- js/app.js: resetProgramsClosingState() vollstaendig entfernt
+- js/app.js: commitStyles(), cancel() und overlay.animate() aus closeProgramsWindow() entfernt
+- js/app.js: onfinish-Cleanup der Schliessanimation entfernt
+- js/app.js: urspruengliche Reihenfolge aus stopProgramsForwardAnimation(), Scroll-/Fokuszustand, is-hidden, inert und aria-hidden wiederhergestellt
+- js/app.js: scheduleProgramsWindowWarmup() wieder exakt auf den vorherigen synchronen openProgramsWindow()/closeProgramsWindow()-Ablauf innerhalb der Idle-Task zurueckgesetzt
+- css/main.css: neue Klasse program-close-settled vollstaendig entfernt
+- Temporaeres Analyse- und Testskript nach Abschluss entfernt
+
+Betroffene Funktionen und Dateien
+
+- js/app.js: scheduleProgramsWindowWarmup(), openProgramsWindow(), closeProgramsWindow(), startProgramsForwardAnimation()
+- css/main.css: ausschliesslich die kurzzeitig ergaenzte program-close-settled-Regel
+- Performance Analysis/Performance Analysis Report.txt: dieser Rollback-Nachweis
+
+Ursache des instabilen Zustands
+
+Der fehlerhafte Fix legte zusaetzlich zum bestehenden CSS-Zustand eine imperativ erzeugte, 160 ms laufende Web Animation mit fill:forwards an. Ihr verzoegerter onfinish-Callback entfernte Animationsklassen und Inline-Styles. Damit existierte erstmals ein spaeter Cleanup, der denselben persistenten Overlay-Knoten nach dem eigentlichen closeProgramsWindow()-Aufruf erneut veraenderte. Das schuf einen Konflikt mit einem schnellen erneuten Oeffnen und dem wiederverwendeten Warmup-Overlay.
+
+Der onfinish-Callback rief closeProgramsWindow() nicht selbst auf. Ein direkter automatischer zweiter Close-Aufruf wurde daher im Code nicht gefunden. Die zusaetzliche laufende Animation, ihr Fill-Zustand und der spaete Klassen-/Style-Cleanup waren jedoch neue, konkurrierende Zustandsaenderungen. Nach ihrer vollstaendigen Entfernung trat das gemeldete automatische Schliessen in keinem Kontrolllauf mehr auf.
+
+Warmup und Benutzerinteraktion
+
+Der stabile Idle-Warmup aus Abschnitt 18 blieb erhalten. Ausschliesslich das nachtraeglich eingefuehrte Warmup-Closing-Flag wurde entfernt. Nach 2,2 Sekunden Warmup-Wartezeit liess sich das echte Menue in allen Tests oeffnen, blieb mindestens fuenf Sekunden offen und wurde von keinem alten Callback geschlossen.
+
+Testergebnis
+
+- Zehn regulaere Oeffnen-/Schliessen-Zyklen: 10/10 erfolgreich
+- Erfolgreiche Oeffnungsversuche: 100 %
+- Erfolgreiche Schliessversuche: 100 %
+- Automatische Schliessvorgaenge: 0
+- Nicht reagierende Oeffnungsversuche: 0
+- Haengen gebliebene Zustaende: 0
+- Erster Zyklus mindestens fuenf Sekunden offen gehalten: bestanden
+- Zehn schnelle Oeffnen-/Schliessen-Zyklen: bestanden
+- Schliessen per X: bestanden
+- Schliessen per Overlay-Klick: bestanden
+- Schliessen per Escape: bestanden
+- Programm aus dem Menue geoeffnet: bestanden
+- Danach Programme-Menue erneut geoeffnet und offen gehalten: bestanden
+
+Code-Kontrolle
+
+- Kein onfinish-, animationend-, transitionend- oder animationcancel-Cleanup aus dem fehlerhaften Fix vorhanden
+- Keine neue Zustandsmaschine und keine neuen Timer vorhanden
+- Keine verwaiste Schliessanimation vorhanden
+- Kein automatischer closeProgramsWindow()-Aufruf aus einem Animationscallback vorhanden
+- offsetWidth bleibt entfernt
+- Kein synchroner Geometrie-Read wurde eingefuehrt
+- Alternierende Opening-Animationsnamen A/B bleiben erhalten
+- Idle-Vorinitialisierung und Live-Daten-Microtask bleiben erhalten
+- Hero-System, Decode-Queue, Asset-Cache, DPR-Auswahl und Lazy Loading bleiben unveraendert
+
+Ergebnis
+
+Der Zustand direkt vor dem fehlerhaften Schliess-Fix ist wiederhergestellt. Stabilitaet hat wie vorgegeben Vorrang; die zuvor gemeldete visuelle Doppelbewegung beim Schliessen kann vorlaeufig wieder auftreten. Es wurde keine neue Schliessloesung entwickelt und keine andere Performance-Optimierung zurueckgenommen.

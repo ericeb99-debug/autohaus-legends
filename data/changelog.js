@@ -13,6 +13,9 @@ const CHANGELOG = [
         'Speichervorgänge werden geordnet, gebündelt und beim Beenden vollständig abgeschlossen, bevor sich die Anwendung schließt.',
         'Unsichtbare Bereiche vermeiden unnötige Aktualisierungen; hochauflösende Programmbilder werden erst in der Nähe des sichtbaren Bereichs dekodiert.',
         'Fenster-, Speicher- und Oberflächenaktualisierungen verursachen weniger doppelte Arbeit und bleiben dadurch auch bei langen Spielständen flüssiger.',
+        'Bereits geöffnete Spielbereiche reagieren beim erneuten Aufrufen deutlich schneller und behalten ihren bisherigen Zustand im Hintergrund bei.',
+        'Große Fahrzeug-, Kunden- und Werkstattbestände lassen sich flüssiger durchsuchen und scrollen, auch in langen Legacy-Spielständen.',
+        'Wiederkehrende Oberflächen- und Bildaktualisierungen werden intelligent gebündelt, damit umfangreiche Spielstände weniger unnötige Rechenarbeit verursachen.',
       ],
       fixed:[
         'Exit-Button, Fenster-Schließen, Alt+F4 und Cmd+Q verwenden nun denselben sicheren Speichern-und-Beenden-Ablauf.',
@@ -32,6 +35,9 @@ const CHANGELOG = [
           'Save operations are serialized, batched and fully completed before the application closes.',
           'Hidden areas avoid unnecessary updates, while high-resolution program artwork is decoded only near the visible viewport.',
           'Window, storage and interface updates perform less duplicate work, keeping long-running saves smoother.',
+          'Previously opened game areas now respond much faster when revisited and retain their state in the background.',
+          'Large vehicle, customer and workshop collections now remain smoother to browse and scroll, even in long-running Legacy saves.',
+          'Recurring interface and image updates are intelligently batched so extensive saves cause less unnecessary processing.',
         ],
         fixed:[
           'The exit button, window close control, Alt+F4 and Cmd+Q now share the same safe save-and-quit flow.',
