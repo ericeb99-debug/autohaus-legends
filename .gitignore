@@ -3,6 +3,7 @@ dist/
 dist-dev/
 win-unpacked/
 .electron-cache/
+.tools/
 *.exe
 *.blockmap
 *.7z

@@ -1,0 +1,122 @@
+{
+  ".mcp.json": {
+    "mtime": 1784240302.7055814,
+    "ast_hash": "8f543107a526b1866a09c8c8f131b4db",
+    "semantic_hash": "8f543107a526b1866a09c8c8f131b4db"
+  },
+  "data/achievements.js": {
+    "mtime": 1784248572.9084105,
+    "ast_hash": "a95d5b1af66e98dafdb60b3efa867b29",
+    "semantic_hash": ""
+  },
+  "data/changelog.js": {
+    "mtime": 1784248692.0101557,
+    "ast_hash": "c578c30fa03bb26aae28a6e7ff426165",
+    "semantic_hash": ""
+  },
+  "data/dealer-exchange.js": {
+    "mtime": 1784147196.1285398,
+    "ast_hash": "a5076332a699855fc55e8623161f7790",
+    "semantic_hash": "a5076332a699855fc55e8623161f7790"
+  },
+  "data/ecu.js": {
+    "mtime": 1783804311.3608546,
+    "ast_hash": "5c08399ccf2a7d1cc389fc56cc572740",
+    "semantic_hash": "5c08399ccf2a7d1cc389fc56cc572740"
+  },
+  "data/vehicles.js": {
+    "mtime": 1783454798.3736777,
+    "ast_hash": "ae4daed2b3c35675ba6b4d84ccb0d98c",
+    "semantic_hash": "ae4daed2b3c35675ba6b4d84ccb0d98c"
+  },
+  "electron-builder.dev.json": {
+    "mtime": 1784248599.6295657,
+    "ast_hash": "54815569c9d0dd2b14c1d37ff67ee319",
+    "semantic_hash": ""
+  },
+  "js/app.js": {
+    "mtime": 1784248571.3327284,
+    "ast_hash": "6dcb614c3f8f0a9628b80768e2ccbd99",
+    "semantic_hash": ""
+  },
+  "js/dealer-exchange-engine.js": {
+    "mtime": 1784150311.5121512,
+    "ast_hash": "e3e775d1767f11ae03a3fa98b975a142",
+    "semantic_hash": "e3e775d1767f11ae03a3fa98b975a142"
+  },
+  "js/performance-manager.js": {
+    "mtime": 1784049157.04293,
+    "ast_hash": "ded52021a5275edef567007ed2167ab2",
+    "semantic_hash": "ded52021a5275edef567007ed2167ab2"
+  },
+  "locales/de.js": {
+    "mtime": 1784248587.468019,
+    "ast_hash": "78b6c6fcb8ffc5fb1bdb43506c8cb37f",
+    "semantic_hash": ""
+  },
+  "locales/en.js": {
+    "mtime": 1784248588.9732015,
+    "ast_hash": "e12b15eb4543111dbe624d1d6914b806",
+    "semantic_hash": ""
+  },
+  "main.js": {
+    "mtime": 1784248642.802122,
+    "ast_hash": "ba15954639e27e7f070ebb4503b6221d",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1784248597.8853073,
+    "ast_hash": "14bfbc8d2c6b638acb66e4ba8b8f672e",
+    "semantic_hash": ""
+  },
+  "preload.js": {
+    "mtime": 1784248459.4447622,
+    "ast_hash": "6502dae62bff0500a876f38a0a3ddddc",
+    "semantic_hash": ""
+  },
+  "scripts/graphify.ps1": {
+    "mtime": 1784243803.151754,
+    "ast_hash": "69aeeffdc85df8380e90f20a3e5441bd",
+    "semantic_hash": "69aeeffdc85df8380e90f20a3e5441bd"
+  },
+  "scripts/reset-game-data.js": {
+    "mtime": 1783381681.6841886,
+    "ast_hash": "1807bcbd97f38d18421283c1cf651aa0",
+    "semantic_hash": "1807bcbd97f38d18421283c1cf651aa0"
+  },
+  "AGENTS.md": {
+    "mtime": 1784243728.0469418,
+    "ast_hash": "d6681a35de753043a593b6bbbc202073",
+    "semantic_hash": "d6681a35de753043a593b6bbbc202073"
+  },
+  "CLAUDE.md": {
+    "mtime": 1784240305.978632,
+    "ast_hash": "6c815f668d2e88de18aea1b8bc18ff22",
+    "semantic_hash": "6c815f668d2e88de18aea1b8bc18ff22"
+  },
+  "Design Concepts/Dealer Exchange Architecture.txt": {
+    "mtime": 1784137857.2882607,
+    "ast_hash": "24feab64cdfa8089c19cc0817cb8379b",
+    "semantic_hash": "24feab64cdfa8089c19cc0817cb8379b"
+  },
+  "Design Concepts/Dealer Exchange Gameplay Design.txt": {
+    "mtime": 1784138330.3099964,
+    "ast_hash": "e86a0391d23888a7b5b40b5479a53069",
+    "semantic_hash": "e86a0391d23888a7b5b40b5479a53069"
+  },
+  "PROJECT_STRUCTURE.md": {
+    "mtime": 1784248693.6456487,
+    "ast_hash": "479614afec61c86456054c61b9d0b0ab",
+    "semantic_hash": ""
+  },
+  "Performance Analysis/Performance Analysis Report.txt": {
+    "mtime": 1784058716.7499318,
+    "ast_hash": "774ab6b8545faf511726eb4c6e10065f",
+    "semantic_hash": "774ab6b8545faf511726eb4c6e10065f"
+  },
+  "autodealer-simulator.html": {
+    "mtime": 1784242929.41077,
+    "ast_hash": "ed55c686b760223b4c90f9d6f2a06a48",
+    "semantic_hash": "ed55c686b760223b4c90f9d6f2a06a48"
+  }
+}

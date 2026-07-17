@@ -57,4 +57,3 @@ let activeProfileName = '';
 let gameClockStarted = false;
 let dropoutModalQueue = [];
 let dropoutModalShowing = false;
-let updateUiState = {status:'idle', label:'', progress:null};

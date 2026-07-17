@@ -1,5 +1,143 @@
 const CHANGELOG = [
   {
+    version:'1.1.1', date:'2026-07-17', type:'feature', pinned:true,
+    title:'Neue Fahrzeugpräsentation',
+    headline:'Jedes Fahrzeugmodell erhält eine eigene, wiedererkennbare und markenfreie Studioaufnahme mit klarer Klassenidentität.',
+    sections:{
+      new:[
+        'Die Fahrzeuge im regulären Markt, im Bestand und in der Händlerbörse werden modellgenau mit ihrer charakteristischen Karosserie dargestellt.',
+        'Budget, Mittelklasse, Premium, Luxus und Exotisch besitzen jeweils ein festes Studio, das bei allen Fahrzeugen derselben Klasse identisch bleibt.',
+      ],
+      improved:[
+        'Eigene Live-Auktionen sind kompakter aufgebaut, zeigen das Fahrzeug vollständig und behalten einen übersichtlichen, scrollbar angelegten Feed mit allen Händlergeboten.',
+        'Die festen Klassenstudios werden nun über robuste Asset-Klassen geladen und erscheinen auf allen Fahrzeugkarten zuverlässig im passenden Klassendesign.',
+        'Fahrzeuge sind einheitlich in Schwarz oder Silber verfügbar, sodass gespeicherte Lackfarbe und sichtbares Fahrzeugbild zuverlässig übereinstimmen.',
+        'Sämtliche Motive verzichten auf Logos, Schriftzüge und Markenembleme, während Form, Proportionen und Fahrzeugtyp klar erkennbar bleiben.',
+        'Ein integrierter Ersatzrenderer stellt sicher, dass auch bei einer fehlenden Bilddatei immer ein Fahrzeug statt einer leeren Bühne sichtbar bleibt.',
+      ],
+    },
+    en:{
+      title:'New Vehicle Presentation',
+      headline:'Every vehicle model receives its own recognizable, brand-free studio image with a clear class identity.',
+      sections:{
+        new:[
+          'Vehicles in the regular market, inventory and Dealer Exchange are shown with model-specific, characteristic bodywork.',
+          'Budget, mid-range, premium, luxury and exotic vehicles each use one fixed studio shared identically across their class.',
+        ],
+        improved:[
+          'Personal live auctions now use a compact layout, show the complete vehicle and retain a clear, scrollable feed containing every dealer bid.',
+          'Fixed class studios now load through robust asset classes and reliably appear with the correct class styling on every vehicle card.',
+          'Vehicles are consistently available in black or silver, keeping the stored paint and visible vehicle image aligned.',
+          'All artwork omits logos, lettering and brand emblems while retaining recognizable proportions, body shape and vehicle type.',
+          'A built-in fallback renderer ensures that a vehicle remains visible even if an individual image file is unavailable.',
+        ],
+      },
+    },
+  },
+  {
+    version:'1.1.1', date:'2026-07-17', type:'improvement', pinned:true,
+    title:'Audio-Komfort',
+    headline:'Die zuletzt ergänzten Bedien- und Spielklänge wurden wieder entfernt, damit Automotive Empire vollständig ruhig bleibt.',
+    sections:{
+      improved:[
+        'Buttons, Tabs, Dialoge, Programme, Benachrichtigungen und Spielereignisse geben keine zusätzlichen Klänge mehr aus.',
+        'Die zugehörigen Lautstärkeregler und Audio-Komponenten wurden vollständig aus der Spieloberfläche entfernt.',
+      ],
+    },
+    en:{
+      title:'Audio Comfort',
+      headline:'The recently added interface and gameplay sounds have been removed again, keeping Automotive Empire completely quiet.',
+      sections:{
+        improved:[
+          'Buttons, tabs, dialogs, programs, notifications and gameplay events no longer produce additional sounds.',
+          'The related volume controls and audio components have been removed completely from the game interface.',
+        ],
+      },
+    },
+  },
+  {
+    version:'1.1.1', date:'2026-07-15', type:'feature', pinned:true,
+    title:'Händlerbörse LIVE',
+    headline:'Ein neues Händlernetzwerk bringt exklusive Fahrzeuge, sichtbare Konkurrenz und lebendige Marktaktivität in Automotive Empire.',
+    sections:{
+      new:[
+        'Die neue Händlerbörse LIVE ist als eigenständiges Programm über das Programme-Menü erreichbar.',
+        'Ein fortlaufender Live-Feed zeigt neue Händlerangebote, Preisbewegungen, Reservierungen und wichtige Netzwerkaktivitäten.',
+        'Das Händlernetzwerk stellt spezialisierte Unternehmen mit eigenem Ruf, Bestand, Wachstum und Marktprofil vor.',
+        'Exklusive Fahrzeugangebote lassen sich durchsuchen, nach Segment und Potenzial sortieren, beobachten und für späteres Interesse vormerken.',
+        'Autonome KI-Händler bewerten Fahrzeuge jetzt eigenständig anhand von Marge, Nachfrage, Spezialisierung, Risiko, Lagerplatz und verfügbarem Kapital.',
+        'Spieler können verfügbare Händlerfahrzeuge jetzt zum Festpreis kaufen und direkt in den eigenen Bestand übernehmen.',
+        'Eigene Bestandsfahrzeuge lassen sich mit Preis, Beschreibung und Laufzeit im Händlernetzwerk anbieten und verwalten.',
+        'Jeder Händler baut durch echte gemeinsame Abschlüsse eine dauerhafte, individuelle Geschäftsbeziehung zum Spieler auf.',
+        'Wirtschaftlich interessierte Händler können jetzt begründete Direktangebote oder ein einmaliges Gegenangebot für Spielerfahrzeuge senden.',
+        'Komplette Fahrzeugpakete aus Lagerüberhang sowie Flotten- und Leasingrückläufen können jetzt ausschließlich als unteilbare Einheit gehandelt werden.',
+        'Marktbasierte Großaufträge verbinden normalen Fahrzeugmarkt, Händlerbörse und eigenen Bestand in einer nachvollziehbaren Beschaffungsphase.',
+        'Interaktive Live-Auktionen eröffnen einen digitalen Bietersaal mit echten Spieler- und KI-Geboten aus der bestehenden Händlerwirtschaft.',
+        'Manuelle Gebote, automatische Maximalgebote, Beobachten und ein verbindlicher Ausstieg ermöglichen erstmals ein echtes Echtzeit-Handelsminispiel.',
+        'Eigene geeignete Bestandsfahrzeuge können jetzt mit Startpreis, Mindestschritt, Laufzeit und optionalem Reservepreis direkt in denselben Live-Bietersaal eingeliefert werden.',
+      ],
+      improved:[
+        'Der Fahrzeughandel erhält eine neue Premium-Übersicht, die Chancen, Nachfrage und Konkurrenz kompakt miteinander verbindet.',
+        'Inserate, Reservierungen und Händlerkäufe verändern die Händlerbörse nun dauerhaft und bleiben gemeinsam mit Kontoständen, Beständen und Handelshistorie im Spielstand erhalten.',
+        'Der Live-Feed zeigt ausschließlich Aktivitäten, die tatsächlich aus wirtschaftlichen Händlerentscheidungen entstanden sind.',
+        'Spielerauktionen sperren das eingelieferte Fahrzeug zuverlässig für andere Verkaufswege und übertragen Erlös, Eigentum und Händlerbestand beim Zuschlag gemeinsam.',
+        'Auktionsgewinne werden jetzt vollständig atomar in den Fahrzeugbestand übernommen; eine Zahlung ohne sofort sichtbares Fahrzeug ist ausgeschlossen.',
+        'Ältere noch ausstehende Auktionslieferungen werden beim Profilstart sicher wiederhergestellt und können den Login nicht mehr blockieren.',
+        'Eine persistente Warteschlange stellt sicher, dass immer genau eine Live-Auktion läuft und die nächste Einlieferung automatisch nachrückt.',
+        'Der digitale Bietersaal bietet großzügigere Fahrzeugbereiche, größere Schrift, klarere Werte und besser lesbare Gebotsverläufe.',
+        'Eine laufende eigene Auktion steht jetzt als großformatiger Live-Mittelpunkt mit Startpreis, Höchstgebot, Restzeit, Reserve, Marktwert, Ergebnis und Gebotsverlauf über allen Bereichen.',
+        'Der neue Live-Broadcast-Modus zeigt das über seine eindeutige Bestands-ID aufgelöste Originalfahrzeug groß im Auktionssaal; eine nahezu deckende Premium-Fläche und feste Kontrastkarten halten sämtliche Live-Werte jederzeit klar lesbar.',
+        'Die eigene Live-Auktion nutzt jetzt großzügig getrennte Fahrzeug-, Preis-, Status- und Bieterbereiche; aktive Einlieferungen bleiben kompakt, während abgeschlossene Auktionen automatisch in eine einklappbare Historie wechseln.',
+        'Die aktive eigene Auktion wurde als ruhige, durchgehende Premium-Bühne vollständig neu gestaltet: Das Originalfahrzeug führt den Blick zu Höchstgebot und Restzeit, gefolgt von einer gemeinsamen Preisübersicht und einer gewichteten Gebots-Timeline.',
+        'Die Händlerbörse LIVE besitzt ein exklusives neues Hero-Motiv und ist über einen festen Direktzugriff in der unteren Hauptnavigation erreichbar.',
+        'KI-Händler reservieren und kaufen passende Spielerangebote nach denselben Budget-, Risiko- und Margenregeln; Erlös, Eigentum und Bestand werden gemeinsam aktualisiert.',
+        'Gezielte Hinweise informieren über Reservierungen, Verkäufe und abgelaufene eigene Inserate, ohne den Spieler mit allgemeinen Marktaktivitäten zu unterbrechen.',
+        'Händlerprofile zeigen nun beobachtbare Spezialisierungen, gemeinsame Geschäfte, aktuelle Angebote und einen dauerhaften Händlerverlauf statt interner KI-Werte.',
+        'Der Live-Feed bildet neue Direktangebote, Gegenangebote und Veränderungen echter Geschäftsbeziehungen nachvollziehbar ab.',
+        'Großaufträge zeigen Bedarf, Beschaffungsfortschritt, Restzeit, Auszahlung und erwarteten Gewinn jederzeit transparent an.',
+        'KI-Händler handeln Fahrzeugpakete und konkurrieren um Großaufträge; Erfolge und Fehlschläge verändern Markt, Historien und Geschäftsbeziehungen dauerhaft.',
+        'KI-Händler verfolgen individuelle Bietmuster und steigen konsequent aus, sobald Budget, Zielmarge, Risiko, Spezialisierung oder Lagerplatz ein weiteres Gebot nicht rechtfertigen.',
+        'Späte Höchstgebote verlängern Auktionen begrenzt, während Liquiditätsreservierungen und atomare Abrechnung jeden Zuschlag finanziell absichern.',
+        'Laufende Auktionen, Gebotsverläufe, Automatiklimits, Gewinner und Restzeiten bleiben vollständig im Spielstand erhalten.',
+      ],
+    },
+    en:{
+      title:'Dealer Exchange LIVE',
+      headline:'A new dealer network brings exclusive vehicles, visible competition and living market activity to Automotive Empire.',
+      sections:{
+        new:[
+          'The new Dealer Exchange LIVE is available as a standalone program from the Programs menu.',
+          'A continuous live feed highlights new dealer listings, price movements, reservations and important network activity.',
+          'The dealer network introduces specialized companies with their own reputation, inventory, growth and market profile.',
+          'Exclusive vehicle listings can be searched, filtered by segment and potential, watched and marked for interest.',
+          'Autonomous AI dealers now evaluate vehicles independently using margin, demand, specialization, risk, inventory space and available capital.',
+          'Players can now buy available dealer vehicles at a fixed price and transfer them directly into their own inventory.',
+          'Player-owned vehicles can be offered and managed across the dealer network with a price, description and duration.',
+          'Every dealer now builds an individual, persistent business relationship with the player through actual completed trades.',
+          'Dealers with a genuine economic interest can now send justified direct offers or one single counteroffer for player vehicles.',
+          'Complete vehicle packages originating from surplus inventory, fleet returns and lease returns can now be traded only as indivisible units.',
+          'Market-based business orders connect the regular vehicle market, Dealer Exchange and player inventory through a transparent procurement phase.',
+          'Interactive live auctions introduce a digital bidding room driven entirely by real player and AI bids from the existing dealer economy.',
+          'Manual bids, automatic maximum bids, watching and binding exit behavior create the first true real-time trading minigame.',
+        ],
+        improved:[
+          'Vehicle trading gains a new premium overview connecting opportunities, demand and competition at a glance.',
+          'Listings, reservations and dealer purchases now change the exchange persistently, including dealer balances, inventory and trade history.',
+          'The live feed now exclusively shows activity produced by actual economic dealer decisions.',
+          'AI dealers reserve and purchase suitable player listings under the same budget, risk and margin rules, updating proceeds, ownership and inventory atomically.',
+          'Focused notifications cover reservations, sales and expired player listings without interrupting the player for general market activity.',
+          'Dealer profiles now show observed specialties, shared trades, current offers and persistent history instead of internal AI values.',
+          'The live feed now reflects direct offers, counteroffers and changes to genuine business relationships.',
+          'Business orders display requirements, procurement progress, remaining time, payout and expected profit at all times.',
+          'AI dealers trade vehicle packages and compete for business orders, with successes and failures persistently affecting the market, histories and relationships.',
+          'AI dealers follow individual bidding behaviors and exit whenever budget, target margin, risk, specialization or inventory space no longer justifies another bid.',
+          'Late leading bids extend auctions within strict limits, while liquidity escrow and atomic settlement secure every award financially.',
+          'Active auctions, bid histories, automatic limits, winners and remaining time remain fully persistent in the save.',
+        ],
+      },
+    },
+  },
+  {
     version:'1.1.1', date:'2026-07-13', type:'major', pinned:true,
     title:'Performance- & Komfort-Highlight',
     headline:'Automotive Empire startet jetzt immersiver, beendet Spielstände besonders sicher und arbeitet auch in langen Sessions spürbar effizienter.',
@@ -597,11 +735,11 @@ const CHANGELOG = [
     title:'Update- & Icon-Feinschliff',
     sections:{
       improved:[
-        'Update-Hinweise, Login, Einstellungen und Willkommensfenster wirken jetzt einheitlicher und aufgeräumter.',
+        '„Updates & News“ ist jetzt eine ruhige, rein spielinterne Nachrichtenseite ohne automatische Prüfungen, Downloads oder Installationshinweise.',
         'Seitenleiste und Schnellzugriffe verwenden jetzt durchgängig klare, fein gezeichnete Premium-Symbole für eine ruhigere und hochwertigere Navigation.',
       ],
       fixed:[
-        'Die Update-Installation schlug bei Entwicklungs-Builds an der Signaturprüfung fehl („not signed by the application owner“).',
+        'Das Spiel verbindet sich beim Start nicht mehr selbstständig mit einer Update-Quelle.',
         'Im Willkommensfenster nach einem Update erschien der Text „rocket“ statt des eigentlichen Icons.',
         'Das Willkommensfenster zeigte nach einem Update veraltete Update-Informationen.',
       ],
@@ -610,11 +748,11 @@ const CHANGELOG = [
       title:'Update & Icon Polish',
       sections:{
         improved:[
-          'Update notices, login, settings and the welcome window now look more consistent and tidy.',
+          '“Updates & News” is now a calm, in-game news page without automatic checks, downloads or installation prompts.',
           'The sidebar and quick-access bar now use a consistent set of crisp, finely drawn premium symbols for calmer, more polished navigation.',
         ],
         fixed:[
-          'Update installation failed the signature check on development builds ("not signed by the application owner").',
+          'The game no longer connects to an update source on startup.',
           'The welcome window showed the text "rocket" instead of the actual icon after an update.',
           'The welcome window showed outdated update information after an update.',
         ],
@@ -629,16 +767,11 @@ const CHANGELOG = [
       new:[
         'Neues Programm „Updates & News“ im Programme-Menü: alle Neuerungen, Verbesserungen und Bugfixes als moderne Update-Karten.',
         'Willkommensfenster nach jedem Update: Beim ersten Start einer neuen Ausgabe werden die Neuerungen einmalig vorgestellt.',
-        'Dezente Benachrichtigung oben rechts, falls während einer Spielsitzung ein neues Update erscheint — ohne Unterbrechung.',
         'Update-Typen mit eigener Optik: Großes Inhaltsupdate, Content-, Feature-, Balance-, Bugfix-Update und Hotfix.',
       ],
       improved:[
-        'Updates werden nie mehr mitten im Spiel installiert — nur noch nach dem Login oder auf ausdrücklichen Wunsch.',
-        '„Nach Updates suchen“ meldet sich ruhiger: Ist alles aktuell, erscheint nur ein kurzer Hinweis ohne technische Details.',
-        'Update-Informationen sind jetzt im Update-Center, in den Einstellungen und auf dem Anmeldebildschirm leichter erreichbar.',
-      ],
-      fixed:[
-        'Der Update-Dialog konnte bisher mitten in einer laufenden Spielsitzung erscheinen und das Spiel unterbrechen.',
+        'Update-Informationen sind im News-Center und in den Einstellungen leicht erreichbar.',
+        'Der Bereich dient ausschließlich als übersichtliches Archiv der Spieländerungen.',
       ],
     },
     en:{
@@ -648,16 +781,11 @@ const CHANGELOG = [
         new:[
           'New "Updates & News" program in the Programs menu: all new content, improvements and bug fixes as modern update cards.',
           'Welcome window after every update: new content is presented once the first time a new release is launched.',
-          'A subtle notification in the top right if a new update appears during a play session — without interrupting you.',
           'Update types with their own look: major content update, content, feature, balance, bugfix update and hotfix.',
         ],
         improved:[
-          'Updates are never installed mid-session anymore — only after login or on explicit request.',
-          '"Check for updates" is quieter now: if everything is current, only a short notice appears with no technical details.',
-          'Update information is now easier to reach in the update center, in settings and on the login screen.',
-        ],
-        fixed:[
-          'The update dialog could previously appear in the middle of an active play session and interrupt the game.',
+          'Update information is easy to reach in the news center and settings.',
+          'The area serves exclusively as a clear archive of game changes.',
         ],
       },
     },
@@ -699,7 +827,7 @@ const CHANGELOG = [
     sections:{
       new:[
         'Automotive Empire läuft jetzt als eigenständige Desktop-App mit Installer und portabler Version.',
-        'Automatische Update-Prüfung über GitHub Releases.',
+        'Eigenständige Installation ohne automatische Update-Verbindung.',
         'UI 3.0: komplett neu aufgebaute Oberfläche mit Dock, KPI-Leiste, Programm-Launcher und Glasoptik.',
       ],
     },
@@ -709,7 +837,7 @@ const CHANGELOG = [
       sections:{
         new:[
           'Automotive Empire now runs as a standalone desktop app with an installer and a portable version.',
-          'Automatic update checks via GitHub Releases.',
+          'Standalone installation without an automatic update connection.',
           'UI 3.0: a completely rebuilt interface with a dock, KPI bar, program launcher and glass look.',
         ],
       },

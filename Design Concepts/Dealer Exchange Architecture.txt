@@ -1,0 +1,896 @@
+======================================================================
+AUTOMOTIVE EMPIRE
+HÄNDLERBÖRSE LIVE – TECHNISCHE ARCHITEKTUR
+======================================================================
+
+Status: Architekturkonzept, keine Implementierung
+Datum: 15.07.2026
+
+======================================================================
+1. Ziel des Systems
+======================================================================
+
+Die Händlerbörse LIVE bildet einen eigenständigen, dauerhaft aktiven
+Fahrzeugmarkt ab. Der Spieler ist ein Marktteilnehmer unter vielen und besitzt
+keine bevorzugte Behandlung. Jeder Kauf, Verkauf, jedes Angebot und jede
+Reservierung entsteht aus dem Zustand und einer nachvollziehbaren Entscheidung
+eines Händlers.
+
+Das System soll:
+
+- einen glaubwürdigen Markt ohne notwendige Spieleraktion betreiben,
+- jede Händlerentscheidung aus wirtschaftlichen Faktoren ableiten,
+- Angebot, Nachfrage, Liquidität und Konkurrenz tatsächlich entstehen lassen,
+- Entscheidungen reproduzierbar und erklärbar halten,
+- bestehende Fahrzeug-, Markt-, Speicher- und Tageswechselsysteme integrieren,
+- spätere Auktionen, Beziehungen und internationale Märkte ermöglichen,
+- bei vielen Händlern und Fahrzeugen performant und speicherbar bleiben.
+
+Nicht Bestandteil dieser Phase sind UI, Händlerinstanzen, Simulation,
+Auktionen, Nachrichten oder Änderungen am Spielzustand.
+
+======================================================================
+2. Architekturprinzipien
+======================================================================
+
+2.1 Autoritativer Simulationszustand
+
+Es gibt genau einen autoritativen Börsenzustand pro Profil. UI und spätere
+Animationen zeigen diesen Zustand nur an. Sie erzeugen keine Gebote und führen
+keine Transaktionen aus.
+
+2.2 Deterministische Entscheidungen
+
+Eine identische Eingabe aus Händlerzustand, Fahrzeug, Markt-Snapshot und
+Simulationszeit erzeugt dieselbe Bewertung. Zufall darf keine wirtschaftliche
+Entscheidung ersetzen. Falls später Varianz benötigt wird, stammt sie aus bei
+der Händlererzeugung dauerhaft gespeicherten Eigenschaften oder aus einem
+profilgebundenen, reproduzierbaren Seed – niemals aus einem Fake-Gebot.
+
+2.3 Trennung von Absicht und Transaktion
+
+Ein Händler erzeugt zuerst eine Absicht, zum Beispiel Kaufen, Inserieren,
+Reservieren oder Zurückziehen. Erst der Markt prüft Regeln, konkurrierende
+Absichten und verfügbare Ressourcen. Erst danach entsteht eine verbindliche
+Transaktion.
+
+2.4 Keine direkte Händler-zu-Händler-Mutation
+
+Händler verändern niemals den Bestand oder Kontostand eines anderen Händlers.
+Alle Transfers laufen über Markt-, Reservierungs- und Settlement-Dienste. So
+bleiben Eigentum, Geld und Historie konsistent.
+
+2.5 Ereignisbasierte Nachvollziehbarkeit
+
+Jede akzeptierte Zustandsänderung erzeugt ein Domain Event. Beispiele:
+ListingCreated, OfferSubmitted, VehicleReserved, TradeSettled und
+ListingWithdrawn. Die Events dienen Audit, Statistiken, späteren Nachrichten
+und der Erklärung von KI-Entscheidungen.
+
+2.6 Begrenzte diskrete Simulation
+
+Der Markt wird in fachlichen Ticks fortgeschrieben, nicht in jedem Renderframe.
+Entscheidungen werden über Händler und Zeitfenster verteilt. Rendering,
+Spieluhr und Börsensimulation bleiben getrennt.
+
+======================================================================
+3. Empfohlene Systemgrenzen
+======================================================================
+
+DealerExchangeEngine
+  Koordiniert einen Börsentick. Besitzt selbst keine UI und keine
+  Händlerstrategie.
+
+DealerRepository
+  Verwaltet Händleraggregate und stellt gezielte Abfragen bereit.
+
+VehicleOwnershipRegistry
+  Autoritative Zuordnung eines Fahrzeugs zu genau einem Eigentümer. Verhindert
+  Doppelverkäufe und parallele Bestandskopien.
+
+MarketStateService
+  Erzeugt Markt-Snapshots aus Angebot, abgeschlossenen Verkäufen, Suchdruck,
+  Segmenten und Regionen. Händler lesen Snapshots, mutieren sie aber nicht.
+
+DealerDecisionEngine
+  Bewertet mögliche Aktionen eines Händlers. Liefert sortierte, begründete
+  Intents statt direkter Mutationen.
+
+InventoryStrategy
+  Entscheidet über Zielbestand, gewünschte Segmente, Lagerumschlag und
+  notwendige Abverkäufe.
+
+PricingStrategy
+  Berechnet Einkaufslimit, Listenpreis, Mindestpreis und Preisänderungen.
+
+OfferService
+  Erstellt, validiert, ändert, akzeptiert, lehnt ab und beendet Angebote.
+
+ListingService
+  Verwaltet Inserate und deren Lebenszyklus.
+
+ReservationService
+  Sperrt ein Fahrzeug für eine begrenzte fachliche Zeit atomar für genau einen
+  Interessenten.
+
+MatchingEngine
+  Findet wirtschaftlich passende Kaufabsichten, Inserate und Direktangebote.
+  Sie entscheidet nicht für Händler, sondern gleicht bereits begründete
+  Absichten ab.
+
+TradeSettlementService
+  Führt Geld- und Eigentumsübertragung als unteilbare Transaktion aus.
+
+CreditService
+  Prüft Kreditrahmen, Bonität und Finanzierungsfähigkeit. In der ersten
+  Implementierungsstufe kann es nur Barliquidität erlauben, ohne die spätere
+  Schnittstelle zu ändern.
+
+MarketEventLog
+  Speichert fachlich relevante Ereignisse in kompakter, begrenzter Form.
+
+DealerExchangeScheduler
+  Verteilt Händlerentscheidungen auf Ticks und priorisiert fällige Aktionen.
+
+DealerExchangePersistence
+  Serialisiert Zustand, Schema-Version und Scheduler-Fortschritt in den
+  bestehenden Profilspeicher.
+
+======================================================================
+4. Datenmodelle
+======================================================================
+
+4.1 DealerProfile
+
+id
+  Dauerhafte interne ID.
+
+companyName
+  Anzeigename des Unternehmens.
+
+kind
+  player, independent, chain, specialist, wholesaler oder später vip.
+
+cashBalance
+  Tatsächlich frei verfügbares Geld.
+
+operatingReserve
+  Nicht für Fahrzeugkäufe verfügbares Mindestkapital.
+
+creditRating
+  Bonität als normalisierter Wert und fachliche Klasse.
+
+creditLimit / creditUsed
+  Vorbereitete Felder für spätere Finanzierung.
+
+inventoryVehicleIds
+  Referenzen auf Fahrzeuge im Ownership Registry.
+
+inventoryCapacity
+  Harte maximale Lagergröße.
+
+targetInventoryRange
+  Wirtschaftlich gewünschter Mindest- und Maximalbestand.
+
+profitTarget
+  Erwartete Mindestmarge oder Mindestdeckungsbeitrag.
+
+preferredBrands
+  Gewichtete Markenpräferenzen, keine Ja/Nein-Liste.
+
+preferredVehicleTypes
+  Gewichtete Typ- und Segmentpräferenzen.
+
+riskLevel
+  Toleranz für Preis-, Zustands-, Nachfrage- und Haltedauerrisiko.
+
+buyingBehavior
+  Parameter für Preisdisziplin, Reaktionsschwelle und Beschaffungshorizont.
+
+sellingBehavior
+  Parameter für Aufschlag, Preisnachlass, Abverkaufsdruck und Verhandlung.
+
+patience
+  Tolerierte Haltedauer und Wartezeit vor Preisänderungen.
+
+aggressiveness
+  Bereitschaft, gute Gelegenheiten schnell zu reservieren oder Konkurrenz zu
+  überbieten, jedoch nie oberhalb des eigenen wirtschaftlichen Limits.
+
+reputation
+  Marktvertrauen aus erfolgreichen, stornierten und problematischen Geschäften.
+
+growthRate
+  Geglättete Entwicklung von Kapital, Bestand und Ergebnis.
+
+strategyProfileId
+  Referenz auf eine Strategie-Konfiguration statt fest codierter Händlerklasse.
+
+decisionState
+  nextDecisionAt, lastDecisionAt, aktuelle Ziele und begrenzter Memory-Zustand.
+
+metrics
+  Umsatz, Gewinn, Lagerumschlag, Durchschnittsmarge, Käufe und Verkäufe.
+
+version
+  Optimistic-Locking-Version zur Konflikterkennung.
+
+4.2 ExchangeVehicle
+
+vehicleId
+ownerDealerId
+brand
+model
+vehicleType
+segment
+year
+mileage
+condition
+issues
+acquisitionCost
+estimatedMarketValue
+valuationConfidence
+daysInInventory
+region
+tradabilityStatus
+
+Fahrzeugdetails sollen nach Möglichkeit auf das bestehende Automotive-Empire-
+Fahrzeugmodell verweisen. Börsenspezifische Zustände werden separat gehalten,
+damit kein zweites widersprüchliches Fahrzeugobjekt entsteht.
+
+4.3 MarketListing
+
+id
+vehicleId
+sellerDealerId
+askingPrice
+minimumAcceptablePrice
+createdAtTick
+expiresAtTick
+status
+visibilityScope
+allowedBuyerTypes
+priceRevisionCount
+terms
+version
+
+Status: draft, active, reserved, sold, withdrawn oder expired.
+
+4.4 PurchaseOffer
+
+id
+listingId
+vehicleId
+buyerDealerId
+sellerDealerId
+amount
+createdAtTick
+expiresAtTick
+status
+economicScore
+decisionReasonCodes
+fundsHoldId
+version
+
+Status: submitted, countered, accepted, rejected, withdrawn, expired oder
+settled.
+
+4.5 VehicleReservation
+
+id
+vehicleId
+listingId
+buyerDealerId
+sellerDealerId
+createdAtTick
+expiresAtTick
+status
+fundsHoldId
+
+Eine aktive Reservierung pro Fahrzeug. Ablauf und Freigabe erfolgen durch den
+Scheduler, nicht durch UI-Timer.
+
+4.6 FundsHold
+
+id
+dealerId
+amount
+reasonType
+reasonId
+createdAtTick
+expiresAtTick
+status
+
+cashBalance bleibt der Kontostand; availableCash ergibt sich aus Kontostand
+minus Betriebsreserve minus aktive Holds. So kann dasselbe Geld nicht für
+mehrere gleichzeitige Angebote verwendet werden.
+
+4.7 TradeTransaction
+
+id
+vehicleId
+buyerDealerId
+sellerDealerId
+grossPrice
+fees
+netSellerProceeds
+buyerTotalCost
+settledAtTick
+sourceType
+sourceId
+marketSnapshotId
+
+TradeTransaction ist nach Settlement unveränderlich.
+
+4.8 MarketSnapshot
+
+id
+tick
+segmentKey
+region
+supplyCount
+demandScore
+liquidityScore
+medianAskingPrice
+medianSalePrice
+saleVelocity
+priceTrend
+sampleConfidence
+
+4.9 DealerIntent
+
+id
+dealerId
+type
+targetId
+priority
+utilityScore
+maximumSpend
+minimumRevenue
+expiresAtTick
+reasonCodes
+inputSnapshotId
+
+Intent-Typen: acquire, list, reprice, offer, counter, reserve, withdraw oder
+liquidate.
+
+4.10 DomainEvent
+
+id
+tick
+type
+actorDealerId
+aggregateType
+aggregateId
+payload
+correlationId
+
+======================================================================
+5. Händlerlogik
+======================================================================
+
+5.1 Händlerziele
+
+Jeder Händler leitet pro Planungszyklus konkrete Ziele ab:
+
+- Liquiditätsreserve schützen,
+- Zielbestand erreichen,
+- überalterten Bestand reduzieren,
+- profitable Segmente verstärken,
+- Risikokonzentration begrenzen,
+- Kapazität für bessere Gelegenheiten freihalten,
+- Wachstumsziel verfolgen.
+
+5.2 Kandidatenerzeugung
+
+Die Decision Engine bewertet nicht den gesamten Markt vollständig. Der Markt
+liefert vorgefilterte Kandidaten nach Budget, Kapazität, Region, Segment und
+grundsätzlicher Handelbarkeit. Dadurch bleibt die Entscheidung fachlich sauber
+und performant.
+
+5.3 Kaufbewertung
+
+Für jeden Kandidaten wird ein erwarteter wirtschaftlicher Wert berechnet:
+
+expectedRevenue
+  Erwarteter realistischer Verkaufspreis aus Marktwert, Trend, Nachfrage,
+  Händlerreputation und Bewertungsvertrauen.
+
+totalAcquisitionCost
+  Kaufpreis plus Gebühren, Transport, erwartete Aufbereitung und Risikopuffer.
+
+expectedHoldingCost
+  Kapitalbindung und Lagerkosten für die erwartete Haltedauer.
+
+expectedProfit
+  expectedRevenue minus totalAcquisitionCost minus expectedHoldingCost.
+
+riskAdjustedProfit
+  expectedProfit abzüglich zustands-, nachfrage- und bewertungsabhängiger
+  Risikokosten.
+
+strategicFit
+  Marken-/Segmentpräferenz, Bestandslücke und Händlerkompetenz.
+
+inventoryPressure
+  Abwertung bei knapper Lagerkapazität oder zu hohem ähnlichem Bestand.
+
+liquidityPressure
+  Abwertung bei geringer verfügbarer Liquidität oder naher Betriebsreserve.
+
+Die Kaufutility kann konzeptionell so normalisiert werden:
+
+utility = marginScore
+        + demandScore
+        + strategicFit
+        + growthFit
+        - riskPenalty
+        - inventoryPressure
+        - liquidityPressure
+
+Ein Kaufintent entsteht nur, wenn:
+
+- utility die individuelle Händlerschwelle überschreitet,
+- riskAdjustedProfit das Gewinnziel erfüllt,
+- availableCash inklusive Nebenkosten ausreicht,
+- nach dem Kauf Kapazität verfügbar bleibt,
+- kein aktiver Hold oder Eigentumskonflikt besteht.
+
+5.4 Maximales Gebot
+
+Das maximale Gebot ist kein Zufallswert:
+
+maxBid = erwarteter Erlös
+       - Zielgewinn
+       - Nebenkosten
+       - erwartete Lagerkosten
+       - Risikopuffer
+
+Aggressivität beeinflusst, wie nahe ein Händler an maxBid startet und wie
+schnell er reagiert. Sie darf maxBid nicht überschreiben.
+
+5.5 Verkaufsbewertung
+
+Ein Händler prüft regelmäßig:
+
+- aktuelle Haltedauer gegen Geduld,
+- erzielbare Marge,
+- aktuelle und erwartete Nachfrage,
+- Lagerauslastung,
+- Liquiditätsbedarf,
+- Opportunitätskosten des Stellplatzes,
+- Konzentration auf Marken und Segmente,
+- konkurrierende Inserate.
+
+Ein hoher Abverkaufsdruck senkt den Zielaufschlag schrittweise. Preisänderungen
+folgen einer Strategie und Mindestabständen, nicht zufälligen Sprüngen.
+
+5.6 Angebotsreaktion
+
+Der Verkäufer vergleicht ein Angebot mit:
+
+- Mindestpreis,
+- erwartetem Nettoerlös bei weiterem Warten,
+- Haltedauer und Lagerdruck,
+- Zuverlässigkeit des Käufers,
+- konkurrierenden gültigen Angeboten,
+- Opportunitätskosten.
+
+Er akzeptiert, lehnt ab, kontert oder wartet. Jede Entscheidung speichert
+Reason Codes, beispielsweise MARGIN_TOO_LOW, INVENTORY_PRESSURE,
+HIGH_BUYER_REPUTATION oder BETTER_ACTIVE_OFFER.
+
+======================================================================
+6. Marktlogik und Handelsablauf
+======================================================================
+
+6.1 Börsentick
+
+1. Abgelaufene Holds, Reservierungen, Angebote und Inserate bereinigen.
+2. Fällige Markt-Snapshots inkrementell aktualisieren.
+3. Fällige Händler anhand nextDecisionAt auswählen.
+4. Pro Händler Zustand und einen unveränderlichen Markt-Snapshot lesen.
+5. Kandidaten erzeugen und durch die Decision Engine bewerten.
+6. Eine begrenzte Zahl höchstpriorisierter Intents veröffentlichen.
+7. Intents durch Listing-, Offer- und Reservation-Service validieren.
+8. Kompatible Absichten im Matching Engine abgleichen.
+9. Akzeptierte Geschäfte atomar setteln.
+10. Events, Händlerkennzahlen und nächste Entscheidungszeit aktualisieren.
+
+6.2 Inserat entsteht
+
+InventoryStrategy markiert ein Fahrzeug als verkaufsbereit. PricingStrategy
+liefert Listen- und Mindestpreis. ListingService prüft Eigentum,
+Handelbarkeit und fehlende aktive Reservierung. Erst danach wird das Inserat
+active und für andere Händler sichtbar.
+
+6.3 Kauf entsteht
+
+Ein Händler entdeckt ein Inserat über Kandidatenindizes. Die Decision Engine
+erzeugt ein begründetes Offer- oder Buy-Intent. OfferService reserviert den
+benötigten Geldbetrag. Verkäuferstrategie bewertet das Angebot. Bei Annahme
+reserviert ReservationService das Fahrzeug. Settlement überträgt Geld und
+Eigentum atomar.
+
+6.4 Direktangebot entsteht
+
+Ein Händler kann einem Eigentümer nur dann ein Direktangebot senden, wenn das
+Fahrzeug dafür freigegeben ist und die eigene Bewertung ein wirtschaftliches
+Limit ergibt. Der Eigentümer bewertet es mit derselben Verkaufslogik wie ein
+Inseratsangebot.
+
+6.5 Konkurrenz entsteht
+
+Konkurrenz wird nicht geskriptet. Sie entsteht, wenn mehrere Händler aufgrund
+ihrer Strategien dasselbe knappe Fahrzeug oder Segment wirtschaftlich attraktiv
+finden. Der Markt verarbeitet gültige Angebote nach fachlich definierter
+Priorität, Zeitpunkt und Verkäuferentscheidung. Kein Händler kennt das geheime
+Maximalgebot eines anderen.
+
+6.6 Reservierung und Konflikte
+
+- Reservierung erfolgt atomar über vehicleId.
+- Eine zweite Reservierung wird abgelehnt.
+- Geld wird über FundsHold blockiert.
+- Settlement prüft Version, Eigentümer, Reservierung und Hold erneut.
+- Schlägt eine Prüfung fehl, wird nichts teilweise übertragen.
+- Idempotency Keys verhindern doppelte Ausführung nach Save/Load.
+
+6.7 Angebot zurückziehen
+
+Ein Käufer darf ein offenes Angebot vor Annahme zurückziehen. Der Hold wird
+freigegeben und ein Event geschrieben. Ein Verkäufer darf ein nicht reserviertes
+Inserat zurückziehen. Rückzüge können später die Reputation beeinflussen, sind
+aber keine zufälligen Ereignisse.
+
+======================================================================
+7. Dauerhaft lebendiger Markt
+======================================================================
+
+Der Markt bleibt durch geschlossene wirtschaftliche Kreisläufe aktiv:
+
+- Händler besitzen laufende Bestände und individuelle Zielbestände.
+- Haltedauer erzeugt Lager- und Opportunitätskosten.
+- Verkäufe schaffen Liquidität für neue Käufe.
+- Lagerknappheit erzwingt Abverkäufe oder verhindert Käufe.
+- Nachfrage und reale Abschlüsse verändern Markt-Snapshots.
+- Preisänderungen erzeugen neue wirtschaftliche Chancen.
+- Spezialisierungen erzeugen unterschiedliche Bewertungen desselben Fahrzeugs.
+- Risiko, Geduld und Liquidität erzeugen verschiedene Zeithorizonte.
+
+Für einen langfristig geschlossenen Markt wird später eine klar modellierte
+externe Quelle/Senke benötigt, beispielsweise Hersteller, Endkundenmarkt,
+Inzahlungnahmen, Flottenabgänge oder Export. Diese Akteure müssen ebenfalls
+wirtschaftliche Regeln besitzen. Ohne Quellen und Senken würde ein vollständig
+geschlossenes Händlernetz langfristig nur denselben Bestand umverteilen.
+
+Offline-Fortschritt darf nicht jeden verpassten Tick einzeln simulieren.
+Stattdessen verarbeitet ein Catch-up-Service begrenzte Zeitblöcke mit denselben
+Regeln, festen Obergrenzen und reproduzierbarem Ergebnis.
+
+======================================================================
+8. Spielerintegration
+======================================================================
+
+Der Spieler wird über einen DealerProfile-Adapter in dieselben Marktregeln
+eingebunden:
+
+- Spielerbestand nutzt dasselbe Ownership Registry.
+- Spielerangebote durchlaufen OfferService und FundsHold.
+- Spielerreservierungen besitzen dieselben Laufzeiten.
+- KI-Händler bewerten Spielerfahrzeuge wie andere Fahrzeuge.
+- Spielerangebote werden anhand derselben Verkäuferlogik bewertet.
+- Settlement nutzt dieselbe atomare Transaktion.
+- UI darf keine nicht existierenden Gegenangebote simulieren.
+
+Manuelle Spielerentscheidungen ersetzen die Decision Engine des Spielerprofils,
+nicht jedoch Marktvalidierung und Settlement.
+
+======================================================================
+9. Persistenz und Migration
+======================================================================
+
+Empfohlener Profilzustand:
+
+dealerExchange: {
+  schemaVersion,
+  simulationTick,
+  dealersById,
+  ownershipByVehicleId,
+  listingsById,
+  offersById,
+  reservationsByVehicleId,
+  fundsHoldsById,
+  transactions,
+  marketSnapshots,
+  scheduler,
+  eventLog,
+  idempotencyKeys
+}
+
+Regeln:
+
+- Einführung nur mit migrateState()-Migration.
+- Alte Profile erhalten einen validen leeren Ausgangszustand.
+- Indizes werden beim Laden rekonstruierbar gehalten und nicht zwingend
+  vollständig gespeichert.
+- EventLog, Transaktionen und Snapshots besitzen Aufbewahrungsgrenzen.
+- Save erfolgt nur an konsistenten Tick-/Settlement-Grenzen.
+- Laufende Transaktionen werden entweder vollständig abgeschlossen oder
+  vollständig verworfen.
+- schemaVersion ist unabhängig von der sichtbaren Spielversion.
+
+======================================================================
+10. Vorgesehene Modulstruktur
+======================================================================
+
+Noch nicht anzulegen; empfohlene spätere Zielstruktur:
+
+js/dealer-exchange/
+  dealer-exchange-engine.js
+  dealer-exchange-scheduler.js
+  dealer-decision-engine.js
+  inventory-strategy.js
+  pricing-strategy.js
+  listing-service.js
+  offer-service.js
+  reservation-service.js
+  matching-engine.js
+  trade-settlement-service.js
+  market-state-service.js
+  dealer-exchange-persistence.js
+  dealer-exchange-events.js
+
+data/dealer-exchange/
+  strategy-profiles.js
+  market-rules.js
+  dealer-archetypes.js
+
+Tests:
+  dealer-decision-engine.test.js
+  trade-settlement-service.test.js
+  reservation-conflicts.test.js
+  deterministic-replay.test.js
+  market-stability.test.js
+
+Die fachliche Engine soll keine DOM-, CSS-, Electron- oder Übersetzungsabhängigkeit
+besitzen. So kann sie isoliert getestet und später in Worker oder Main Process
+verschoben werden.
+
+======================================================================
+11. Erweiterungspunkte
+======================================================================
+
+Live-Auktionen
+  Neue AuctionAggregate- und BidPolicy-Schicht. Gebote bleiben DealerIntents und
+  werden gegen FundsHold und maxBid validiert.
+
+Exklusive Händlerangebote
+  visibilityScope und EligibilityPolicy auf Listings/Offers.
+
+Händler-Messenger
+  Projektion vorhandener Domain Events in Konversationen; Nachrichten dürfen
+  keine wirtschaftliche Transaktion ersetzen.
+
+Freundschaften und Rivalitäten
+  RelationshipGraph beeinflusst Vertrauen, Informationszugang und
+  Verhandlungsbereitschaft innerhalb harter wirtschaftlicher Grenzen.
+
+Großaufträge
+  BatchOrderAggregate mit Teilmengen, Lieferfenstern und Gesamt-Holds.
+
+Händlernetzwerk
+  NetworkMembership und gemeinsame Sichtbarkeit/Regeln.
+
+VIP-Händler
+  Dealer kind und EligibilityPolicy, keine Sonderfälle im Settlement.
+
+Internationale Händler
+  Region, Währung, Steuer, Transport, Exportregeln und Wechselkurs-Snapshot.
+
+Händlerbewertungen
+  ReputationProjection aus abgeschlossenen Domain Events.
+
+======================================================================
+12. Performance-Auswirkungen
+======================================================================
+
+Hauptkosten
+
+- Händler x Marktangebote als potenziell quadratischer Suchraum,
+- wiederholte Fahrzeugbewertungen,
+- Marktstatistiken über lange Historien,
+- große Event- und Transaktionslisten,
+- Offline-Catch-up,
+- Serialisierung großer Profilzustände.
+
+Gegenmaßnahmen in der Architektur
+
+- Indizes nach Segment, Marke, Preisbereich, Region und Status,
+- Kandidatenbegrenzung vor der vollständigen Utility-Berechnung,
+- fällige Händler über Priority Queue statt vollständigem Scan,
+- unveränderliche Snapshots pro Tick gemeinsam verwenden,
+- inkrementelle Marktstatistiken statt vollständiger Neuberechnung,
+- begrenzte Intents und Aktionen pro Händler/Tick,
+- Event- und Snapshot-Kompaktion,
+- normalisierte Maps statt tiefer Objektduplikate,
+- Dirty Sets für veränderte Händler, Inserate und Segmente,
+- UI erhält Projektionen/Deltas statt den gesamten Simulationszustand,
+- keine Simulation im requestAnimationFrame oder DOM-Renderzyklus.
+
+Empfohlenes Simulationsbudget
+
+Die Engine erhält pro Spieltick ein festes Arbeitsbudget. Nicht fällige Arbeit
+bleibt in der Scheduler Queue. Fachliche Prioritäten dürfen das Budget steuern,
+das Ergebnis einer einzelnen Entscheidung jedoch nicht verändern.
+
+Worker-Eignung
+
+Die reine Daten-/Intent-Architektur ermöglicht später einen Web Worker. Vorher
+muss gemessen werden, ob Serialisierungskosten den Gewinn rechtfertigen. Die
+erste Implementierung sollte testbar und entkoppelt sein, aber nicht vorschnell
+IPC-Komplexität einführen.
+
+======================================================================
+13. Risiken und Schutzmaßnahmen
+======================================================================
+
+Marktstillstand
+  Ursache: zu strenge Gewinnziele oder fehlende externe Quellen/Senken.
+  Schutz: Simulations-Szenarien und Stabilitätstests, keine Fake-Käufe.
+
+Inflation oder Kapitalverlust
+  Ursache: unkontrollierte Geldquellen, Gebühren oder falsches Settlement.
+  Schutz: Geldfluss-Ledger und Bilanzinvarianten.
+
+Doppelverkauf
+  Ursache: parallele Angebote/Reservierungen.
+  Schutz: Ownership Registry, Versionen, atomare Reservierung und Settlement.
+
+Überbuchte Händler
+  Ursache: mehrere Angebote verwenden dasselbe Geld.
+  Schutz: FundsHold und availableCash.
+
+Homogenes Verhalten
+  Ursache: alle Händler verwenden identische Gewichte.
+  Schutz: dauerhafte Strategieprofile und unterschiedliche wirtschaftliche
+  Ausgangslagen, nicht spontane Zufallsentscheidungen.
+
+Unfaire KI
+  Ursache: Zugriff auf geheime Spieler- oder Konkurrenzwerte.
+  Schutz: expliziter DecisionContext mit nur öffentlich/verfügbar erlaubten Daten.
+
+Savegame-Wachstum
+  Ursache: unbegrenzte Events, Snapshots und Angebote.
+  Schutz: Retention, Aggregation und Archivgrenzen.
+
+Tick-Spikes
+  Ursache: alle Händler entscheiden gleichzeitig.
+  Schutz: Scheduler, Batching und Arbeitsbudget.
+
+Unverständliche Entscheidungen
+  Ursache: nur ein Endscore ohne Begründung.
+  Schutz: Score-Komponenten und Reason Codes speichern.
+
+Feedback-Schleifen
+  Ursache: KI reagiert auf KI-Preise statt reale Abschlüsse.
+  Schutz: Marktwert primär aus belastbaren Verkäufen, Confidence und geglätteten
+  Trends ableiten.
+
+======================================================================
+14. Fachliche Invarianten
+======================================================================
+
+- Jedes Fahrzeug besitzt zu jedem Zeitpunkt höchstens einen Eigentümer.
+- Ein verkauftes Fahrzeug kann nicht gleichzeitig aktiv inseriert sein.
+- Pro Fahrzeug existiert höchstens eine aktive Reservierung.
+- Ein FundsHold kann nur einmal freigegeben oder verrechnet werden.
+- Kein Händler darf unter die erlaubte Liquiditätsgrenze setteln.
+- Käuferbelastung und Verkäufergutschrift plus Gebühren müssen bilanziell passen.
+- Eine TradeTransaction wird höchstens einmal ausgeführt.
+- Abgelaufene Angebote können nicht akzeptiert werden.
+- Kein Intent darf Marktregeln umgehen.
+- UI-Zustand ist niemals Quelle einer Transaktion.
+- Kein KI-Gebot existiert ohne Händler, Bewertung, Budgetprüfung und Reason Codes.
+
+======================================================================
+15. Teststrategie
+======================================================================
+
+Unit Tests
+
+- Kaufutility und maxBid bei bekannten Eingaben,
+- Liquiditäts-, Kapazitäts- und Risikogrenzen,
+- Preis- und Verkaufsstrategie,
+- Ablauf von Angeboten und Holds.
+
+Invariant Tests
+
+- kein doppeltes Eigentum,
+- keine negative unzulässige Liquidität,
+- Geld- und Fahrzeugerhaltung im Händlernetz,
+- höchstens eine aktive Reservierung.
+
+Deterministic Replay
+
+Gleicher Ausgangszustand plus gleiche Intents und Ticks muss denselben Endzustand
+und dieselben Domain Events erzeugen.
+
+Szenariotests
+
+- illiquider Markt,
+- hohe Nachfrage bei knappem Angebot,
+- Überangebot,
+- spezialisierte Händler,
+- aggressive Konkurrenz um ein Fahrzeug,
+- voller Lagerbestand,
+- Angebotsrückzug während Reservierung,
+- Save/Load zwischen Annahme und Settlement.
+
+Langzeitsimulation
+
+Tausende fachliche Ticks ohne Spieleraktion. Geprüft werden Marktaktivität,
+Preisverteilung, Händlerinsolvenz-/Wachstumsverteilung, Speicherwachstum und
+Invarianten. Ein Test darf Marktstillstand melden; die Produktion darf ihn nicht
+durch Fake-Aktionen kaschieren.
+
+======================================================================
+16. Empfohlene Umsetzungsschritte
+======================================================================
+
+Phase 1 – Fachliche Verträge
+
+- Datenmodelle und Invarianten finalisieren.
+- DecisionContext und Reason Codes definieren.
+- Schnittstellen ohne UI implementieren.
+- Testfixtures für Fahrzeuge, Händler und Markt-Snapshots erstellen.
+
+Phase 2 – Transaktionskern
+
+- Ownership Registry, FundsHold, Reservation und Settlement implementieren.
+- Bilanz- und Konflikttests abschließen.
+- Noch keine autonome Händleraktivität aktivieren.
+
+Phase 3 – Händlerentscheidung
+
+- InventoryStrategy, PricingStrategy und Decision Engine implementieren.
+- Kauf-, Verkauf-, Angebots- und Rückzugsentscheidungen erklären können.
+- Deterministic-Replay-Tests abschließen.
+
+Phase 4 – Markt und Scheduler
+
+- Listings, Offers, Matching und fachliche Ticks verbinden.
+- Arbeitsbudget, Indizes und inkrementelle Snapshots ergänzen.
+- Langzeitsimulationen durchführen.
+
+Phase 5 – Profilintegration
+
+- schemaVersion und migrateState()-Migration ergänzen.
+- Spieler über denselben Marktadapter anbinden.
+- Save/Load- und Offline-Catch-up-Szenarien absichern.
+
+Phase 6 – Read Models und UI-Konzept
+
+- Erst nach stabiler Simulation UI-Projektionen definieren.
+- Keine UI-Aktion darf direkt den Kernzustand mutieren.
+- Updates & News erst mit einer tatsächlich spielbaren Änderung ergänzen.
+
+Phase 7 – Erweiterungen
+
+- Auktionen, Beziehungen, Messenger und internationale Händler jeweils als
+  getrennte Aggregate/Policies ergänzen.
+- Keine Erweiterung darf Settlement-Invarianten umgehen.
+
+======================================================================
+17. Architekturentscheidung
+======================================================================
+
+Empfohlen wird ein modularer, deterministischer Simulationskern mit
+intentbasierter Händler-KI, zentral validiertem Markt, atomarem Settlement und
+ereignisbasierter Historie. Händler entscheiden autonom, besitzen aber keine
+direkten Schreibrechte auf fremde Bestände oder Konten.
+
+Diese Architektur erzeugt keinen künstlichen Markt. Marktaktivität entsteht nur,
+wenn konkrete Händlerzustände und wirtschaftliche Bewertungen eine Aktion
+rechtfertigen. Gleichzeitig bleiben Transaktionen nachvollziehbar, testbar,
+speicherbar und für alle vorgesehenen Erweiterungen offen.

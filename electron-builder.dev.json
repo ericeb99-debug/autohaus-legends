@@ -8,7 +8,6 @@
   "directories": {
     "output": "dist-dev"
   },
-  "afterPack": "scripts/after-pack-dev.js",
   "asar": false,
   "publish": [],
   "files": [

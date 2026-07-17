@@ -1,5 +1,19 @@
 # Automotive Empire Projektregeln
 
+## Ruflo und autonome Agentenauswahl
+
+Bei jeder zukuenftigen Aufgabe zur Entwicklung, Erweiterung, Fehlerbehebung, Optimierung oder Pflege des Spiels ist Ruflo als Orchestrierungs- und Routing-Schicht zu verwenden.
+
+Dabei gilt:
+
+- Geeignete Spezialagenten werden anhand der Aufgabe selbststaendig ausgewaehlt und eingesetzt.
+- Fuer die Agentenauswahl oder Delegation ist keine erneute Bestaetigung des Benutzers erforderlich.
+- Umfang und Anzahl der Agenten richten sich nach Komplexitaet und Risiko der Aufgabe.
+- Typische Rollen sind beispielsweise Planung/Architektur, Recherche, Implementierung, Tests und Review.
+- Ergebnisse der eingesetzten Agenten werden koordiniert, geprueft und zu einer konsistenten Gesamtaenderung zusammengefuehrt.
+- Nach jeder Projektaenderung nennt der Abschlussbericht alle eingesetzten Agenten und beschreibt jeweils kurz deren Rolle und Beitrag.
+- Alle weiteren Regeln dieser Datei, insbesondere zu `Updates & News`, `PROJECT_STRUCTURE.md`, Premium-UI und Versionsverwaltung, bleiben uneingeschraenkt verbindlich.
+
 ## Updates & News bei jeder Spielaenderung
 
 Jede zukuenftige Aenderung am Spiel muss automatisch auch im Bereich `Updates & News` eingetragen werden. Der Bereich soll vom Spieler als News- oder Entwicklerupdate-Seite wahrgenommen werden, nicht als technische Versionsliste.
@@ -36,3 +50,16 @@ Bei Struktur- oder Systemaenderungen gilt zusaetzlich:
 1. Betroffene Dateien/Ordner in `PROJECT_STRUCTURE.md` dokumentieren.
 2. Die Suchuebersicht aktualisieren, damit klar bleibt, wo Login, Dashboard, Werkstatt, Kunden, Fahrzeuge, Updates & News, Design, Auto-Updater, DEV-Build und Release-Build liegen.
 3. Neue Systeme wie Notizblock, ECU oder weitere Module sofort in der Dokumentation ergaenzen.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

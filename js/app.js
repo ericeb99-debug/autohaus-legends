@@ -7,6 +7,7 @@ function queueUiFrame(key,task){
 const APPS = [
   {id:'dashboard', name:'Dashboard', icon:'DA'},
   {id:'market', name:'Fahrzeugbörse', icon:'MK'},
+  {id:'dealerexchange', name:'Händlerbörse LIVE', icon:'HL'},
   {id:'acquisition', name:'Fahrzeugankauf', icon:'AK'},
   {id:'inventory', name:'Fahrzeugbestand', icon:'FB'},
   {id:'listings', name:'Inserate', icon:'IN'},
@@ -83,7 +84,7 @@ const UPD_SVG = {
   refresh:'<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/></svg>',
   chevron:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
 };
-let appRuntimeInfo = {name:'Automotive Empire', isDev:false, updaterEnabled:true};
+let appRuntimeInfo = {name:'Automotive Empire', isDev:false};
 const PROFILE_INDEX_KEY = 'autodealer-profiles-v1';
 const LEGACY_SAVE_KEY = 'autodealer-state-v2';
 
@@ -785,6 +786,7 @@ function defaultState(){
     nextIds: 1,
     inventory: [],      // owned cars
     market: [],         // cars available to buy
+    dealerExchange: createDealerExchangeDemoState(),
     listings: {},        // carId -> {price, views, createdDay}
     offers: [],          // active customer offers
     workshopJobs: [],    // {carId, jobId, daysLeft}
@@ -1112,10 +1114,17 @@ function findContractByKind(kind, id){
 
 // Grober Neuwagenpreis -> Modell-Tier (1.0 = ca. Kompaktklasse-Niveau ~28.000€)
 function carTierOf(brand, model){
-  const range = BRANDS[brand].models[model];
-  return ((range[0]+range[1])/2)/28000;
+  const range = BRANDS[brand] && BRANDS[brand].models && BRANDS[brand].models[model];
+  if(range) return ((range[0]+range[1])/2)/28000;
+  const extra = typeof vehicleImageExtra==='function' ? vehicleImageExtra(brand, model) : null;
+  return ((extra && extra.marketValue) || 28000)/28000;
 }
 function tierInfo(brand, model){
+  const extra = typeof vehicleImageExtra==='function' ? vehicleImageExtra(brand, model) : null;
+  if(extra && extra.imageClass){
+    const meta = VEHICLE_IMAGE_CLASS_META[extra.imageClass];
+    return {label:extra.imageClass, color:meta.color};
+  }
   const t = carTierOf(brand, model);
   if(t < 0.85) return {label:'Budget', color:'#2fb87c'};
   if(t < 1.3) return {label:'Mittelklasse', color:'#d4af6a'};
@@ -1204,7 +1213,7 @@ function wheelSvg(x, y, r, premium, sport, rimId){
     <circle class="hub" cx="${x}" cy="${y}" r="${Math.max(3,r*.18)}"></circle>
   </g>`;
 }
-function renderBodyShape(c){
+function renderBodyShape(c, containerClass, hidden){
   ensureVehiclePhoto(c);
   const shape = vehicleBodyShape(c);
   const label = bodyShapeLabel(shape);
@@ -1230,7 +1239,7 @@ function renderBodyShape(c){
   const trimY = profile.belt + (sport ? 10 : 13);
   const wheelY = 104 + profile.ride;
   const [frontWheel, rearWheel, wheelR] = profile.wheels;
-  return `<div class="car-media" style="--car-paint:${base};--tier-color:${tier.color}">
+  return `<div class="${escapeAttr(containerClass||'car-media')}"${hidden?' hidden':''} style="--car-paint:${base};--tier-color:${tier.color}">
     <svg class="body-shape" viewBox="0 0 260 128" role="img" aria-label="${escapeAttr(c.brand)} ${escapeAttr(c.model)} ${label}">
       <defs>
         <linearGradient id="paintGradient${id}" x1="38" y1="45" x2="226" y2="108" gradientUnits="userSpaceOnUse">
@@ -1275,7 +1284,17 @@ function ensureVehiclePhoto(c){
   return c;
 }
 function renderCarPhoto(c){
-  return renderBodyShape(c);
+  ensureVehiclePhoto(c);
+  const tier = tierInfo(c.brand, c.model);
+  const classMeta = VEHICLE_IMAGE_CLASS_META[tier.label] || VEHICLE_IMAGE_CLASS_META.Mittelklasse;
+  const paint = VEHICLE_IMAGE_PAINT_META[vehicleImagePaintName(c)].slug;
+  const key = vehicleImageKey(c.brand, c.model);
+  const src = `assets/vehicles/colors/${key}--${paint}.webp`;
+  return `<div class="car-media vehicle-photo-media vehicle-class-${classMeta.slug}" style="--tier-color:${classMeta.color}">
+    <img class="vehicle-photo-image" src="${escapeAttr(src)}" alt="${escapeAttr(c.brand)} ${escapeAttr(c.model)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+    ${renderBodyShape(c,'vehicle-photo-fallback',true)}
+    <span class="photo-source">${escapeHtml(tier.label)}</span>
+  </div>`;
 }
 
 function generateCar(opts){
@@ -2191,8 +2210,6 @@ async function renderProfileLogin(){
   `;
   enhancePremiumUi();
   initLoginBackground();
-  // Am Login-Bildschirm darf ein bereits heruntergeladenes Update angeboten werden.
-  maybeOfferPendingUpdateAtLogin();
 }
 function focusProfilePassword(profileId){
   document.querySelectorAll('[data-profile-card]').forEach(card=>{
@@ -2740,26 +2757,14 @@ async function selectProfile(profileId){
     activeProfileName = '';
     state = null;
     try{ await renderProfileLogin(); }catch(_){}
-    showLoginError('Login fehlgeschlagen. Bitte erneut versuchen.', profileId);
+    const detail=appRuntimeInfo?.isDev&&e?.message?` (${e.message})`:'';
+    showLoginError(`Login fehlgeschlagen${detail}. Bitte erneut versuchen.`, profileId);
   }finally{
     if(!started && document.getElementById('loginError')) setProfileLoginBusy(profileId, false);
   }
 }
 function startProfileGame(){
-  realPlaytimeLastTick = Date.now();
-  realPlaytimeSaveElapsedMs = 0;
-  applyTheme();
-  renderGameShell();
-  ensureCandidates();
-  recordMarketSnapshot();
-  renderTopbar();
-  navigateTo('dashboard');
-  scheduleProgramsWindowWarmup();
-  scheduleSave();
-  if(!gameClockStarted){
-    startGameClock();
-    gameClockStarted = true;
-  }
+  let stage='Initialisierung';try{realPlaytimeLastTick=Date.now();realPlaytimeSaveElapsedMs=0;stage='Auktionswiederherstellung';if(state?.dealerExchange){ensureDealerExchangePhase2(state.dealerExchange,Date.now());state.dealerExchange.auctionLastPulseAt=Date.now();dealerExchangeDeliverAuctionWins();}stage='Design laden';applyTheme();stage='Spieloberfläche aufbauen';renderGameShell();stage='Mitarbeiter vorbereiten';ensureCandidates();stage='Marktdaten vorbereiten';recordMarketSnapshot();stage='Kopfleiste aufbauen';renderTopbar();stage='Dashboard öffnen';navigateTo('dashboard');stage='Programme vorbereiten';scheduleProgramsWindowWarmup();stage='Spielstand vormerken';scheduleSave();stage='Spielzeit starten';if(!gameClockStarted){startGameClock();gameClockStarted=true;}}catch(error){error.message=`${stage}: ${error.message||error}`;throw error;}
 }
 async function switchProfile(){
   if(state && activeProfileId) await saveNow(true);
@@ -2873,137 +2878,13 @@ function dismissToast(el, instant){
   el.classList.add('leaving');
   setTimeout(()=>{ if(el.parentNode) el.remove(); }, 240);
 }
-function setUpdateUi(status, label, progress){
-  updateUiState = {status, label, progress: progress ?? null};
-  const el = document.getElementById('updateStatusText');
-  if(el) el.textContent = label;
-}
-// Update-Regeln: Niemals mitten in einer Spielsitzung installieren oder unterbrechen.
-// Automatische Prüfungen laufen still; nur eine bewusste, manuelle Prüfung darf Dialoge zeigen.
-let updateManualCheck = false;        // Spieler hat gerade bewusst "Nach Updates suchen" geklickt
-let pendingUpdateVersion = null;      // Version eines fertig heruntergeladenen Updates
-let updateHintShownVersion = null;    // dezenter Hinweis pro Version nur einmal pro Sitzung
-let updateInstallOfferShown = false;  // Installations-Dialog am Login nur einmal anbieten
-function inGameSession(){
-  return !!(state && activeProfileId);
-}
-function showUpdateHint(version){
-  if(updateHintShownVersion === (version||'?')) return;
-  updateHintShownVersion = version || '?';
-  dismissUpdateHint(true);
-  const canOpenUpdates = inGameSession();
-  const el = document.createElement('div');
-  el.id = 'updateHint';
-  el.className = 'update-card-notice';
-  el.innerHTML = `
-    <div class="uh-card">
-      <div class="uh-icon">${UPD_SVG.download || '↓'}</div>
-      <div class="uh-text">
-        <b>Neues Update verfügbar</b>
-        <span>Ein neues Update steht bereit. Du kannst die Details in Updates & News ansehen; dein Spiel läuft dabei weiter.</span>
-      </div>
-      <div class="uh-actions">
-        <button class="btn btn-ghost" onclick="dismissUpdateHint()">Später</button>
-        ${canOpenUpdates ? `<button class="btn btn-primary" onclick="dismissUpdateHint(); navigateTo('updates')">Ansehen</button>` : ''}
-      </div>
-      <button class="uh-close" onclick="dismissUpdateHint()" aria-label="Ausblenden">×</button>
-    </div>
-  `;
-  document.body.appendChild(el);
-}
-function dismissUpdateHint(instant){
-  const el = document.getElementById('updateHint');
-  if(!el) return;
-  if(instant || window.matchMedia('(prefers-reduced-motion: reduce)').matches){ el.remove(); return; }
-  if(el.classList.contains('leaving')) return;
-  el.classList.add('leaving');
-  setTimeout(()=>{ if(el.parentNode) el.remove(); }, 320);
-}
-function offerUpdateInstall(version){
-  const label = 'Ein Update ist bereit.';
-  showModal(`
-    <h2 class="section-title">Update bereit</h2>
-    <p class="subtle">${escapeHtml(label)} Jetzt neu starten und installieren?</p>
-    <div class="row-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Später</button>
-      <button class="btn btn-primary" onclick="installDownloadedUpdate()">Jetzt neu starten</button>
-    </div>
-  `);
-}
-function maybeOfferPendingUpdateAtLogin(){
-  // Wird am Login-Bildschirm aufgerufen: Hier darf ein fertiges Update angeboten werden.
-  if(inGameSession() || updateInstallOfferShown) return;
-  if(updateUiState.status !== 'ready' || !pendingUpdateVersion) return;
-  updateInstallOfferShown = true;
-  offerUpdateInstall(pendingUpdateVersion);
-}
-function handleUpdaterStatus(payload){
-  if(!payload || !payload.type) return;
-  const manual = updateManualCheck || !!payload.manual;
-  if(payload.type === 'update-disabled'){
-    const label = payload.reason === 'dev-build'
-      ? 'Updates sind in der DEV-Version deaktiviert.'
-      : payload.reason === 'not-configured'
-      ? 'Update-Quelle ist noch nicht konfiguriert.'
-      : 'Updates sind im Entwicklungsmodus deaktiviert.';
-    setUpdateUi('disabled', label);
-    if(manual) showToast('ℹ️', label);
-    updateManualCheck = false;
-    return;
-  }
-  if(payload.type === 'update-checking'){
-    setUpdateUi('checking', 'Suche nach Updates...');
-    return;
-  }
-  if(payload.type === 'update-available'){
-    const label = 'Ein Update ist verfügbar.';
-    setUpdateUi('available', label);
-    if(manual) showToast('⬇️', `${label} Download startet...`);
-    showUpdateHint(payload.version);
-    return;
-  }
-  if(payload.type === 'update-not-available'){
-    setUpdateUi('current', 'Automotive Empire ist auf dem neuesten Stand.');
-    if(manual) showToast('✅', '<b>Automotive Empire ist auf dem neuesten Stand.</b>');
-    updateManualCheck = false;
-    return;
-  }
-  if(payload.type === 'update-download-progress'){
-    const pct = Math.max(0, Math.min(100, Math.round(payload.percent || 0)));
-    setUpdateUi('downloading', `Update wird heruntergeladen... ${pct}%`, pct);
-    return;
-  }
-  if(payload.type === 'update-downloaded'){
-    pendingUpdateVersion = payload.version || pendingUpdateVersion || null;
-    const label = 'Ein Update ist bereit.';
-    setUpdateUi('ready', label);
-    if(manual || !inGameSession()){
-      // Bewusste Prüfung oder Login-Bildschirm: Installation darf angeboten werden.
-      offerUpdateInstall(payload.version);
-    } else {
-      // Laufende Spielsitzung: nur dezenter Hinweis oben rechts, keine Unterbrechung.
-      showUpdateHint(payload.version);
-    }
-    updateManualCheck = false;
-    return;
-  }
-  if(payload.type === 'update-error'){
-    setUpdateUi('error', 'Update-Prüfung fehlgeschlagen.');
-    if(manual) showToast('⚠️', `Update-Prüfung fehlgeschlagen${payload.message?': '+payload.message:''}`);
-    updateManualCheck = false;
-  }
-}
-function initUpdaterBridge(){
-  if(!window.updater || typeof window.updater.onStatus !== 'function') return;
-  window.updater.onStatus(handleUpdaterStatus);
-}
 async function loadAppRuntimeInfo(){
   try{
     if(window.appInfo && typeof window.appInfo.get === 'function'){
       appRuntimeInfo = {...appRuntimeInfo, ...(await window.appInfo.get())};
     }
   }catch(e){
-    appRuntimeInfo = {name:'Automotive Empire', isDev:false, updaterEnabled:true};
+    appRuntimeInfo = {name:'Automotive Empire', isDev:false};
   }
   applyAppRuntimeInfo();
 }
@@ -3018,37 +2899,9 @@ function applyAppRuntimeInfo(){
       badge.textContent = 'DEV Build';
       document.body.appendChild(badge);
     }
-    setUpdateUi('disabled', 'Updates sind in der DEV-Version deaktiviert.');
   } else if(badge){
     badge.remove();
   }
-}
-async function checkForUpdatesManual(){
-  if(!window.updater || typeof window.updater.checkManual !== 'function'){
-    setUpdateUi('unavailable', 'Update-System ist nicht verfügbar.');
-    showToast('ℹ️', 'Update-System ist nicht verfügbar.');
-    return;
-  }
-  if(pendingUpdateVersion){
-    // Update wurde bereits heruntergeladen: direkt anbieten statt erneut zu prüfen.
-    setUpdateUi('ready', 'Ein Update ist bereit.');
-    offerUpdateInstall(pendingUpdateVersion);
-    return;
-  }
-  updateManualCheck = true;
-  setUpdateUi('checking', 'Suche nach Updates...');
-  showToast('🔍', 'Suche nach Updates...');
-  try{
-    const res = await window.updater.checkManual();
-    if(res && res.dev) handleUpdaterStatus({type:'update-disabled', manual:true});
-    else if(res && res.busy) showToast('ℹ️', 'Update-Prüfung läuft bereits.');
-  }catch(e){
-    handleUpdaterStatus({type:'update-error', message:e && e.message ? e.message : String(e)});
-  }
-}
-async function installDownloadedUpdate(){
-  if(!window.updater || typeof window.updater.installNow !== 'function') return;
-  await window.updater.installNow();
 }
 /* --------- lastSeenVersion: Willkommensfenster nach Update (einmalig) --------- */
 const LAST_SEEN_VERSION_KEY = 'autodealer-last-seen-version';
@@ -3852,6 +3705,7 @@ function todaysDelta(){
 const REF_ICON_PATHS = {
   dashboard:'<path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path>',
   market:'<path d="M3 14.5V18h2l1-3h11l1 3h2v-4l-2-5H6l-3 5Z"></path><path d="M7 9l1.5-3h5"></path><circle cx="7" cy="14.5" r="1"></circle><circle cx="17" cy="14.5" r="1"></circle><path d="m16 4 2-2 3 3-2 2-3-3Z"></path>',
+  dealerexchange:'<path d="M3 7h18v11H3z"></path><path d="M7 7V4h10v3"></path><path d="M3 12h18"></path><path d="M8 15h3"></path><path d="m15 14 3 3"></path><path d="m18 14-3 3"></path>',
   acquisition:'<path d="M4 4h16v16H4z"></path><path d="M12 7v10"></path><path d="M7 12h10"></path>',
   inventory:'<path d="m5 10 2-5h10l2 5 2 3v6h-3v-2H6v2H3v-6l2-3Z"></path><path d="M5 10h14"></path><path d="M7 14h2"></path><path d="M15 14h2"></path>',
   listings:'<path d="M7 7h12"></path><path d="M7 12h12"></path><path d="M7 17h12"></path><path d="M4 7h.01"></path><path d="M4 12h.01"></path><path d="M4 17h.01"></path>',
@@ -3881,6 +3735,7 @@ const REF_ICON_PATHS = {
 };
 const REF_APP_META = {
   dashboard:['Dashboard','Übersicht und Kennzahlen','#d6ad56'], market:['Fahrzeugbörse','Fahrzeuge kaufen und verkaufen','#4d8cff'],
+  dealerexchange:['Händlerbörse LIVE','Das lebende Händlernetzwerk','#53d6bd'],
   inventory:['Fahrzeugbestand','Dein aktueller Bestand','#59b957'], customers:['Kunden','Kundenprofile verwalten','#36b6b4'],
   workshop:['Werkstatt','Reparaturen und Service','#d9822b'], ecu:['ECU-Tuning','Softwareoptimierung und Prüfstand','#d6ad56'], listings:['Inserate','Inserate verwalten','#8f55ff'],
   wishlist:['Wunschliste','Gespeicherte Fahrzeuge','#e6535f'], mailbox:['Postfach','Nachrichten und Angebote','#3d7ed9'],
@@ -3898,7 +3753,7 @@ function refIcon(id){
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${REF_ICON_PATHS[id] || REF_ICON_PATHS.apps}</svg>`;
 }
 const NAV_ICON_ACCENTS = {
-  dashboard:'#d8b568', market:'#6f9fe8', inventory:'#55c4bd', mailbox:'#79b9e8',
+  dashboard:'#d8b568', market:'#6f9fe8', dealerexchange:'#53d6bd', inventory:'#55c4bd', mailbox:'#79b9e8',
   ecu:'#a487db', workshop:'#dc9558', contracts:'#aeb6c2', finance:'#65b982',
   design:'#c77ac8', updates:'#5ec5d5', settings:'#bbc2cc', legacy:'#d8b568'
 };
@@ -3960,8 +3815,7 @@ function scheduleProgramsWindowWarmup(){
   const warmup = ()=>{
     programsWindowWarmupHandle = null;
     if(!profileId || profileId !== activeProfileId || !document.getElementById('pagecontent') || document.getElementById('programOverlay')) return;
-    openProgramsWindow();
-    closeProgramsWindow();
+    openProgramsWindow(true);
   };
   programsWindowWarmupHandle = 'requestIdleCallback' in window
     ? requestIdleCallback(warmup,{timeout:1800})
@@ -3976,8 +3830,8 @@ function startProgramsForwardAnimation(overlay){
   programForwardAnimationVariant = !programForwardAnimationVariant;
   overlay.classList.add(programForwardAnimationVariant?'launcher-forward-a':'launcher-forward-b');
 }
-function openProgramsWindow(){
-  PM?.startMeasure(document.getElementById('programOverlay')?'programs:reuse':'programs:first');
+function openProgramsWindow(warmup=false){
+  if(!warmup) PM?.startMeasure(document.getElementById('programOverlay')?'programs:reuse':'programs:first');
   const existing = document.getElementById('programOverlay');
   if(existing){
     let refreshLiveData = false;
@@ -3987,7 +3841,7 @@ function openProgramsWindow(){
     } else {
       refreshLiveData = true;
     }
-    existing.classList.remove('is-hidden');
+    existing.classList.remove('is-hidden','program-warmup');
     existing.inert = false;
     existing.setAttribute('aria-hidden','false');
     startProgramsForwardAnimation(existing);
@@ -4002,10 +3856,11 @@ function openProgramsWindow(){
     return;
   }
   const overlay = document.createElement('div');
-  overlay.className = 'program-overlay';
+  overlay.className = `program-overlay${warmup?' is-hidden program-warmup':''}`;
   overlay.id = 'programOverlay';
   overlay.dataset.programLanguage = currentLanguage();
-  overlay.setAttribute('aria-hidden','false');
+  overlay.setAttribute('aria-hidden',warmup?'true':'false');
+  overlay.inert = warmup;
   const recentIds = ['market','mailbox','workshop','finance'];
   const recentLabel = currentLanguage()==='de' ? 'Zuletzt benutzt' : 'Recently used';
   const quickLinks = recentIds.map(id=>{
@@ -4027,8 +3882,9 @@ function openProgramsWindow(){
   </div>`;
   overlay.onclick = (ev)=>{ if(ev.target===overlay) closeProgramsWindow(); };
   document.getElementById('app').appendChild(overlay);
-  document.getElementById('programLauncherButton')?.classList.add('active');
   renderProgramsGrid('');
+  if(warmup) return;
+  document.getElementById('programLauncherButton')?.classList.add('active');
   requestAnimationFrame(()=>{
     if(!overlay.classList.contains('is-hidden')) document.getElementById('programSearch')?.focus();
     PM?.endMeasure('programs:first');
@@ -4068,7 +3924,7 @@ function installProgramLauncherShortcuts(){
 // Kategorien nur für die Anzeige im Programme-Fenster (Launcher) - keine Navigations- oder Logikaenderung,
 // dieselben App-IDs wie zuvor werden lediglich thematisch gruppiert und beschriftet.
 const PROGRAM_CATEGORIES = [
-  {key:'trade', ids:['market','acquisition','inventory','listings','wishlist','customers']},
+  {key:'trade', ids:['market','dealerexchange','acquisition','inventory','listings','wishlist','customers']},
   {key:'workshop', ids:['workshop','ecu']},
   {key:'management', ids:['employees','upgrades','contracts','deliveries']},
   {key:'analytics', ids:['finance','bank','insights','marketstats','reviews','calculator']},
@@ -4082,7 +3938,7 @@ const PROGRAM_CATEGORY_LABELS = {
 // Zentrale visuelle Konfiguration: Hero-Motive bleiben austauschbar, ohne die
 // Navigation oder Spiellogik der Programmkarten zu beruehren.
 const PROGRAM_HEROES = {
-  market:'market.jpg', acquisition:'acquisition.jpg', inventory:'inventory.jpg', listings:'listings.jpg', wishlist:'wishlist.jpg',
+  market:'market.jpg', dealerexchange:'dealerexchange.jpg', acquisition:'acquisition.jpg', inventory:'inventory.jpg', listings:'listings.jpg', wishlist:'wishlist.jpg',
   customers:'customers.jpg', mailbox:'mailbox.jpg', workshop:'workshop.jpg', ecu:'ecu.jpg', upgrades:'upgrades.jpg',
   employees:'employees.jpg', contracts:'contracts.jpg', deliveries:'deliveries.jpg', legacy:'legacy.jpg', finance:'finance.jpg',
   bank:'bank.jpg', insights:'insights.jpg', marketstats:'marketstats.jpg', reviews:'reviews.jpg', calculator:'calculator.jpg',
@@ -4091,7 +3947,7 @@ const PROGRAM_HEROES = {
 // Motivfokus je Hero-Karte. Die zweite Position wird bei schmalen Karten genutzt,
 // damit Fahrzeuge, Gesichter und andere Hauptmotive sichtbar bleiben.
 const PROGRAM_HERO_POSITIONS = {
-  market:['50% 52%','52% 50%'], acquisition:['50% 48%','50% 48%'], inventory:['50% 55%','48% 52%'], listings:['54% 48%','58% 48%'], wishlist:['58% 52%','64% 50%'],
+  market:['50% 52%','52% 50%'], dealerexchange:['68% 50%','72% 50%'], acquisition:['50% 48%','50% 48%'], inventory:['50% 55%','48% 52%'], listings:['54% 48%','58% 48%'], wishlist:['58% 52%','64% 50%'],
   customers:['52% 46%','54% 46%'], mailbox:['58% 48%','64% 48%'], workshop:['54% 52%','58% 50%'], ecu:['50% 52%','47% 50%'], upgrades:['52% 50%','55% 50%'],
   employees:['50% 46%','50% 44%'], contracts:['50% 50%','48% 48%'], deliveries:['56% 52%','62% 50%'], legacy:['50% 48%','50% 46%'], finance:['58% 50%','64% 50%'],
   bank:['50% 50%','52% 48%'], insights:['54% 50%','58% 48%'], marketstats:['54% 50%','58% 48%'], reviews:['63% 48%','68% 46%'], calculator:['46% 50%','42% 48%'],
@@ -4135,7 +3991,7 @@ function installProgramHeroLazyLoading(){
 }
 const PROGRAM_CATEGORY_ACCENTS = {trade:'#a76cff',workshop:'#f3a145',management:'#ddb352',analytics:'#65cf72',communication:'#39c7dc',system:'#5399ff'};
 const PROGRAM_APP_ACCENTS = {
-  market:'#458cff', acquisition:'#20c9b5', inventory:'#29c8e4', listings:'#9a63ff', wishlist:'#ff4e9a', customers:'#58bfff', mailbox:'#438cff',
+  market:'#458cff', dealerexchange:'#53d6bd', acquisition:'#20c9b5', inventory:'#29c8e4', listings:'#9a63ff', wishlist:'#ff4e9a', customers:'#58bfff', mailbox:'#438cff',
   workshop:'#ff923f', ecu:'#a46cff', upgrades:'#e2b64f', employees:'#55c783', contracts:'#a7b0bd', deliveries:'#4c9cff', legacy:'#dcb452',
   finance:'#48c778', bank:'#31935c', insights:'#35c9c3', marketstats:'#4e91ff', reviews:'#e3b953', calculator:'#ff9a43', design:'#ed55bd', updates:'#35c9dc', settings:'#a5afbc'
 };
@@ -4144,6 +4000,7 @@ function programCardStatus(id){
   const n = value=>Number(value||0).toLocaleString(localeMeta().numberLocale||'de-DE');
   switch(id){
     case 'market': return `${n((state.market||[]).length)} ${de?'Angebote':'offers'}`;
+    case 'dealerexchange': return `● LIVE · ${n((state.dealerExchange?.vehicles||[]).length)} ${de?'Chancen':'opportunities'}`;
     case 'acquisition': return `${n((state.purchaseRequests||[]).length)} ${de?'Anfragen':'requests'}`;
     case 'inventory': return `${n((state.inventory||[]).length)} ${de?'Fahrzeuge':'vehicles'}`;
     case 'listings': return `${n(activeListingIds().length)} ${de?'aktive Inserate':'active listings'}`;
@@ -4179,6 +4036,11 @@ function programLiveStats(id){
       const soon = jobs.filter(j=>(j.daysLeft||0)<=1).length;
       if(!jobs.length) return [L.workshop_none];
       return [t('programs.live.workshop_active',{n:jobs.length}), soon?t('programs.live.workshop_soon',{n:soon}):L.workshop_on_track];
+    }
+    case 'dealerexchange': {
+      const exchange = state.dealerExchange || createDealerExchangeDemoState();
+      const hot = (exchange.vehicles||[]).filter(v=>v.opportunity>=90).length;
+      return [currentLanguage()==='de'?`${exchange.dealers.length} Händler online`:`${exchange.dealers.length} dealers online`, currentLanguage()==='de'?`${hot} Top-Chancen aktiv`:`${hot} top opportunities live`];
     }
     case 'market': {
       const listed = activeListingIds().length;
@@ -4349,6 +4211,7 @@ function renderBottomBar(){
   const html = `<div class="bottom-logo"><img src="assets/logos/app-logo.png" alt=""></div><div class="bottom-title"><b>Automotive Empire</b><small>${escapeHtml(t('bottombar.brand_sub'))}</small></div>
     <span class="savebadge" id="savebadge"><span class="sdot"></span><span><b>${escapeHtml(t('bottombar.autosaved_title'))}</b><small>${escapeHtml(t('bottombar.autosaved_sub'))}</small></span></span>
     <button id="programLauncherButton" class="program-launcher-button ${document.getElementById('programOverlay') && !document.getElementById('programOverlay').classList.contains('is-hidden')?'active':''}" onclick="openProgramsWindow()" ondblclick="event.preventDefault();closeProgramsWindow();navigateTo('dashboard')" ${navTooltipAttrs(t('sidebar.programs'),t('bottombar.programs_tooltip'),'top')}>${refIcon('apps')}<span>${escapeHtml(t('sidebar.programs'))}</span></button>
+    <button id="dealerExchangeLauncherButton" class="dealerexchange-launcher-button ${currentPage==='dealerexchange'?'active':''}" onclick="closeProgramsWindow();navigateTo('dealerexchange')" ${navTooltipAttrs('Händlerbörse LIVE','Direkt zum digitalen Bietersaal und Händlernetzwerk','top')}>${refIcon('dealerexchange')}<span>Händlerbörse LIVE</span></button>
     <div class="bottom-tabs">${tabs}</div>
     <div class="bottom-tools">
       ${editBtn}
@@ -4670,7 +4533,7 @@ function renderPageContent(){
   captureActiveDrafts();
   if(currentPage === 'branches') currentPage = 'dashboard';
   const fns = {
-    dashboard: renderDashboard, market: renderMarket, acquisition: renderAcquisition, inventory: renderInventory,
+    dashboard: renderDashboard, market: renderMarket, dealerexchange: renderDealerExchange, acquisition: renderAcquisition, inventory: renderInventory,
     listings: renderListings, wishlist: renderWishlist, mailbox: renderMailbox, customers: renderCustomers, contracts: renderContracts, deliveries: renderDeliveries, workshop: renderWorkshop, ecu: renderEcuTuning, bank: renderBank,
     reviews: renderReviews, finance: renderFinance, marketstats: renderMarketStats, insights: renderBusinessInsights, calculator: renderCalculator, employees: renderEmployees, upgrades: renderUpgrades, legacy: renderLegacyHistory, design: renderDesign, updates: renderUpdates, settings: renderSettings,
   };
@@ -5289,6 +5152,226 @@ function renderDashboard(){
   `;
 }
 
+/* =============================== HÄNDLERBÖRSE LIVE =============================== */
+function dealerExchangeState(){
+  if(!state.dealerExchange) state.dealerExchange = createDealerExchangeDemoState();
+  ensureDealerExchangePhase2(state.dealerExchange);
+  state.dealerExchange.ui = state.dealerExchange.ui || createDealerExchangeDemoState().ui;
+  state.dealerExchange.watchedVehicleIds = state.dealerExchange.watchedVehicleIds || [];
+  state.dealerExchange.interestVehicleIds = state.dealerExchange.interestVehicleIds || [];
+  return state.dealerExchange;
+}
+function dxText(de,en){ return currentLanguage()==='de' ? de : en; }
+function dealerExchangeRelationshipDisplay(relationship){
+  const label=dealerExchangeRelationshipLabel(relationship),english={'Unbekannt':'Unknown','Neutral':'Neutral','Bekannt':'Known','Zuverlässig':'Reliable','Bevorzugter Handelspartner':'Preferred trading partner','Enger Geschäftspartner':'Close business partner'};return currentLanguage()==='de'?label:(english[label]||label);
+}
+function dealerExchangeEventAge(item){
+  const cycles=Math.max(0,dealerExchangeState().simulationTick-(item.tick||dealerExchangeState().simulationTick));
+  if(!cycles) return dxText('gerade eben','just now');
+  if(cycles===1) return dxText('vor einem Zyklus','one cycle ago');
+  return dxText(`vor ${cycles} Zyklen`,`${cycles} cycles ago`);
+}
+function dealerExchangeSetDebug(enabled){
+  const active=setDealerExchangeDebug(dealerExchangeState(),enabled);
+  scheduleSave();
+  console.info(`[DealerExchange] Debug ${active?'enabled':'disabled'}.`, active?dealerExchangeState().debug.decisions:[]);
+  return active;
+}
+function dealerExchangeSetUi(key,value){
+  if(!['tab','feedFilter','vehicleSearch','segment','sort','selectedDealerId','selectedVehicleId'].includes(key)) return;
+  dealerExchangeState().ui[key] = String(value||'');
+  renderApp('dealerexchange');
+  scheduleSave();
+}
+function dealerExchangeToggleWatch(vehicleId){
+  const exchange = dealerExchangeState();
+  if(!exchange.vehicles.some(v=>v.id===vehicleId)) return;
+  const watched = new Set(exchange.watchedVehicleIds);
+  watched.has(vehicleId) ? watched.delete(vehicleId) : watched.add(vehicleId);
+  exchange.watchedVehicleIds = [...watched];
+  renderApp('dealerexchange');
+  scheduleSave();
+}
+function dealerExchangeToggleInterest(vehicleId){
+  const exchange = dealerExchangeState();
+  const vehicle = exchange.vehicles.find(v=>v.id===vehicleId);
+  if(!vehicle) return;
+  const interested = new Set(exchange.interestVehicleIds);
+  const active = !interested.has(vehicleId);
+  active ? interested.add(vehicleId) : interested.delete(vehicleId);
+  exchange.interestVehicleIds = [...interested];
+  showToast(active?'OK':'IN', active?dxText(`<b>Interesse vorgemerkt</b><br>${vehicle.brand} ${vehicle.model} wird beobachtet.`,`<b>Interest registered</b><br>${vehicle.brand} ${vehicle.model} is now monitored.`):dxText('<b>Interesse entfernt</b><br>Es wurde keine Transaktion ausgelöst.','<b>Interest removed</b><br>No transaction was created.'), null, null);
+  renderApp('dealerexchange');
+  scheduleSave();
+}
+function dealerExchangePlayerCarFromListing(listing,price){
+  const electric=listing.segment==='Elektro',performance=['Performance','Sammler'].includes(listing.segment);
+  const car={id:listing.id,brand:listing.brand,model:listing.model,year:listing.year,mileage:listing.mileage,engine:electric?'Elektro':'Benzin',power:performance?420:electric?220:165,transmission:'Automatik',color:vehicleImagePaintName(listing),condition:listing.condition,hiddenIssues:[],issues:[],tuvMonths:18,newPrice:Math.round(listing.marketValue*1.32),price:listing.marketValue,marketValue:listing.marketValue,purchasePrice:price,standDays:0,dayAdded:state.day,location:'stock',repairStatus:null,reservedFor:null,inspected:true,costs:{}};
+  ensureVehiclePhoto(car);car.wearProfile={wearScore:Math.max(0,100-car.condition),owners:2,maintenanceScore:car.condition,individuality:50};car.vehicleFile=createVehicleFile(car,[]);updateVehicleFileState(car);return car;
+}
+function openDealerExchangeBuy(vehicleId){
+  const listing=dealerExchangeVehicle(vehicleId);if(!listing||listing.dealerId==='player')return;
+  const dealer=dealerExchangeDealer(listing.dealerId),available=listing.status==='active';
+  showModal(`<h2 class="section-title">${dxText('Händlerkauf bestätigen','Confirm dealer purchase')}</h2><p class="subtle">${escapeHtml(listing.brand)} ${escapeHtml(listing.model)} · ${escapeHtml(dealer?.companyName||'')}</p><div class="dx-buy-summary"><div><small>${dxText('Inseratspreis','Listing price')}</small><b>${money(listing.askingPrice)}</b></div><div><small>${dxText('Marktwert','Market value')}</small><b>${money(listing.marketValue)}</b></div><div><small>${dxText('Verfügbares Kapital','Available cash')}</small><b>${money(state.cash)}</b></div></div><div class="notice">${dxText('Festpreis ohne Gegenangebot. Eigentum und Geld werden gemeinsam übertragen.','Fixed price without counteroffer. Ownership and funds transfer together.')}</div><div class="row-actions"><button class="btn btn-ghost" onclick="closeModal()">${dxText('Abbrechen','Cancel')}</button><button class="btn btn-primary" onclick="confirmDealerExchangeBuy('${listing.id}')" ${!available||state.cash<listing.askingPrice?'disabled':''}>${available?dxText(`Für ${money(listing.askingPrice)} kaufen`,`Buy for ${money(listing.askingPrice)}`):dxText('Nicht verfügbar','Unavailable')}</button></div>`);
+}
+function confirmDealerExchangeBuy(vehicleId){
+  const exchange=dealerExchangeState(),result=dealerExchangePlayerPurchase(exchange,state,vehicleId,activeProfileName||'Spieler-Autohaus');
+  if(!result.ok){notify(result.reason==='funds'?dxText('Nicht genügend Liquidität.','Insufficient liquidity.'):dxText('Das Fahrzeug ist nicht mehr verfügbar.','The vehicle is no longer available.'),'warn');closeModal();renderAllOpen();return;}
+  const car=dealerExchangePlayerCarFromListing(result.listing,result.listing.askingPrice);state.inventory.push(car);state.transactions.unshift({id:uid('t'),day:state.day,type:'expense',desc:`Händlerbörse: ${car.brand} ${car.model}`,amount:-result.listing.askingPrice});state.transactions=state.transactions.slice(0,200);state.purchaseCount=(state.purchaseCount||0)+1;addXp(18);showToast('OK',dxText(`<b>Fahrzeug gekauft</b><br>${car.brand} ${car.model} wurde in den Bestand übernommen.`,`<b>Vehicle purchased</b><br>${car.brand} ${car.model} was added to inventory.`),null,null);closeModal();renderAllOpen();scheduleSave();
+}
+function dealerExchangePlayerListing(vehicleId){return dealerExchangeState().vehicles.find(v=>v.id===vehicleId&&v.dealerId==='player');}
+function openDealerExchangeListModal(carId){
+  if(findCar(carId)?.dealerExchangeAuctionId){notify(dxText('Das Fahrzeug befindet sich in einer laufenden Live-Auktion.','This vehicle is in an active live auction.'),'warn');return;}
+  const car=findCar(carId);if(!car)return;const existing=dealerExchangePlayerListing(carId),inWorkshop=(state.workshopJobs||[]).some(job=>job.carId===carId),blocked=(car.reservedFor&&car.reservedFor.expiresDay>state.day)||inWorkshop||car.dealerExchangeOrderId||car.sold||car.location==='sold'||(!existing&&state.listings?.[carId]);if(blocked){notify(dxText('Dieses Fahrzeug ist reserviert, gebunden, in der Werkstatt oder bereits anderweitig inseriert.','This vehicle is reserved, committed, in the workshop or already listed elsewhere.'),'warn');return;}const price=existing?.askingPrice||Math.round((car.marketValue||car.purchasePrice||1000)*1.06/10)*10,description=existing?.description||'',duration=existing?.durationCycles||8;
+  showModal(`<h2 class="section-title">${existing?dxText('Händler-Inserat bearbeiten','Edit dealer listing'):dxText('In Händlerbörse einstellen','List on Dealer Exchange')}</h2><p class="subtle">${escapeHtml(car.brand)} ${escapeHtml(car.model)} · ${money(car.marketValue||0)} ${dxText('Marktwert','market value')}</p><div class="field"><label>${dxText('Verkaufspreis','Selling price')}</label><input id="dxListPrice" type="number" min="300" step="10" value="${price}"></div><div class="field"><label>${dxText('Beschreibung','Description')}</label><textarea id="dxListDescription" maxlength="240" placeholder="${dxText('Zustand, Historie oder Besonderheiten','Condition, history or notable details')}">${escapeHtml(description)}</textarea></div><div class="field"><label>${dxText('Laufzeit','Duration')}</label><select id="dxListDuration">${[4,8,12].map(n=>`<option value="${n}" ${duration===n?'selected':''}>${n} ${dxText('Handelszyklen','market cycles')}</option>`).join('')}</select></div><div class="notice">${dxText('Das Fahrzeug bleibt im Bestand markiert und kann während einer Reservierung nicht anderweitig verkauft werden.','The vehicle remains marked in inventory and cannot be sold elsewhere while reserved.')}</div><div class="row-actions"><button class="btn btn-ghost" onclick="closeModal()">${dxText('Abbrechen','Cancel')}</button><button class="btn btn-primary" onclick="saveDealerExchangeListing('${car.id}')">${existing?dxText('Änderungen speichern','Save changes'):dxText('Inserat veröffentlichen','Publish listing')}</button></div>`);
+}
+function saveDealerExchangeListing(carId){
+  if(findCar(carId)?.dealerExchangeAuctionId)return;
+  const car=findCar(carId),exchange=dealerExchangeState(),current=dealerExchangePlayerListing(carId);if(!car)return;if(current?.status==='reserved'||(car.reservedFor&&car.reservedFor.expiresDay>state.day)){notify(dxText('Reservierte Inserate können nicht verändert werden.','Reserved listings cannot be changed.'),'warn');closeModal();return;}if(state.listings?.[carId]||(state.workshopJobs||[]).some(job=>job.carId===carId)){notify(dxText('Das Fahrzeug ist momentan nicht für die Händlerbörse verfügbar.','The vehicle is currently unavailable for Dealer Exchange.'),'warn');closeModal();return;}const price=Math.max(300,Math.round((Number(document.getElementById('dxListPrice')?.value)||0)/10)*10),description=(document.getElementById('dxListDescription')?.value||'').trim().slice(0,240),duration=Math.max(4,Number(document.getElementById('dxListDuration')?.value)||8);if(!price)return;
+  let listing=dealerExchangePlayerListing(carId),owned=exchange.inventoryVehicles.find(v=>v.id===carId);if(!owned){owned={id:car.id,ownerDealerId:'player',dealerId:'player',brand:car.brand,model:car.model,year:car.year,mileage:car.mileage,segment:marketVehicleSegment(car),condition:car.condition,marketValue:car.marketValue,demand:Math.round(55+Math.min(40,(car.condition||70)*.35)),trend:0,color:'#53d6bd',acquisitionCost:car.purchasePrice||0,acquiredAtTick:exchange.simulationTick,listed:true};exchange.inventoryVehicles.push(owned);}Object.assign(owned,{ownerDealerId:'player',dealerId:'player',listed:true});
+  if(listing&&listing.askingPrice!==price)dealerExchangeRecordPlayerListingChange(exchange,listing,'price',price);const payload={...owned,dealerId:'player',askingPrice:price,description,durationCycles:duration,interest:listing?.interest||0,opportunity:Math.round(Math.max(35,Math.min(98,65+(owned.marketValue-price)/Math.max(1,owned.marketValue)*100+owned.demand*.2))),status:'active',listedAtTick:exchange.simulationTick,expiresAtTick:exchange.simulationTick+duration,expiresIn:`${duration} ${dxText('Handelszyklen','market cycles')}`,playerOwned:true};if(listing)Object.assign(listing,payload);else exchange.vehicles.push(payload);car.dealerExchangeListingId=car.id;dealerExchangeAddEvent(exchange,{type:'listing',dealerId:'player',vehicleId:car.id,title:listing?'Spielerinserat aktualisiert':'Spieler stellt Fahrzeug ein',text:`${activeProfileName||'Spieler-Autohaus'} bietet den ${car.brand} ${car.model} für ${price.toLocaleString('de-DE')} € an.`,accent:'#53d6bd'});closeModal();showToast('OK',dxText('<b>Händler-Inserat aktiv</b><br>KI-Händler bewerten das Fahrzeug ab dem nächsten Zyklus.','<b>Dealer listing active</b><br>AI dealers will evaluate the vehicle next cycle.'),null,null);renderAllOpen();scheduleSave();
+}
+function withdrawDealerExchangeListing(carId){
+  const exchange=dealerExchangeState(),listing=dealerExchangePlayerListing(carId);if(!listing)return;if(listing.status==='reserved'){notify(dxText('Ein reserviertes Inserat kann nicht zurückgezogen werden.','A reserved listing cannot be withdrawn.'),'warn');return;}dealerExchangeRecordPlayerListingChange(exchange,listing,'withdraw');exchange.vehicles=exchange.vehicles.filter(v=>v.id!==carId);const owned=exchange.inventoryVehicles.find(v=>v.id===carId);if(owned){owned.listed=false;owned.lastWithdrawnTick=exchange.simulationTick;}const car=findCar(carId);if(car)delete car.dealerExchangeListingId;dealerExchangeAddEvent(exchange,{type:'withdrawal',dealerId:'player',vehicleId:carId,title:'Spielerinserat zurückgezogen',text:`${activeProfileName||'Spieler-Autohaus'} zieht ${listing.brand} ${listing.model} aus der Händlerbörse zurück.`,accent:'#53d6bd'});notify(dxText('Inserat zurückgezogen.','Listing withdrawn.'),'info');renderAllOpen();scheduleSave();
+}
+function dealerExchangePendingOffer(offerId){return dealerExchangeState().directOffers.find(o=>o.id===offerId&&o.status==='pending');}
+function openDealerExchangeOffer(offerId){
+  const offer=dealerExchangePendingOffer(offerId);if(!offer)return;const dealer=dealerExchangeDealer(offer.dealerId),listing=dealerExchangePlayerListing(offer.vehicleId);if(!dealer||!listing)return;const difference=listing.askingPrice-offer.offeredPrice;
+  showModal(`<div class="dx-offer-modal" style="--dx-a:${dealer.color}"><div class="dx-profile-hero"><span class="dx-avatar">${escapeHtml(dealer.short)}</span><div><small>${offer.type==='counter'?dxText('EINMALIGES GEGENANGEBOT','ONE-TIME COUNTEROFFER'):dxText('DIREKTANGEBOT','DIRECT OFFER')}</small><h3>${escapeHtml(dealer.companyName)}</h3><p>${escapeHtml(dealer.region)} · ${escapeHtml(dealer.kind)}</p></div></div><h2 class="section-title">${escapeHtml(listing.brand)} ${escapeHtml(listing.model)}</h2><div class="dx-buy-summary"><div><small>${dxText('Dein Inseratspreis','Your listing price')}</small><b>${money(listing.askingPrice)}</b></div><div><small>${dxText('Händlerangebot','Dealer offer')}</small><b>${money(offer.offeredPrice)}</b></div><div><small>${dxText('Differenz','Difference')}</small><b>${difference?`-${money(difference)}`:dxText('Festpreis','Fixed price')}</b></div></div><div class="notice">${dxText('Begründung','Reason')}: ${escapeHtml(offer.reason)}.</div><p class="subtle">${dxText('Dieses Angebot basiert auf der aktuellen wirtschaftlichen Bewertung des Fahrzeugs. Es gibt keine freie Preisverhandlung.','This offer is based on the current economic evaluation of the vehicle. Free-form negotiation is not available.')}</p><div class="row-actions dx-offer-actions"><button class="btn btn-danger" onclick="resolveDealerExchangeOffer('${offer.id}','decline')">${dxText('Ablehnen','Decline')}</button>${offer.type==='counter'?`<button class="btn btn-ghost" onclick="resolveDealerExchangeOffer('${offer.id}','hold')">${dxText('Beim Preis bleiben','Keep original price')}</button>`:''}<button class="btn btn-primary" onclick="resolveDealerExchangeOffer('${offer.id}','accept')">${dxText(`Für ${money(offer.offeredPrice)} verkaufen`,`Sell for ${money(offer.offeredPrice)}`)}</button></div></div>`);
+}
+function resolveDealerExchangeOffer(offerId,decision){
+  const result=dealerExchangeResolveOffer(dealerExchangeState(),state,offerId,decision,activeProfileName||'Spieler-Autohaus');if(!result.ok){notify(dxText('Dieses Angebot ist nicht mehr verfügbar.','This offer is no longer available.'),'warn');closeModal();renderAllOpen();return;}if(decision==='accept'||result.settled)showToast('OK',dxText(`<b>${result.settled?'Inseratspreis akzeptiert':'Direktgeschäft abgeschlossen'}</b><br>${result.listing.brand} ${result.listing.model} wurde an ${result.dealer.companyName} verkauft.`,`<b>${result.settled?'Listing price accepted':'Direct trade completed'}</b><br>${result.listing.brand} ${result.listing.model} was sold to ${result.dealer.companyName}.`),null,null);else notify(decision==='hold'?dxText('Der Händler bleibt unter deinem ursprünglichen Inseratspreis.','The dealer remains below your original listing price.'):dxText('Direktangebot abgelehnt.','Direct offer declined.'),'info');closeModal();renderAllOpen();scheduleSave();
+}
+function openDealerExchangePackage(packageId){
+  const pack=dealerExchangeState().vehiclePackages.find(p=>p.id===packageId),seller=pack&&dealerExchangeDealer(pack.sellerDealerId);if(!pack||!seller)return;showModal(`<div class="dx-package-modal" style="--dx-a:${seller.color}"><h2 class="section-title">${escapeHtml(pack.title)}</h2><p class="subtle">${escapeHtml(seller.companyName)} · ${escapeHtml(pack.reason)}</p><div class="dx-buy-summary"><div><small>${dxText('Gesamtpreis','Total price')}</small><b>${money(pack.totalPrice)}</b></div><div><small>${dxText('Einzelpreis','Unit price')}</small><b>${money(pack.unitPrice)}</b></div><div><small>${dxText('Ø Marge','Avg. margin')}</small><b>${pack.averageMargin}%</b></div><div><small>${dxText('Ø Zustand','Avg. condition')}</small><b>${pack.averageCondition}/100</b></div><div><small>${dxText('Umfang','Size')}</small><b>${pack.count} ${dxText('Fahrzeuge','vehicles')}</b></div><div><small>${dxText('Restlaufzeit','Time left')}</small><b>${Math.max(0,pack.expiresAtTick-dealerExchangeState().simulationTick)} ${dxText('Zyklen','cycles')}</b></div></div><div class="dx-package-units">${pack.units.map(u=>`<span>${escapeHtml(u.brand)} ${escapeHtml(u.model)} · ${u.year} · ${u.mileage.toLocaleString(localeMeta().numberLocale)} km · ${u.condition}/100</span>`).join('')}</div><div class="notice">${dxText('Das Paket kann ausschließlich vollständig gekauft werden. Ein Aufteilen einzelner Fahrzeuge ist ausgeschlossen.','The package can only be purchased in full. Individual vehicles cannot be split off.')}</div><div class="row-actions"><button class="btn btn-ghost" onclick="closeModal()">${dxText('Schließen','Close')}</button><button class="btn btn-primary" onclick="confirmDealerExchangePackage('${pack.id}')" ${pack.status!=='active'||state.cash<pack.totalPrice?'disabled':''}>${dxText('Gesamtes Paket kaufen','Buy entire package')}</button></div></div>`);
+}
+function confirmDealerExchangePackage(packageId){
+  const result=dealerExchangePlayerPurchasePackage(dealerExchangeState(),state,packageId,activeProfileName||'Spieler-Autohaus');if(!result.ok){notify(result.reason==='funds'?dxText('Nicht genügend Liquidität für das gesamte Paket.','Insufficient liquidity for the full package.'):dxText('Dieses Paket ist nicht mehr verfügbar.','This package is no longer available.'),'warn');closeModal();renderAllOpen();return;}result.package.units.forEach(unit=>{const car=dealerExchangePlayerCarFromListing({...unit,id:unit.id,askingPrice:unit.unitPrice,interest:0,demand:70,trend:0},unit.unitPrice);car.acquisitionSource='Händlerpaket';state.inventory.push(car);});state.transactions.unshift({id:uid('t'),day:state.day,type:'expense',desc:`Händlerpaket: ${result.package.title}`,amount:-result.package.totalPrice});state.transactions=state.transactions.slice(0,200);state.purchaseCount=(state.purchaseCount||0)+result.package.count;showToast('OK',dxText(`<b>Fahrzeugpaket übernommen</b><br>${result.package.count} Fahrzeuge wurden gemeinsam in den Bestand übertragen.`,`<b>Vehicle package acquired</b><br>${result.package.count} vehicles were transferred into inventory together.`),null,null);closeModal();renderAllOpen();scheduleSave();
+}
+function toggleDealerExchangePackageWatch(packageId){const pack=dealerExchangeState().vehiclePackages.find(p=>p.id===packageId);if(!pack)return;pack.watched=!pack.watched;notify(pack.watched?dxText('Fahrzeugpaket wird beobachtet.','Vehicle package is now watched.'):dxText('Beobachtung beendet.','Package watch removed.'),'info');renderAllOpen();scheduleSave();}
+function declineDealerExchangePackage(packageId){const pack=dealerExchangeState().vehiclePackages.find(p=>p.id===packageId);if(!pack||pack.status!=='active')return;pack.playerDeclined=true;notify(dxText('Fahrzeugpaket abgelehnt. Andere Händler können weiterhin zugreifen.','Vehicle package declined. Other dealers may still acquire it.'),'info');closeModal();renderAllOpen();scheduleSave();}
+function acceptDealerExchangeOrder(orderId){const result=dealerExchangeAcceptBusinessOrder(dealerExchangeState(),orderId,state);if(!result.ok){notify(dxText('Dieser Auftrag wurde bereits vergeben.','This order has already been awarded.'),'warn');renderAllOpen();return;}notify(dxText('Großauftrag angenommen. Die Beschaffungsphase läuft.','Business order accepted. Procurement is now active.'),'good');renderAllOpen();scheduleSave();}
+function declineDealerExchangeOrder(orderId){if(dealerExchangeDeclineBusinessOrder(dealerExchangeState(),orderId)){notify(dxText('Großauftrag abgelehnt.','Business order declined.'),'info');renderAllOpen();scheduleSave();}}
+function assignCarToDealerExchangeOrder(orderId,carId){const car=findCar(carId);if(!car)return;const result=dealerExchangeAssignPlayerOrderVehicle(dealerExchangeState(),state,orderId,carId,marketVehicleSegment(car));if(!result.ok){notify(dxText('Dieses Fahrzeug kann nicht für den Auftrag verwendet werden.','This vehicle cannot be used for the order.'),'warn');return;}notify(result.completed?dxText('Großauftrag vollständig abgeschlossen.','Business order completed successfully.'):dxText('Fahrzeug verbindlich dem Großauftrag zugewiesen.','Vehicle committed to the business order.'),result.completed?'good':'info');renderAllOpen();scheduleSave();}
+function dealerExchangeAuctionTime(ms){const total=Math.max(0,Math.ceil(ms/1000)),minutes=Math.floor(total/60),seconds=total%60;return`${minutes}:${String(seconds).padStart(2,'0')}`;}
+function toggleDealerExchangeAuctionWatch(auctionId){const auction=dealerExchangeState().auctions.find(a=>a.id===auctionId);if(!auction)return;auction.watched=!auction.watched;notify(auction.watched?dxText('Live-Auktion wird beobachtet.','Live auction is now watched.'):dxText('Beobachtung beendet.','Auction watch removed.'),'info');renderAllOpen();scheduleSave();}
+function placeDealerExchangeAuctionBid(auctionId){const auction=dealerExchangeState().auctions.find(a=>a.id===auctionId);if(!auction)return;const minimum=auction.bidCount?auction.currentBid+auction.minIncrement:auction.startPrice,amount=Math.max(minimum,Math.round(Number(document.getElementById(`dxAuctionBid-${auctionId}`)?.value)||minimum)),autoMax=Math.max(amount,Math.round(Number(document.getElementById(`dxAuctionAuto-${auctionId}`)?.value)||amount)),result=dealerExchangePlayerAuctionBid(dealerExchangeState(),state,auctionId,amount,autoMax);if(!result.ok){notify(result.reason==='funds'?dxText('Nicht genügend freie Liquidität für dieses Gebot.','Insufficient available liquidity for this bid.'):dxText(`Das Mindestgebot beträgt ${money(result.minimum||minimum)}.`,`The minimum bid is ${money(result.minimum||minimum)}.`),'warn');return;}notify(result.autoOnly?dxText(`Automatiklimit auf ${money(autoMax)} gesetzt.`,`Automatic limit set to ${money(autoMax)}.`):dxText(`Höchstgebot über ${money(amount)} abgegeben.`,`Leading bid of ${money(amount)} placed.`),'good');dealerExchangeFlushPlayerNotifications();renderAllOpen();scheduleSave();}
+function exitDealerExchangeAuction(auctionId){if(dealerExchangePlayerExitAuction(dealerExchangeState(),state,auctionId)){notify(dxText('Sie steigen aus. Ein bereits führendes Gebot bleibt verbindlich.','You have exited. Any current leading bid remains binding.'),'info');renderAllOpen();scheduleSave();}}
+function openPlayerAuctionModal(carId){
+  const car=findCar(carId),reserved=car?.reservedFor&&car.reservedFor.expiresDay>state.day,blocked=!car||reserved||car.sold||car.location==='sold'||car.dealerExchangeOrderId||car.dealerExchangeListingId||car.dealerExchangePackageId||car.dealerExchangeAuctionId||state.listings?.[carId]||(state.workshopJobs||[]).some(j=>j.carId===carId);if(blocked){notify(dxText('Dieses Fahrzeug ist bereits gebunden und kann nicht eingeliefert werden.','This vehicle is already committed and cannot be consigned.'),'warn');return;}const market=car.marketValue||car.purchasePrice||1000,start=Math.max(300,Math.round(market*.72/100)*100),step=market>=80000?1000:market>=35000?500:250;
+  showModal(`<div class="dx-auction-consign"><div class="dx-profile-hero"><span class="dx-avatar">LIVE</span><div><small>${dxText('SPIELER-EINLIEFERUNG','PLAYER CONSIGNMENT')}</small><h3>${escapeHtml(car.brand)} ${escapeHtml(car.model)}</h3><p>${car.year} · ${car.mileage.toLocaleString(localeMeta().numberLocale)} km · ${money(market)} ${dxText('Marktwert','market value')}</p></div></div><div class="dx-buy-summary"><div><small>${dxText('Einkauf','Purchase')}</small><b>${money(car.purchasePrice||0)}</b></div><div><small>${dxText('Marktwert','Market value')}</small><b>${money(market)}</b></div><div><small>${dxText('Eigentum','Ownership')}</small><b>${dxText('Bleibt bis Zuschlag','Retained until sale')}</b></div></div><div class="listing-price-grid"><div class="field"><label>${dxText('Startpreis','Starting price')}</label><input id="dxAuctionStart" type="number" min="300" step="100" value="${start}"></div><div class="field"><label>${dxText('Mindestgebot','Minimum increment')}</label><select id="dxAuctionStep">${[100,250,500,1000,2500].map(v=>`<option value="${v}" ${v===step?'selected':''}>${money(v)}</option>`).join('')}</select></div><div class="field"><label>${dxText('Auktionsdauer','Auction duration')}</label><select id="dxAuctionDuration">${[[30000,'30 Sek.'],[45000,'45 Sek.'],[60000,'60 Sek.'],[90000,'90 Sek.']].map(([v,l])=>`<option value="${v}" ${v===45000?'selected':''}>${l}</option>`).join('')}</select></div><div class="field"><label>${dxText('Reservepreis (optional)','Reserve price (optional)')}</label><input id="dxAuctionReserve" type="number" min="0" step="100" placeholder="${dxText('Kein Reservepreis','No reserve')}"></div></div><div class="field"><label>${dxText('Beschreibung (optional)','Description (optional)')}</label><textarea id="dxAuctionDescription" maxlength="240" placeholder="${dxText('Historie, Zustand oder Besonderheiten','History, condition or notable details')}"></textarea></div><div class="notice">${dxText('Das Fahrzeug bleibt bis zum Zuschlag Ihr Eigentum und ist währenddessen für alle anderen Verkaufswege gesperrt. KI-Händler bieten ohne Sonderregeln.','The vehicle remains yours until settlement and is locked from all other sales paths. AI dealers bid without special rules.')}</div><div class="row-actions"><button class="btn btn-ghost" onclick="closeModal()">${dxText('Abbrechen','Cancel')}</button><button class="btn btn-primary" onclick="confirmPlayerAuction('${car.id}')">${dxText('Live-Auktion starten','Start live auction')}</button></div></div>`);
+}
+function confirmPlayerAuction(carId){const car=findCar(carId);if(!car)return;const result=dealerExchangeCreatePlayerAuction(dealerExchangeState(),state,car,{startPrice:document.getElementById('dxAuctionStart')?.value,minIncrement:document.getElementById('dxAuctionStep')?.value,durationMs:document.getElementById('dxAuctionDuration')?.value,reservePrice:document.getElementById('dxAuctionReserve')?.value,description:document.getElementById('dxAuctionDescription')?.value,segment:marketVehicleSegment(car)},activeProfileName||'Spieler-Autohaus');if(!result.ok){notify(result.reason==='values'?dxText('Bitte gültige Auktionswerte eingeben. Der Reservepreis darf nicht unter dem Startpreis liegen.','Enter valid auction values. The reserve may not be below the starting price.'):dxText('Das Fahrzeug ist nicht mehr verfügbar.','The vehicle is no longer available.'),'warn');return;}closeModal();dealerExchangeState().ui.tab='auctions';notify(result.queued?dxText(`Ihre Auktion wartet auf Platz ${result.queuePosition}.`,`Your auction is waiting at position ${result.queuePosition}.`):dxText('Die Spielerauktion ist live.','Your auction is live.'),result.queued?'info':'good');renderAllOpen();scheduleSave();}
+function dealerExchangeDeliverAuctionWins(){
+  const exchange=dealerExchangeState();state.inventory=state.inventory||[];state.transactions=state.transactions||[];exchange.playerAuctionDeliveries.filter(d=>!d.delivered).forEach(delivery=>{try{let car=state.inventory.find(c=>c.id===delivery.vehicle.id);if(!car){try{car=dealerExchangePlayerCarFromListing({...delivery.vehicle,askingPrice:delivery.price,interest:0},delivery.price);}catch(conversionError){console.error('[DealerExchange] Legacy-Auktionsfahrzeug wird mit sicherem Fallback wiederhergestellt:',conversionError);car=dealerExchangeAuctionInventoryCar({vehicle:delivery.vehicle,currentBid:delivery.price},state);ensureVehiclePhoto(car);}car.acquisitionSource='Live-Auktion';state.inventory.push(car);state.transactions.unshift({id:uid('t'),day:state.day,type:'expense',desc:`Live-Auktion: ${car.brand} ${car.model}`,amount:-delivery.price});state.transactions=state.transactions.slice(0,200);state.purchaseCount=(state.purchaseCount||0)+1;}delivery.delivered=true;delivery.deliveredDay=state.day;}catch(error){console.error('[DealerExchange] Auktionslieferung konnte noch nicht wiederhergestellt werden:',error);}});exchange.playerAuctionDeliveries=exchange.playerAuctionDeliveries.slice(-30);
+}
+function dealerExchangeDealer(id){ return dealerExchangeState().dealers.find(d=>d.id===id); }
+function dealerExchangeVehicle(id){ return dealerExchangeState().vehicles.find(v=>v.id===id); }
+function dealerExchangeDealerCard(dealer,selected=false){
+  const relationship=dealerExchangeRelationship(dealerExchangeState(),dealer.id),relationshipLabel=dealerExchangeRelationshipDisplay(relationship);
+  return `<button class="dx-dealer-card ${selected?'selected':''}" style="--dx-a:${dealer.color}" onclick="dealerExchangeSetUi('selectedDealerId','${dealer.id}')">
+    <span class="dx-avatar">${escapeHtml(dealer.short)}</span>
+    <span class="dx-dealer-copy"><b>${escapeHtml(dealer.companyName)}</b><small>${escapeHtml(dealer.kind)} · ${escapeHtml(dealer.region)}</small><span>${dealer.specialties.map(s=>`<i>${escapeHtml(s)}</i>`).join('')}</span></span>
+    <span class="dx-dealer-side"><em class="dx-presence ${dealer.status}"></em><b>${relationship?.successfulTrades||0}</b><small>${escapeHtml(relationshipLabel)}</small></span>
+  </button>`;
+}
+function dealerExchangeVehicleCard(vehicle){
+  const exchange = dealerExchangeState(), dealer = dealerExchangeDealer(vehicle.dealerId);
+  const watched = exchange.watchedVehicleIds.includes(vehicle.id), own=vehicle.dealerId==='player', reserved=vehicle.status==='reserved';
+  const margin = vehicle.marketValue-vehicle.askingPrice;
+  return `<article class="dx-vehicle-card ${exchange.ui.selectedVehicleId===vehicle.id?'selected':''}" style="--dx-a:${vehicle.color}" onclick="dealerExchangeSetUi('selectedVehicleId','${vehicle.id}')">
+    <div class="dx-vehicle-top"><span class="dx-segment">${escapeHtml(vehicle.segment)}</span><button class="dx-watch ${watched?'active':''}" onclick="event.stopPropagation();dealerExchangeToggleWatch('${vehicle.id}')" aria-label="${dxText('Beobachten','Watch')}">${watched?'★':'☆'}</button></div>
+    <div class="dx-car-silhouette dx-real-vehicle-photo">${renderCarPhoto(vehicle)}</div>
+    <div class="dx-vehicle-title"><small>${vehicle.year} · ${vehicle.mileage.toLocaleString(localeMeta().numberLocale)} km</small><b>${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model)}</b><span>${escapeHtml(own?dxText('Dein Autohaus','Your dealership'):(dealer?.companyName||''))}</span></div>
+    <div class="dx-price-row"><div><small>${dxText('Händlerpreis','Dealer price')}</small><strong>${money(vehicle.askingPrice)}</strong></div><span class="${margin>=0?'positive':'negative'}">${margin>=0?'+':''}${money(margin)}</span></div>
+    <div class="dx-demand"><span><i style="width:${vehicle.demand}%"></i></span><small>${dxText('Nachfrage','Demand')} ${vehicle.demand}%</small></div>
+    <div class="dx-card-foot"><span><b>${vehicle.interest}</b> ${dxText('Interessenten','interested')}</span><span class="dx-timer">${reserved?dxText('RESERVIERT','RESERVED'):vehicle.expiresIn}</span></div>
+    <button class="btn ${own?'btn-ghost':'btn-primary'} btn-sm dx-interest" onclick="event.stopPropagation();${own?`openDealerExchangeListModal('${vehicle.id}')`:`openDealerExchangeBuy('${vehicle.id}')`}" ${reserved&&!own?'disabled':''}>${own?dxText('Inserat bearbeiten','Edit listing'):reserved?dxText('Reserviert','Reserved'):dxText('Jetzt kaufen','Buy now')}</button>
+  </article>`;
+}
+function dealerExchangeFeed(){
+  const exchange=dealerExchangeState(), filter=exchange.ui.feedFilter||'all';
+  const feed=exchange.feed.filter(item=>filter==='all'||item.type===filter);
+  return `<section class="dx-panel dx-feed-panel"><div class="dx-panel-head"><div><span class="dx-live-dot"></span><b>${dxText('LIVE-FEED','LIVE FEED')}</b><small>${dxText('Ausschließlich aus echten Netzwerkvorgängen','Only from real network activity')}</small></div><div class="dx-feed-filters">${[['all','Alle','All'],['auction','Auktionen','Auctions'],['listing','Markt','Market'],['trade','Handel','Trades'],['package','Pakete','Packages'],['order','Aufträge','Orders'],['offer','Direkt','Direct'],['relationship','Kontakte','Contacts']].map(([id,de,en])=>`<button class="${filter===id?'active':''}" onclick="dealerExchangeSetUi('feedFilter','${id}')">${dxText(de,en)}</button>`).join('')}</div></div>
+    <div class="dx-feed-list">${feed.map(item=>{const dealer=dealerExchangeDealer(item.dealerId);return `<button class="dx-feed-item" style="--dx-a:${item.accent}" onclick="${item.type==='auction'?`dealerExchangeSetUi('tab','auctions')`:item.type==='offer'?`dealerExchangeSetUi('tab','offers')`:item.type==='package'?`dealerExchangeSetUi('tab','packages')`:item.type==='order'?`dealerExchangeSetUi('tab','orders')`:item.vehicleId&&dealerExchangeVehicle(item.vehicleId)?`dealerExchangeSetUi('selectedVehicleId','${item.vehicleId}');dealerExchangeSetUi('tab','vehicles')`:`dealerExchangeSetUi('selectedDealerId','${item.dealerId}');dealerExchangeSetUi('tab','dealers')`}"><span class="dx-feed-icon">${refIcon(['trade','offer','relationship','package','order','auction'].includes(item.type)?'insights':'dealerexchange')}</span><span><small>${escapeHtml(dealerExchangeEventAge(item))} · ${escapeHtml(dealer?.companyName||'Netzwerk')}</small><b>${escapeHtml(item.title)}</b><p>${escapeHtml(item.text)}</p></span><i>›</i></button>`}).join('')||`<div class="empty-state">${dxText('Noch kein echter Netzwerkvorgang in diesem Filter.','No real network activity in this filter yet.')}</div>`}</div></section>`;
+}
+function renderDealerExchangeOverview(){
+  const exchange=dealerExchangeState(), top=[...exchange.vehicles].sort((a,b)=>b.opportunity-a.opportunity).slice(0,3);
+  return `<div class="dx-overview-grid">${dealerExchangeFeed()}<section class="dx-panel dx-opportunity-panel"><div class="dx-panel-head"><div><b>${dxText('TOP-CHANCEN','TOP OPPORTUNITIES')}</b><small>${dxText('Nach Marktpotenzial priorisiert','Ranked by market potential')}</small></div><button class="dx-link" onclick="dealerExchangeSetUi('tab','vehicles')">${dxText('Alle ansehen','View all')} →</button></div><div class="dx-opportunity-list">${top.map(v=>{const dealer=dealerExchangeDealer(v.dealerId);return `<button onclick="dealerExchangeSetUi('selectedVehicleId','${v.id}');dealerExchangeSetUi('tab','vehicles')"><span class="dx-score">${v.opportunity}</span><span><b>${escapeHtml(v.brand)} ${escapeHtml(v.model)}</b><small>${escapeHtml(dealer?.companyName||dxText('Dein Autohaus','Your dealership'))} · ${money(v.askingPrice)}</small></span><em>${v.trend>=0?'+':''}${v.trend.toLocaleString(localeMeta().numberLocale)}%</em></button>`}).join('')}</div></section></div>
+  <section class="dx-panel dx-network-strip"><div class="dx-panel-head"><div><b>${dxText('AKTIVE HÄNDLER','ACTIVE DEALERS')}</b><small>${dxText('Dein Netzwerk in diesem Moment','Your network right now')}</small></div><button class="dx-link" onclick="dealerExchangeSetUi('tab','dealers')">${dxText('Netzwerk öffnen','Open network')} →</button></div><div class="dx-dealer-row">${exchange.dealers.slice(0,5).map(d=>dealerExchangeDealerCard(d,d.id===exchange.ui.selectedDealerId)).join('')}</div></section>`;
+}
+function renderDealerExchangeDealers(){
+  const exchange=dealerExchangeState(), selected=dealerExchangeDealer(exchange.ui.selectedDealerId)||exchange.dealers[0];
+  const relationship=dealerExchangeRelationship(exchange,selected.id),history=exchange.dealerHistories[selected.id]||[],owned=exchange.inventoryVehicles.filter(v=>v.ownerDealerId===selected.id),segments=[...new Set(owned.map(v=>v.segment))].slice(0,4),pending=exchange.directOffers.filter(o=>o.dealerId===selected.id&&o.status==='pending').length;
+  return `<div class="dx-dealers-layout"><section class="dx-panel"><div class="dx-panel-head"><div><b>${dxText('HÄNDLERNETZWERK','DEALER NETWORK')}</b><small>${exchange.dealers.length} ${dxText('wiedererkennbare Geschäftskontakte','recognizable business contacts')}</small></div></div><div class="dx-dealer-list">${exchange.dealers.map(d=>dealerExchangeDealerCard(d,d.id===selected.id)).join('')}</div></section><aside class="dx-panel dx-dealer-profile" style="--dx-a:${selected.color}"><div class="dx-profile-hero"><span class="dx-avatar">${escapeHtml(selected.short)}</span><div><small>${escapeHtml(selected.kind)}</small><h3>${escapeHtml(selected.companyName)}</h3><p>${escapeHtml(selected.region)}</p></div><strong>${relationship?.successfulTrades||0}<small>${dxText('gemeinsame Geschäfte','joint trades')}</small></strong></div><div class="dx-relationship"><small>${dxText('GESCHÄFTSBEZIEHUNG','BUSINESS RELATIONSHIP')}</small><b>${escapeHtml(dealerExchangeRelationshipDisplay(relationship))}</b><span>${dxText('Entsteht ausschließlich aus realen Geschäften und verlässlichem Verhalten.','Built exclusively through real trades and reliable conduct.')}</span></div><div class="dx-profile-stats"><div><small>${dxText('Von diesem Händler gekauft','Bought from this dealer')}</small><b>${relationship?.playerPurchases||0}</b></div><div><small>${dxText('An diesen Händler verkauft','Sold to this dealer')}</small><b>${relationship?.playerSales||0}</b></div><div><small>${dxText('Beobachtete Geschäfte','Observed trades')}</small><b>${selected.tradeCount||0}</b></div><div><small>${dxText('Aktuelle Direktangebote','Current direct offers')}</small><b>${pending}</b></div></div><h4>${dxText('Bekannte Spezialisierungen','Known specialties')}</h4><div class="dx-specialties">${selected.specialties.map(s=>`<span>${escapeHtml(s)}</span>`).join('')}</div><h4>${dxText('Beobachtete Fahrzeugsegmente','Observed vehicle segments')}</h4><div class="dx-specialties">${segments.map(s=>`<span>${escapeHtml(s)}</span>`).join('')||`<span>${dxText('Noch unbekannt','Not known yet')}</span>`}</div><h4>${dxText('Händlerverlauf','Dealer history')}</h4><div class="dx-dealer-history">${history.slice(0,8).map(item=>`<div><span>${escapeHtml(dealerExchangeEventAge(item))}</span><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.detail||'')}</small></div>`).join('')||`<div class="empty-state">${dxText('Noch keine gemeinsame oder beobachtete Historie.','No shared or observed history yet.')}</div>`}</div></aside></div>`;
+}
+function renderDealerExchangeVehicles(){
+  const exchange=dealerExchangeState(), search=(exchange.ui.vehicleSearch||'').trim().toLowerCase(), segment=exchange.ui.segment||'all', sort=exchange.ui.sort||'opportunity';
+  let vehicles=exchange.vehicles.filter(v=>(segment==='all'||v.segment===segment)&&(!search||`${v.brand} ${v.model} ${v.segment}`.toLowerCase().includes(search)));
+  const sorters={opportunity:(a,b)=>b.opportunity-a.opportunity,priceAsc:(a,b)=>a.askingPrice-b.askingPrice,priceDesc:(a,b)=>b.askingPrice-a.askingPrice,demand:(a,b)=>b.demand-a.demand};vehicles.sort(sorters[sort]||sorters.opportunity);
+  const segments=[...new Set(exchange.vehicles.map(v=>v.segment))];
+  return `<section class="dx-panel dx-vehicle-browser"><div class="dx-browser-tools"><label>${refIcon('search')}<input value="${escapeAttr(exchange.ui.vehicleSearch||'')}" placeholder="${dxText('Marke, Modell oder Segment','Brand, model or segment')}" oninput="dealerExchangeState().ui.vehicleSearch=this.value" onkeydown="if(event.key==='Enter')renderApp('dealerexchange')"></label><select onchange="dealerExchangeSetUi('segment',this.value)"><option value="all">${dxText('Alle Segmente','All segments')}</option>${segments.map(s=>`<option ${segment===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select><select onchange="dealerExchangeSetUi('sort',this.value)"><option value="opportunity" ${sort==='opportunity'?'selected':''}>${dxText('Beste Chance','Best opportunity')}</option><option value="demand" ${sort==='demand'?'selected':''}>${dxText('Höchste Nachfrage','Highest demand')}</option><option value="priceAsc" ${sort==='priceAsc'?'selected':''}>${dxText('Preis aufsteigend','Price ascending')}</option><option value="priceDesc" ${sort==='priceDesc'?'selected':''}>${dxText('Preis absteigend','Price descending')}</option></select><button class="btn btn-ghost btn-sm" onclick="renderApp('dealerexchange')">${dxText('Suchen','Search')}</button></div><div class="dx-result-line"><span><b>${vehicles.length}</b> ${dxText('aktive Händlerangebote','active dealer listings')}</span><span><i></i>${dxText('Netzwerk live','Network live')}</span></div><div class="dx-vehicle-grid">${vehicles.map(dealerExchangeVehicleCard).join('')||`<div class="empty-state">${dxText('Keine passenden Fahrzeuge gefunden.','No matching vehicles found.')}</div>`}</div></section>`;
+}
+function renderDealerExchangePackages(){
+  const exchange=dealerExchangeState(),packs=exchange.vehiclePackages.filter(p=>p.status==='active'&&!p.playerDeclined);return `<section class="dx-panel"><div class="dx-panel-head"><div><b>${dxText('FAHRZEUGPAKETE','VEHICLE PACKAGES')}</b><small>${dxText('Unteilbare B2B-Bestände aus realem Lagerüberhang und Flottenrückläufen','Indivisible B2B inventory from real stock surplus and fleet returns')}</small></div><span class="chip">${packs.length} ${dxText('verfügbar','available')}</span></div><div class="dx-package-grid">${packs.map(pack=>{const seller=dealerExchangeDealer(pack.sellerDealerId);return `<article style="--dx-a:${seller?.color||'#53d6bd'}"><div class="dx-vehicle-top"><span class="dx-segment">${escapeHtml(pack.segment)}</span><button class="dx-watch ${pack.watched?'active':''}" onclick="toggleDealerExchangePackageWatch('${pack.id}')">${pack.watched?'★':'☆'}</button></div><h3>${escapeHtml(pack.title)}</h3><p>${escapeHtml(seller?.companyName||'')} · ${escapeHtml(pack.reason)}</p><div class="dx-package-price"><strong>${money(pack.totalPrice)}</strong><span>${money(pack.unitPrice)} / ${dxText('Fahrzeug','vehicle')}</span></div><div class="dx-package-facts"><span>${pack.averageCondition}/100 ${dxText('Ø Zustand','avg. condition')}</span><span>${pack.averageMargin}% ${dxText('Ø Marge','avg. margin')}</span><span>${Math.max(0,pack.expiresAtTick-exchange.simulationTick)} ${dxText('Zyklen','cycles')}</span></div><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="declineDealerExchangePackage('${pack.id}')">${dxText('Ablehnen','Decline')}</button><button class="btn btn-primary btn-sm" onclick="openDealerExchangePackage('${pack.id}')">${dxText('Paket prüfen','Review package')}</button></div></article>`}).join('')||`<div class="empty-state">${dxText('Aktuell wurde kein wirtschaftlich begründetes Fahrzeugpaket gebildet.','No economically justified vehicle package is currently available.')}</div>`}</div></section>`;
+}
+function dealerExchangeAuctionStatus(auction){if(auction.status==='queued'){const position=Math.max(1,dealerExchangeState().auctionQueue.indexOf(auction.id)+1);return dxText(`Warteschlange · Platz ${position}`,`Queue · Position ${position}`);}if(auction.status==='active')return dxText('Läuft jetzt','Live now');if(auction.status==='completed')return dxText('Verkauft','Sold');if(auction.status==='reserve-not-met')return dxText('Reservepreis nicht erreicht','Reserve not met');return dxText('Beendet','Ended');}
+function renderPlayerAuctionConsignments(auctions){const own=auctions.filter(a=>a.playerSeller).slice(0,12);if(!own.length)return'';return `<section class="dx-panel dx-consignment-monitor"><div class="dx-panel-head"><div><b>${dxText('MEINE AUKTIONEN','MY AUCTIONS')}</b><small>${dxText('Warteschlange, Live-Status und Ergebnisse jederzeit im Blick','Queue, live status and results always visible')}</small></div><span class="chip">${own.filter(a=>a.status==='active').length} LIVE</span></div><div class="dx-consignment-grid">${own.map(a=>{const reserveMet=!a.reservePrice||a.currentBid>=a.reservePrice,profit=(a.bidCount?a.currentBid:a.startPrice)-(a.vehicle.purchasePrice||0),leader=dealerExchangeDealer(a.currentBidderId)?.companyName||dxText('Noch kein Gebot','No bids yet'),running=a.status==='active';return `<article class="status-${a.status}"><div><span class="${running?'dx-live-dot':'dx-queue-dot'}"></span><b>${escapeHtml(a.vehicle.brand)} ${escapeHtml(a.vehicle.model)}</b><strong>${escapeHtml(dealerExchangeAuctionStatus(a))}</strong><small>${escapeHtml(leader)}</small></div><div><small>${dxText('Höchstgebot','High bid')}</small><b>${money(a.bidCount?a.currentBid:a.startPrice)}</b></div><div><small>${dxText('Reserve','Reserve')}</small><b class="${reserveMet?'positive':'negative'}">${a.reservePrice?reserveMet?dxText('Erreicht','Reached'):money(a.reservePrice):dxText('Ohne Limit','No reserve')}</b></div><div><small>${dxText('Gewinn ggü. Einkauf','Profit vs purchase')}</small><b class="${profit>=0?'positive':'negative'}">${profit>=0?'+':''}${money(profit)}</b></div><div><small>${dxText('Gebote · Restzeit','Bids · time')}</small><b>${a.bidCount} · ${running?`<span data-dx-auction-countdown="${a.id}">${dealerExchangeAuctionTime(a.remainingMs)}</span>`:a.status==='queued'?dxText('wartet','waiting'):'—'}</b></div></article>`}).join('')}</div></section>`;}
+function renderPlayerAuctionOverview(auctions){const own=auctions.filter(a=>a.playerSeller).slice(0,12);if(!own.length)return'';return `<section class="dx-panel dx-consignment-monitor"><div class="dx-panel-head"><div><b>${dxText('MEINE AUKTIONEN','MY AUCTIONS')}</b><small>${dxText('Alle Kerndaten ohne zusätzlichen Klick','All key data without another click')}</small></div></div><div class="dx-consignment-grid">${own.map(a=>{const leader=dealerExchangeDealer(a.currentBidderId)?.companyName||dxText('Kein Höchstbieter','No leading bidder'),running=a.status==='active';return `<article class="status-${a.status}"><div><b>${escapeHtml(a.vehicle.brand)} ${escapeHtml(a.vehicle.model)}</b><strong>${escapeHtml(dealerExchangeAuctionStatus(a))}</strong><small>${escapeHtml(leader)}</small></div><div><small>${dxText('Startpreis','Starting price')}</small><b>${money(a.startPrice)}</b></div><div><small>${dxText('Höchstgebot','High bid')}</small><b>${money(a.bidCount?a.currentBid:a.startPrice)}</b></div><div><small>${dxText('Gebote','Bids')}</small><b>${a.bidCount}</b></div><div><small>${dxText('Restzeit','Time left')}</small><b>${running?`<span data-dx-auction-countdown="${a.id}">${dealerExchangeAuctionTime(a.remainingMs)}</span>`:a.status==='queued'?dxText('Wartet','Waiting'):'—'}</b></div></article>`}).join('')}</div></section>`;}
+function renderDealerExchangeAuctionsBase(){
+  const exchange=dealerExchangeState(),auctions=exchange.auctions.filter(a=>a.status==='active'&&!a.playerSeller);return `<div class="dx-auction-room"><header class="dx-auction-room-head"><span class="dx-live-dot"></span><div><b>${dxText('DIGITALER BIETERSAAL LIVE','DIGITAL BIDDING ROOM LIVE')}</b><small>${dxText('Jedes Gebot stammt aus realer Spieler- oder Händlerliquidität','Every bid comes from real player or dealer liquidity')}</small></div><strong>${auctions.length} ${dxText('weitere laufend','other live')}</strong></header>${auctions.map(auction=>{const seller=dealerExchangeDealer(auction.sellerDealerId),leader=auction.currentBidderId==='player'?dxText('Sie · Spieler-Autohaus','You · Player dealership'):dealerExchangeDealer(auction.currentBidderId)?.companyName||dxText('Noch kein Gebot','No bids yet'),minimum=auction.bidCount?auction.currentBid+auction.minIncrement:auction.startPrice,margin=auction.vehicle.marketValue-minimum,playerLeading=auction.currentBidderId==='player';return `<article class="dx-auction-stage ${playerLeading?'player-leading':''}" style="--dx-a:${auction.vehicle.color||seller?.color||'#53d6bd'}"><div class="dx-auction-vehicle"><div class="dx-vehicle-top"><span class="dx-segment">${escapeHtml(auction.vehicle.segment)}</span><button class="dx-watch ${auction.watched?'active':''}" onclick="toggleDealerExchangeAuctionWatch('${auction.id}')">${auction.watched?'★':'☆'}</button></div><div class="dx-car-silhouette dx-real-vehicle-photo">${renderCarPhoto(auction.vehicle)}</div><small>${escapeHtml(auction.source)} · ${escapeHtml(seller?.companyName||'')}</small><h2>${escapeHtml(auction.vehicle.brand)} ${escapeHtml(auction.vehicle.model)}</h2><p>${auction.vehicle.year} · ${auction.vehicle.mileage.toLocaleString(localeMeta().numberLocale)} km · ${auction.vehicle.condition}/100</p><div class="dx-auction-values"><span><small>${dxText('Marktwert','Market value')}</small><b>${money(auction.vehicle.marketValue)}</b></span><span><small>${dxText('Erwartete Spanne','Expected margin')}</small><b class="${margin>=0?'positive':'negative'}">${margin>=0?'+':''}${money(margin)}</b></span></div></div><div class="dx-auction-live"><div class="dx-auction-clock"><small>${dxText('RESTZEIT','TIME LEFT')}</small><strong data-dx-auction-countdown="${auction.id}">${dealerExchangeAuctionTime(auction.remainingMs)}</strong><span>${auction.extensions?`${auction.extensions}× ${dxText('verlängert','extended')}`:dxText('Live','Live')}</span></div><div class="dx-auction-high"><small>${dxText('AKTUELLES HÖCHSTGEBOT','CURRENT HIGH BID')}</small><strong>${auction.bidCount?money(auction.currentBid):money(auction.startPrice)}</strong><span>${escapeHtml(leader)}</span></div><div class="dx-auction-stats"><span><b>${auction.bidCount}</b><small>${dxText('Gebote','bids')}</small></span><span><b>${money(auction.minIncrement)}</b><small>${dxText('Mindestschritt','minimum step')}</small></span><span><b>${Object.values(auction.bidderStates).filter(s=>!s.exited).length}</b><small>${dxText('aktive KI-Bieter','active AI bidders')}</small></span></div>${auction.playerExited?`<div class="notice">${dxText('Sie sind ausgestiegen. Ein eventuell führendes Gebot bleibt verbindlich.','You have exited. A leading bid, if any, remains binding.')}</div>`:`<div class="dx-auction-controls"><div class="field"><label>${dxText('Nächstes Gebot','Next bid')}</label><input id="dxAuctionBid-${auction.id}" type="number" min="${minimum}" step="${auction.minIncrement}" value="${minimum}"></div><div class="field"><label>${dxText('Automatik bis','Automatic up to')}</label><input id="dxAuctionAuto-${auction.id}" type="number" min="${minimum}" step="${auction.minIncrement}" value="${Math.max(minimum,auction.playerAutoMax||minimum)}"></div><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="exitDealerExchangeAuction('${auction.id}')">${dxText('Aussteigen','Exit')}</button><button class="btn btn-primary btn-sm" onclick="placeDealerExchangeAuctionBid('${auction.id}')">${playerLeading?dxText('Automatiklimit setzen','Set automatic limit'):dxText('Gebot abgeben','Place bid')}</button></div></div>`}</div><aside class="dx-auction-stream"><h3>${dxText('GEBOTSVERLAUF','BID HISTORY')}</h3>${auction.bids.slice(0,10).map(bid=>{const name=bid.bidderId==='player'?dxText('Sie','You'):dealerExchangeDealer(bid.bidderId)?.companyName||bid.bidderId;return `<div class="${bid.bidderId==='player'?'player':''}"><span>${escapeHtml(name)}${bid.automatic?` · ${dxText('Auto','Auto')}`:''}</span><b>${money(bid.amount)}</b><small>${dealerExchangeAuctionTime(bid.remainingMs)}</small></div>`}).join('')||`<div class="empty-state">${dxText('Der Bietersaal wartet auf das erste wirtschaftliche Gebot.','The bidding room is waiting for the first economic bid.')}</div>`}<h3>${dxText('BIETVERHALTEN','BIDDING BEHAVIOR')}</h3><div class="dx-bidder-behaviors">${Object.entries(auction.bidderStates).slice(0,6).map(([id,s])=>`<span class="${s.exited?'exited':''}"><b>${escapeHtml(dealerExchangeDealer(id)?.companyName||id)}</b><small>${escapeHtml(s.behavior)} · ${s.exited?dxText('ausgestiegen','exited'):dxText('aktiv','active')}</small></span>`).join('')}</div></aside></article>`}).join('')||`<section class="dx-panel"><div class="empty-state">${dxText('Keine weiteren Händlerauktionen laufen neben Ihrer eigenen Auktion.','No other dealer auctions are live alongside your own auction.')}</div></section>`}<section class="dx-panel dx-auction-history"><div class="dx-panel-head"><div><b>${dxText('LETZTE AUKTIONEN','RECENT AUCTIONS')}</b><small>${dxText('Persistente Abschlüsse und Gewinner','Persistent settlements and winners')}</small></div></div><div>${exchange.auctionHistory.slice(0,6).map(a=>`<span><b>${escapeHtml(a.vehicle.brand)} ${escapeHtml(a.vehicle.model)}</b><small>${a.status==='unsold'?dxText('Ohne Zuschlag','No sale'):`${money(a.finalPrice)} · ${a.winnerId==='player'?dxText('Von Ihnen gewonnen','Won by you'):escapeHtml(dealerExchangeDealer(a.winnerId)?.companyName||'')}`}</small></span>`).join('')||`<div class="empty-state">${dxText('Noch keine Auktion abgeschlossen.','No auction has completed yet.')}</div>`}</div></section></div>`;
+}
+function renderDealerExchangeAuctions(){const exchange=dealerExchangeState(),auctions=exchange.auctions.filter(a=>a.status==='active'),own=auctions.filter(a=>a.playerSeller);let html=renderDealerExchangeAuctionsBase().replace('</header>',`</header>${renderPlayerAuctionBroadcastOverview(exchange.auctions)}`);own.forEach(()=>{html=html.replace(dxText('Sie sind ausgestiegen. Ein eventuell führendes Gebot bleibt verbindlich.','You have exited. A leading bid, if any, remains binding.'),dxText('Ihre Einlieferung ist live. KI-Händler bieten nach den regulären wirtschaftlichen Regeln.','Your consignment is live. AI dealers bid under the regular economic rules.'));});return html;}
+function renderDealerExchangeOrders(){
+  const exchange=dealerExchangeState(),orders=exchange.businessOrders.filter(o=>['open','active'].includes(o.status));return `<div class="dx-order-layout">${orders.map(order=>{const issuer=dealerExchangeDealer(order.issuerDealerId),active=order.status==='active'&&order.assignedTo==='player',eligible=active?(state.inventory||[]).filter(car=>marketVehicleSegment(car)===order.segment&&!car.dealerExchangeOrderId&&!car.dealerExchangeListingId&&!state.listings?.[car.id]&&!(car.reservedFor&&car.reservedFor.expiresDay>state.day)&&!(state.workshopJobs||[]).some(j=>j.carId===car.id)):[],progress=Math.min(100,Math.round(order.procuredCount/order.quantity*100));return `<section class="dx-panel dx-order-card" style="--dx-a:${issuer?.color||'#53d6bd'}"><div class="dx-panel-head"><div><b>${escapeHtml(order.title)}</b><small>${escapeHtml(issuer?.companyName||'')} · ${escapeHtml(order.reason)}</small></div><span class="dx-order-state">${active?dxText('BESCHAFFUNG AKTIV','PROCUREMENT ACTIVE'):dxText('OFFEN','OPEN')}</span></div><div class="dx-order-body"><div class="dx-order-metrics"><div><small>${dxText('Benötigt','Required')}</small><b>${order.quantity}</b></div><div><small>${dxText('Beschafft','Procured')}</small><b>${order.procuredCount}</b></div><div><small>${dxText('Fehlend','Missing')}</small><b>${Math.max(0,order.quantity-order.procuredCount)}</b></div><div><small>${dxText('Restzeit','Time left')}</small><b>${Math.max(0,order.deadlineTick-exchange.simulationTick)} ${dxText('Zyklen','cycles')}</b></div><div><small>${dxText('Auszahlung','Payout')}</small><b>${money(order.totalPayout)}</b></div><div><small>${dxText('Erwarteter Gewinn','Expected profit')}</small><b>${money(order.expectedProfit)}</b></div></div><div class="dx-order-progress"><i><em style="width:${progress}%"></em></i><span>${order.procuredCount} / ${order.quantity} ${escapeHtml(order.segment)}</span></div>${order.status==='open'?`<div class="row-actions"><button class="btn btn-danger btn-sm" onclick="declineDealerExchangeOrder('${order.id}')">${dxText('Ablehnen','Decline')}</button><button class="btn btn-primary btn-sm" onclick="acceptDealerExchangeOrder('${order.id}')">${dxText('Auftrag annehmen','Accept order')}</button></div>`:active?`<h4>${dxText('Passende Fahrzeuge aus dem Bestand zuweisen','Assign matching vehicles from inventory')}</h4><div class="dx-order-eligible">${eligible.map(car=>`<button onclick="assignCarToDealerExchangeOrder('${order.id}','${car.id}')"><span><b>${escapeHtml(car.brand)} ${escapeHtml(car.model)}</b><small>${car.year} · ${money(car.marketValue)}</small></span><i>+</i></button>`).join('')||`<div class="notice">${dxText('Keine freien passenden Fahrzeuge. Kaufe geeignete Fahrzeuge am normalen Markt oder in der Händlerbörse.','No matching free vehicles. Acquire suitable vehicles from the regular market or Dealer Exchange.')}</div>`}</div>`:`<div class="notice">${dxText('Dieser Auftrag wird von einem KI-Händler bearbeitet.','This order is being handled by an AI dealer.')}</div>`}</div></section>`}).join('')||`<section class="dx-panel"><div class="empty-state">${dxText('Aktuell besteht keine belegbare Marktanforderung für einen Großauftrag.','There is currently no substantiated market requirement for a business order.')}</div></section>`}</div>`;
+}
+function renderDealerExchangeDirectOffers(){
+  const exchange=dealerExchangeState(),offers=exchange.directOffers.filter(o=>o.status==='pending').sort((a,b)=>b.createdTick-a.createdTick);
+  return `<section class="dx-panel dx-direct-offers"><div class="dx-panel-head"><div><b>${dxText('DIREKTE GESCHÄFTSANGEBOTE','DIRECT BUSINESS OFFERS')}</b><small>${dxText('Wirtschaftlich begründete Kontakte einzelner Händler','Economically justified contacts from individual dealers')}</small></div><span class="chip">${offers.length} ${dxText('offen','open')}</span></div><div class="dx-direct-list">${offers.map(offer=>{const dealer=dealerExchangeDealer(offer.dealerId),listing=dealerExchangePlayerListing(offer.vehicleId);if(!dealer||!listing)return'';return `<article style="--dx-a:${dealer.color}"><span class="dx-avatar">${escapeHtml(dealer.short)}</span><div><small>${offer.type==='counter'?dxText('GEGENANGEBOT','COUNTEROFFER'):dxText('DIREKTANGEBOT','DIRECT OFFER')} · ${escapeHtml(dealerExchangeEventAge(offer))}</small><h3>${escapeHtml(dealer.companyName)}</h3><b>${escapeHtml(listing.brand)} ${escapeHtml(listing.model)}</b><p>${escapeHtml(offer.reason)}</p></div><div class="dx-direct-price"><small>${dxText('Gebot','Offer')}</small><strong>${money(offer.offeredPrice)}</strong><span>${dxText('Inserat','Listing')}: ${money(listing.askingPrice)}</span><button class="btn btn-primary btn-sm" onclick="openDealerExchangeOffer('${offer.id}')">${dxText('Entscheiden','Decide')}</button></div></article>`}).join('')||`<div class="empty-state">${dxText('Aktuell liegt kein Direktangebot vor. Händler melden sich nur, wenn ein Fahrzeug wirtschaftlich zu ihrem Geschäft passt.','There is no direct offer currently. Dealers only contact you when a vehicle makes economic sense for their business.')}</div>`}</div></section>`;
+}
+function renderDealerExchangeMyListings(){
+  const exchange=dealerExchangeState(),active=exchange.vehicles.filter(v=>v.dealerId==='player'),eligible=(state.inventory||[]).filter(car=>!car.sold&&car.location!=='sold'&&!(car.reservedFor&&car.reservedFor.expiresDay>state.day)&&!state.listings?.[car.id]&&!car.dealerExchangeListingId&&!car.dealerExchangeOrderId&&!(state.workshopJobs||[]).some(job=>job.carId===car.id));
+  return `<div class="dx-my-market"><section class="dx-panel"><div class="dx-panel-head"><div><b>${dxText('MEINE HÄNDLER-INSERATE','MY DEALER LISTINGS')}</b><small>${active.length} ${dxText('aktive Angebote im Netzwerk','active offers in the network')}</small></div></div><div class="dx-my-listings">${active.map(listing=>{const car=findCar(listing.id);return `<article class="dx-my-listing ${listing.status==='reserved'?'reserved':''}"><div><span>${listing.status==='reserved'?dxText('RESERVIERT','RESERVED'):dxText('AKTIV','ACTIVE')}</span><b>${escapeHtml(listing.brand)} ${escapeHtml(listing.model)}</b><small>${money(listing.askingPrice)} · ${listing.expiresIn}</small>${listing.description?`<p>${escapeHtml(listing.description)}</p>`:''}</div><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="openDealerExchangeListModal('${listing.id}')">${dxText('Bearbeiten','Edit')}</button><button class="btn btn-danger btn-sm" onclick="withdrawDealerExchangeListing('${listing.id}')" ${listing.status==='reserved'?'disabled':''}>${dxText('Zurückziehen','Withdraw')}</button></div>${car?.reservedFor?`<div class="dx-reservation-note">${dxText('Reserviert durch','Reserved by')} ${escapeHtml(car.reservedFor.customerName||'KI-Händler')}</div>`:''}</article>`}).join('')||`<div class="empty-state">${dxText('Du hast noch kein Fahrzeug in der Händlerbörse inseriert.','You have not listed a vehicle on the Dealer Exchange yet.')}</div>`}</div></section><section class="dx-panel"><div class="dx-panel-head"><div><b>${dxText('FÜR DIE HÄNDLERBÖRSE VERFÜGBAR','AVAILABLE FOR DEALER EXCHANGE')}</b><small>${eligible.length} ${dxText('Fahrzeuge aus deinem Bestand','vehicles from your inventory')}</small></div></div><div class="dx-eligible-list">${eligible.map(car=>`<button onclick="openDealerExchangeListModal('${car.id}')"><span class="dx-feed-icon" style="--dx-a:#53d6bd">${refIcon('market')}</span><span><b>${escapeHtml(car.brand)} ${escapeHtml(car.model)}</b><small>${car.year} · ${car.mileage.toLocaleString(localeMeta().numberLocale)} km · ${money(car.marketValue)}</small></span><i>+</i></button>`).join('')||`<div class="empty-state">${dxText('Keine verfügbaren Fahrzeuge. Reservierte, anderweitig inserierte oder bearbeitete Fahrzeuge sind ausgeschlossen.','No available vehicles. Reserved, otherwise listed or workshop vehicles are excluded.')}</div>`}</div></section></div>`;
+}
+function renderOwnAuctionSpotlight(){
+  const exchange=dealerExchangeState(),auction=exchange.auctions.find(a=>a.playerSeller&&a.status==='active');if(!auction)return'';const leader=dealerExchangeDealer(auction.currentBidderId)?.companyName||dxText('Noch kein Höchstbieter','No leading bidder'),reserveMet=!auction.reservePrice||auction.currentBid>=auction.reservePrice,current=auction.bidCount?auction.currentBid:auction.startPrice,profit=current-(auction.vehicle.purchasePrice||0);return `<section class="dx-own-auction-spotlight" style="--dx-a:${auction.vehicle.color||'#53d6bd'}"><div class="dx-own-auction-visual"><div class="dx-own-auction-kicker"><span class="dx-live-dot"></span>${dxText('IHRE AUKTION LÄUFT JETZT','YOUR AUCTION IS LIVE NOW')}</div><div class="dx-car-silhouette dx-real-vehicle-photo">${renderCarPhoto(auction.vehicle)}</div><small>${escapeHtml(auction.vehicle.segment)} · ${auction.vehicle.year} · ${auction.vehicle.mileage.toLocaleString(localeMeta().numberLocale)} km</small><h2>${escapeHtml(auction.vehicle.brand)} ${escapeHtml(auction.vehicle.model)}</h2><strong>${escapeHtml(dealerExchangeAuctionStatus(auction))}</strong></div><div class="dx-own-auction-primary"><div class="dx-own-auction-price"><small>${dxText('AKTUELLES HÖCHSTGEBOT','CURRENT HIGH BID')}</small><b>${money(current)}</b><span>${escapeHtml(leader)}</span></div><div class="dx-own-auction-time"><small>${dxText('RESTZEIT','TIME LEFT')}</small><b data-dx-auction-countdown="${auction.id}">${dealerExchangeAuctionTime(auction.remainingMs)}</b><span>${auction.bidCount} ${dxText('Gebote','bids')}</span></div></div><div class="dx-own-auction-facts"><div><small>${dxText('Startpreis','Starting price')}</small><b>${money(auction.startPrice)}</b></div><div><small>${dxText('Reservepreis','Reserve price')}</small><b class="${reserveMet?'positive':'negative'}">${auction.reservePrice?money(auction.reservePrice):dxText('Nicht gesetzt','Not set')}</b><span>${auction.reservePrice?reserveMet?dxText('Erreicht','Reached'):dxText('Noch offen','Not reached'):dxText('Ohne Reserve','No reserve')}</span></div><div><small>${dxText('Marktwert','Market value')}</small><b>${money(auction.vehicle.marketValue)}</b></div><div><small>${dxText('Gewinn / Verlust','Profit / loss')}</small><b class="${profit>=0?'positive':'negative'}">${profit>=0?'+':''}${money(profit)}</b><span>${dxText('gegenüber Einkauf','versus purchase')}</span></div></div><aside class="dx-own-auction-bids"><div><h3>${dxText('GEBOTSVERLAUF','BID HISTORY')}</h3><button class="btn btn-ghost btn-sm" onclick="dealerExchangeSetUi('tab','auctions')">${dxText('Auktion öffnen','Open auction')}</button></div>${auction.bids.slice(0,5).map(bid=>`<span><small>${escapeHtml(dealerExchangeDealer(bid.bidderId)?.companyName||dxText('Spieler-Autohaus','Player dealership'))}</small><b>${money(bid.amount)}</b><i>${dealerExchangeAuctionTime(bid.remainingMs)}</i></span>`).join('')||`<p>${dxText('Die Händler prüfen aktuell ihre wirtschaftlichen Gebotsgrenzen.','Dealers are currently evaluating their economic bid limits.')}</p>`}</aside></section>`;
+}
+function dealerExchangeAuctionVehicle(auction){
+  const exact=(state.inventory||[]).find(car=>String(car.id)===String(auction.vehicleId));
+  return exact||auction.vehicle;
+}
+function renderOwnAuctionBroadcast(){
+  const exchange=dealerExchangeState(),auction=exchange.auctions.find(a=>a.playerSeller&&a.status==='active');if(!auction)return'';const car=dealerExchangeAuctionVehicle(auction),leader=dealerExchangeDealer(auction.currentBidderId)?.companyName||dxText('Noch kein Höchstbieter','No leading bidder'),current=auction.bidCount?auction.currentBid:auction.startPrice,reserveMet=!auction.reservePrice||current>=auction.reservePrice,profit=current-(car.purchasePrice||auction.vehicle.purchasePrice||0),lastBid=auction.bids[0],engine=car.engine||dxText('Nicht hinterlegt','Not specified');return `<section class="dx-own-auction-broadcast" data-auction-vehicle-id="${escapeAttr(auction.vehicleId)}" style="--dx-a:${car.color||'#53d6bd'}"><header><div><span class="dx-live-dot"></span><strong>${dxText('LIVE-BROADCAST','LIVE BROADCAST')}</strong><small>${dxText('Ihre Auktion läuft gerade','Your auction is live')}</small></div><div class="dx-broadcast-live"><span></span><b>LIVE</b><small>${dxText('Eigene Auktion','Your auction')}</small></div></header><div class="dx-broadcast-vehicle"><div class="dx-broadcast-photo">${renderCarPhoto(car)}</div><div class="dx-broadcast-vehicle-copy"><small>${escapeHtml(car.segment||auction.vehicle.segment)}</small><h1>${escapeHtml(car.brand)} ${escapeHtml(car.model)}</h1><div><span><small>${dxText('Baujahr','Year')}</small><b>${car.year}</b></span><span><small>${dxText('Kilometerstand','Mileage')}</small><b>${Number(car.mileage||0).toLocaleString(localeMeta().numberLocale)} km</b></span><span><small>${dxText('Motorisierung','Powertrain')}</small><b>${escapeHtml(engine)}</b></span><span><small>${dxText('Zustand','Condition')}</small><b>${car.condition}/100</b></span><span><small>${dxText('Marktwert','Market value')}</small><b>${money(car.marketValue)}</b></span></div></div></div><div class="dx-broadcast-market"><div class="dx-broadcast-current"><small>${dxText('AKTUELLES HÖCHSTGEBOT','CURRENT HIGH BID')}</small><b>${money(current)}</b><span>${escapeHtml(leader)}</span></div><div class="dx-broadcast-countdown"><small>${dxText('RESTZEIT','TIME LEFT')}</small><b class="${auction.remainingMs<=10000?'ending':''}" data-dx-auction-countdown="${auction.id}">${dealerExchangeAuctionTime(auction.remainingMs)}</b><span>${auction.bidCount} ${dxText('Gebote','bids')}</span></div><div class="dx-broadcast-prices"><span><small>${dxText('Startpreis','Starting price')}</small><b>${money(auction.startPrice)}</b></span><span><small>${dxText('Reservepreis','Reserve price')}</small><b>${auction.reservePrice?money(auction.reservePrice):'—'}</b><i class="${reserveMet?'positive':'negative'}">${reserveMet?dxText('Erreicht','Reached'):dxText('Offen','Pending')}</i></span><span><small>${dxText('Marktwert','Market value')}</small><b>${money(car.marketValue)}</b></span><span><small>${dxText('Gewinn / Verlust','Profit / loss')}</small><b class="${profit>=0?'positive':'negative'}">${profit>=0?'+':''}${money(profit)}</b></span></div></div><aside class="dx-broadcast-bidder"><div><small>${dxText('AKTUELLER HÖCHSTBIETER','CURRENT LEADER')}</small><h2>${escapeHtml(leader)}</h2><span>${auction.bidCount} ${dxText('Gebote insgesamt','total bids')}</span></div><div><small>${dxText('LETZTES GEBOT','LATEST BID')}</small><b>${lastBid?money(lastBid.amount):dxText('Noch kein Gebot','No bid yet')}</b><span>${lastBid?escapeHtml(dealerExchangeDealer(lastBid.bidderId)?.companyName||'Spieler-Autohaus'):dxText('Händler prüfen das Fahrzeug','Dealers are evaluating')}</span></div><div class="dx-broadcast-actions"><button class="btn btn-ghost" onclick="toggleDealerExchangeAuctionWatch('${auction.id}')">${auction.watched?dxText('★ Wird beobachtet','★ Watching'):dxText('☆ Auktion beobachten','☆ Watch auction')}</button><button class="btn btn-primary" onclick="dealerExchangeSetUi('tab','auctions')">${dxText('Auktionssaal öffnen','Open auction room')}</button></div></aside></section>`;
+}
+function renderOwnAuctionPremiumStage(){
+  const exchange=dealerExchangeState(),auction=exchange.auctions.find(a=>a.playerSeller&&a.status==='active');
+  if(!auction)return'';
+  const car=dealerExchangeAuctionVehicle(auction),leader=dealerExchangeDealer(auction.currentBidderId)?.companyName||dxText('Noch kein Höchstbieter','No leading bidder'),current=auction.bidCount?auction.currentBid:auction.startPrice,reserveMet=!auction.reservePrice||current>=auction.reservePrice,profit=current-(car.purchasePrice||auction.vehicle.purchasePrice||0),bids=auction.bids;
+  return `<section class="dx-live-canvas" data-auction-vehicle-id="${escapeAttr(auction.vehicleId)}" style="--dx-a:${car.color||'#53d6bd'}">
+    <header class="dx-live-canvas-head"><div><span class="dx-live-signal"></span><small>${dxText('EIGENE AUKTION','YOUR AUCTION')}</small></div><strong>LIVE</strong></header>
+    <div class="dx-live-vehicle-stage"><div class="dx-live-vehicle-art">${renderCarPhoto(car)}</div><div class="dx-live-vehicle-identity"><small>${escapeHtml(car.segment||auction.vehicle.segment)} · ${car.year} · ${Number(car.mileage||0).toLocaleString(localeMeta().numberLocale)} km</small><h1>${escapeHtml(car.brand)} ${escapeHtml(car.model)}</h1><span>${dxText('Zustand','Condition')} ${car.condition}/100</span></div></div>
+    <div class="dx-live-focus"><div class="dx-live-focus-bid"><small>${dxText('AKTUELLES HÖCHSTGEBOT','CURRENT HIGH BID')}</small><strong>${money(current)}</strong><span>${escapeHtml(leader)}</span></div><div class="dx-live-focus-time"><small>${dxText('RESTZEIT','TIME LEFT')}</small><strong class="${auction.remainingMs<=10000?'ending':''}" data-dx-auction-countdown="${auction.id}">${dealerExchangeAuctionTime(auction.remainingMs)}</strong><span>${auction.bidCount} ${dxText('Gebote','bids')}</span></div></div>
+    <section class="dx-live-bid-feed"><header><div><small>${dxText('LIVE-FEED','LIVE FEED')}</small><h2>${dxText('Gebotsverlauf','Bid history')}</h2></div><span>${auction.bidCount} ${dxText('Gebote insgesamt','total bids')}</span></header><div class="dx-live-bid-feed-list">${bids.map((bid,index)=>{const name=bid.bidderId==='player'?dxText('Sie · Spieler-Autohaus','You · Player dealership'):dealerExchangeDealer(bid.bidderId)?.companyName||bid.bidderId;return `<article class="${index===0?'latest':''}"><i></i><div><small>${index===0?dxText('HÖCHSTGEBOT','HIGH BID'):dxText('GEBOT','BID')}</small><b>${escapeHtml(name)}</b></div><strong>${money(bid.amount)}</strong><time>${dealerExchangeAuctionTime(bid.remainingMs)}</time></article>`}).join('')||`<div class="dx-live-bid-feed-empty"><span class="dx-live-signal"></span>${dxText('Die Händler prüfen das Fahrzeug. Das erste Gebot steht noch aus.','Dealers are evaluating the vehicle. The first bid is still pending.')}</div>`}</div></section>
+    <div class="dx-live-detail-zone"><section class="dx-live-price-ledger"><header><small>${dxText('PREISÜBERSICHT','PRICE OVERVIEW')}</small></header><dl><div><dt>${dxText('Startpreis','Starting price')}</dt><dd>${money(auction.startPrice)}</dd></div><div class="primary"><dt>${dxText('Aktuelles Höchstgebot','Current high bid')}</dt><dd>${money(current)}</dd></div><div><dt>${dxText('Marktwert','Market value')}</dt><dd>${money(car.marketValue)}</dd></div><div><dt>${dxText('Reservepreis','Reserve price')}</dt><dd>${auction.reservePrice?money(auction.reservePrice):dxText('Nicht gesetzt','Not set')}<small class="${reserveMet?'positive':'negative'}">${reserveMet?dxText('Erreicht','Reached'):dxText('Noch offen','Pending')}</small></dd></div><div><dt>${dxText('Gewinn / Verlust','Profit / loss')}</dt><dd class="${profit>=0?'positive':'negative'}">${profit>=0?'+':''}${money(profit)}</dd></div></dl></section>
+      <section class="dx-live-activity"><header><div><small>${dxText('GEBOTSAKTIVITÄT','BID ACTIVITY')}</small><h2>${escapeHtml(leader)}</h2></div><span>${dxText('Höchstbieter','Leading bidder')}</span></header><div class="dx-live-timeline">${bids.map((bid,index)=>{const name=dealerExchangeDealer(bid.bidderId)?.companyName||dxText('Spieler-Autohaus','Player dealership');return `<article class="${index===0?'latest':''}"><i></i><div><small>${index===0?dxText('NEUESTES GEBOT','LATEST BID'):dxText('Gebot','Bid')}</small><b>${escapeHtml(name)}</b></div><strong>${money(bid.amount)}</strong><time>${dealerExchangeAuctionTime(bid.remainingMs)}</time></article>`}).join('')||`<div class="dx-live-waiting"><span class="dx-live-signal"></span><p>${dxText('Händler bewerten das Fahrzeug. Das erste wirtschaftliche Gebot steht noch aus.','Dealers are evaluating the vehicle. The first economic bid is still pending.')}</p></div>`}</div></section>
+    </div>
+    <footer class="dx-live-canvas-actions"><div><small>${dxText('AUKTIONSSTATUS','AUCTION STATUS')}</small><b>${escapeHtml(dealerExchangeAuctionStatus(auction))}</b></div><div><button class="btn btn-ghost" onclick="toggleDealerExchangeAuctionWatch('${auction.id}')">${auction.watched?dxText('★ Wird beobachtet','★ Watching'):dxText('☆ Beobachten','☆ Watch')}</button><button class="btn btn-primary" onclick="dealerExchangeSetUi('tab','auctions')">${dxText('Auktionssaal öffnen','Open auction room')}</button></div></footer>
+  </section>`;
+}
+function renderPlayerAuctionBroadcastOverview(auctions){
+  const own=auctions.filter(a=>a.playerSeller),active=own.filter(a=>['active','queued','reserved'].includes(a.status)),history=own.filter(a=>!['active','queued','reserved'].includes(a.status)).slice(0,20),live=active.some(a=>a.status==='active'),visible=live?active.filter(a=>a.status!=='active'):active;
+  if(!own.length||(!visible.length&&!history.length))return'';
+  const activeHtml=visible.map(a=>{const car=dealerExchangeAuctionVehicle(a),running=a.status==='active';return `<article class="status-${a.status}"><div class="dx-my-auction-photo">${renderCarPhoto(car)}</div><div class="dx-my-auction-title"><small>${escapeHtml(dealerExchangeAuctionStatus(a))}</small><h3>${escapeHtml(car.brand)} ${escapeHtml(car.model)}</h3><span>${a.status==='queued'?dxText('Wartet auf den Live-Slot','Waiting for the live slot'):dxText('Aktive Einlieferung','Active consignment')}</span></div><div><small>${dxText('Startpreis','Starting price')}</small><b>${money(a.startPrice)}</b></div><div><small>${dxText('Höchstgebot','High bid')}</small><b>${money(a.bidCount?a.currentBid:a.startPrice)}</b></div><div><small>${dxText('Gebote · Restzeit','Bids · time')}</small><b>${a.bidCount} · ${running?`<span data-dx-auction-countdown="${a.id}">${dealerExchangeAuctionTime(a.remainingMs)}</span>`:dxText('Wartet','Waiting')}</b></div></article>`}).join('');
+  const historyHtml=history.map(a=>{const car=dealerExchangeAuctionVehicle(a),price=a.finalPrice||a.currentBid||a.startPrice;return `<article><div><small>${escapeHtml(dealerExchangeAuctionStatus(a))}</small><b>${escapeHtml(car.brand)} ${escapeHtml(car.model)}</b></div><span>${money(price)}</span><span>${a.bidCount} ${dxText('Gebote','bids')}</span></article>`}).join('');
+  return `<section class="dx-panel dx-consignment-monitor"><div class="dx-panel-head"><div><b>${dxText('MEINE AKTIVEN AUKTIONEN','MY ACTIVE AUCTIONS')}</b><small>${visible.length?dxText('Wartende Einlieferungen im Blick','Queued consignments at a glance'):live?dxText('Die laufende Auktion steht oben im Mittelpunkt','The live auction is highlighted above'):dxText('Keine aktive Einlieferung','No active consignment')}</small></div><span class="chip">${active.length} ${dxText('aktiv','active')}</span></div><div class="dx-my-auction-cards">${activeHtml||`<div class="dx-auction-list-empty">${live?dxText('Keine weiteren Auktionen warten.','No other auctions are waiting.'):dxText('Aktuell läuft keine eigene Auktion.','No personal auction is currently active.')}</div>`}</div>${history.length?`<details class="dx-auction-history"><summary><span>${dxText('Vergangene Auktionen','Past auctions')}</span><small>${history.length} ${dxText('Einträge','entries')}</small></summary><div>${historyHtml}</div></details>`:''}</section>`;
+}
+function renderDealerExchange(){
+  const exchange=dealerExchangeState(), ui=exchange.ui, activeDealers=exchange.dealers.filter(d=>d.status!=='offline').length, highDemand=exchange.vehicles.filter(v=>v.demand>=85).length;
+  const selectedContent=ui.tab==='dealers'?renderDealerExchangeDealers():ui.tab==='vehicles'?renderDealerExchangeVehicles():ui.tab==='auctions'?renderDealerExchangeAuctions():ui.tab==='packages'?renderDealerExchangePackages():ui.tab==='orders'?renderDealerExchangeOrders():ui.tab==='offers'?renderDealerExchangeDirectOffers():ui.tab==='mylistings'?renderDealerExchangeMyListings():renderDealerExchangeOverview(),content=(ui.tab==='auctions'?renderOwnAuctionPremiumStage():'')+selectedContent;
+  const volume=(exchange.transactions||[]).reduce((sum,tx)=>sum+tx.price,0);
+  const pendingOffers=exchange.directOffers.filter(o=>o.status==='pending').length,activeOrders=exchange.businessOrders.filter(o=>['open','active'].includes(o.status)).length,activePackages=exchange.vehiclePackages.filter(p=>p.status==='active').length,activeAuctions=exchange.auctions.filter(a=>a.status==='active').length;return `<div class="dx-page"><header class="dx-hero"><div class="dx-hero-glow"></div><div class="dx-brand"><span class="dx-brand-mark">${refIcon('dealerexchange')}</span><div><span><i></i>${dxText('DIGITALER BIETERSAAL AKTIV','DIGITAL BIDDING ROOM ACTIVE')}</span><h2>Händlerbörse <em>LIVE</em></h2><p>${dxText('Biete in echten Echtzeit-Auktionen gegen wirtschaftlich handelnde Händler und sichere dir den Zuschlag ohne künstliche Vorteile.','Bid in true real-time auctions against economically acting dealers and win without artificial advantages.')}</p></div></div><div class="dx-kpis"><div><small>${dxText('Live-Auktionen','Live auctions')}</small><b>${activeAuctions}</b><span>${exchange.auctions.filter(a=>a.currentBidderId==='player'&&a.status==='active').length} ${dxText('von Ihnen geführt','led by you')}</span></div><div><small>${dxText('Fahrzeugpakete','Vehicle packages')}</small><b>${activePackages}</b><span>${dxText('nur vollständig handelbar','full-package trading only')}</span></div><div><small>${dxText('Großaufträge','Business orders')}</small><b>${activeOrders}</b><span>${exchange.businessOrders.filter(o=>o.assignedTo==='player'&&o.status==='active').length} ${dxText('in Beschaffung','in procurement')}</span></div><div><small>${dxText('Handelsumsatz','Trade volume')}</small><b>${money(volume)}</b><span>${exchange.scheduler.totalTrades} ${dxText('Abschlüsse','settlements')}</span></div></div></header><nav class="dx-tabs">${[['overview','Übersicht','Overview'],['auctions','Live-Auktionen','Live Auctions'],['vehicles','Fahrzeuge','Vehicles'],['packages','Pakete','Packages'],['orders','Großaufträge','Business Orders'],['offers','Direktangebote','Direct Offers'],['mylistings','Meine Inserate','My Listings'],['dealers','Kontakte','Contacts']].map(([id,de,en])=>`<button class="${ui.tab===id?'active':''}" onclick="dealerExchangeSetUi('tab','${id}')">${refIcon(id==='overview'?'dashboard':id==='vehicles'||id==='packages'?'market':id==='mylistings'?'listings':id==='offers'||id==='orders'||id==='auctions'?'insights':'dealerexchange')}<span>${dxText(de,en)}${id==='auctions'&&activeAuctions?` <em class="dx-tab-count">${activeAuctions}</em>`:id==='offers'&&pendingOffers?` <em class="dx-tab-count">${pendingOffers}</em>`:id==='orders'&&activeOrders?` <em class="dx-tab-count">${activeOrders}</em>`:''}</span></button>`).join('')}<span class="dx-phase-badge">PHASE 6 · LIVE AUCTIONS</span></nav>${content}</div>`;
+}
+
 /* =============================== MARKET =============================== */
 let marketFilter = 'Alle';
 let marketPage = 1;
@@ -5678,7 +5761,6 @@ function completeBuy(c, price){
   addXp(18);
   trainEmployees('Einkäufer', 28, 'erfolgreicher Fahrzeugankauf');
   const newAchievements = checkAchievements();
-  playSound('buy');
   showToast('🚗', t('market.bought_toast',{brand:c.brand, model:c.model, price:money(price)}), null, null);
   showAchievementUnlocks(newAchievements);
   checkSearchOrderMatches();
@@ -5693,7 +5775,7 @@ function bulkListingEligibleCars(){
   return activeInventory().filter(c=>{
     const reserved = c.reservedFor && c.reservedFor.expiresDay>state.day;
     const sold = c.location==='sold' || c.sold || c.soldDay;
-    return !sold && !reserved && !state.listings[c.id];
+    return !sold && !reserved && !state.listings[c.id] && !c.dealerExchangeListingId && !c.dealerExchangeOrderId;
   });
 }
 function bulkListingOpenIssues(c, mode){
@@ -5838,7 +5920,7 @@ function openBulkListingModal(){
   renderBulkListingPreview();
 }
 function createListingForCar(c, price, source, quickSale, allowedPaymentMethods){
-  if(!c || state.listings[c.id]) return false;
+  if(!c || state.listings[c.id] || c.dealerExchangeListingId || c.dealerExchangeOrderId || c.dealerExchangeAuctionId) return false;
   state.listings[c.id] = {price:Math.round(price/10)*10, views:0, createdDay:state.day, source:source||'manual', quickSale:!!quickSale, allowedPaymentMethods:normalizePaymentMethods(allowedPaymentMethods)};
   c.bulkListingPlan = null;
   return true;
@@ -5918,6 +6000,9 @@ function renderInventory(){
 function invCard(c){
   normalizeVehicleIssues(c);
   const listed = state.listings[c.id];
+  const exchangeListed = !!c.dealerExchangeListingId;
+  const orderAssigned = !!c.dealerExchangeOrderId;
+  const auctionAssigned = !!c.dealerExchangeAuctionId;
   const workshopJobs = state.workshopJobs||[];
   const workshopToken = `${PM?.sessionRevision||0}:${workshopJobs.length}:${workshopJobs[0]?.carId||''}:${workshopJobs[workshopJobs.length-1]?.carId||''}`;
   const workshopByCar = PM?.memo('workshop-by-car',workshopToken,()=>new Map(workshopJobs.map(job=>[job.carId,job])));
@@ -5940,6 +6025,9 @@ function invCard(c){
       <span class="chip">${escapeHtml(t('inventory.condition',{label:localizeDisplayText(vehicleFile.conditionLabel), n:c.condition}))}</span>
       ${c.acquisitionSource?`<span class="chip" style="color:var(--brass);">${displayText(c.acquisitionSource)}</span>`:''}
       ${listed?`<span class="chip" style="color:var(--teal);border-color:rgba(51,194,160,.35);">${escapeHtml(t('inventory.listed_chip',{price:money(listed.price)}))}</span>`:''}
+      ${exchangeListed?`<span class="chip" style="color:#8ee9d7;border-color:rgba(83,214,189,.42);">Händlerbörse LIVE</span>`:''}
+      ${orderAssigned?`<span class="chip" style="color:#e6bd59;border-color:rgba(230,189,89,.42);">${dxText('Großauftrag gebunden','Committed to business order')}</span>`:''}
+      ${auctionAssigned?`<span class="chip" style="color:#d7af58;border-color:rgba(215,175,88,.45);">${dxText('LIVE-AUKTION AKTIV','LIVE AUCTION ACTIVE')}</span>`:''}
       ${listed?paymentMethodBadges(listed.allowedPaymentMethods):''}
       ${inWorkshop?`<span class="chip" style="color:#8fb2ff;">${escapeHtml(t('inventory.in_workshop_chip',{n:inWorkshop.daysLeft}))}</span>`:''}
       ${c.bulkListingPlan && !listed?`<span class="chip" style="color:var(--amber);border-color:rgba(245,158,11,.35);">${escapeHtml(IV.bulk_plan_chip)}</span>`:''}
@@ -5957,12 +6045,12 @@ function invCard(c){
       <button class="btn btn-danger btn-sm" onclick="cancelReservation('${c.id}')">${escapeHtml(IV.cancel_reservation)}</button>
     </div>`:''}
     <div class="row-actions inventory-card-actions">
-      ${!inWorkshop? `<button class="btn btn-ghost btn-sm" onclick="openWorkshopModal('${c.id}')">${escapeHtml(IV.workshop_btn)}</button>`:''}
+      ${!inWorkshop && !exchangeListed && !orderAssigned && !auctionAssigned? `<button class="btn btn-ghost btn-sm" onclick="openWorkshopModal('${c.id}')">${escapeHtml(IV.workshop_btn)}</button>`:''}
       ${c.acquisitionHistory? `<button class="btn btn-ghost btn-sm" onclick="showAcquisitionHistory('${c.id}')">${escapeHtml(IV.history_btn)}</button>`:''}
-      ${!listed && !inWorkshop? `<button class="btn btn-primary btn-sm" onclick="openListModal('${c.id}')">${escapeHtml(IV.list_btn)}</button>`:''}
+      ${!listed && !inWorkshop && !exchangeListed && !orderAssigned && !auctionAssigned? `<button class="btn btn-primary btn-sm" onclick="openListModal('${c.id}')">${escapeHtml(IV.list_btn)}</button><button class="btn btn-ghost btn-sm" onclick="openPlayerAuctionModal('${c.id}')">${dxText('◆ Zur Live-Auktion','◆ Consign to live auction')}</button>`:''}
       ${listed? `<button class="btn btn-ghost btn-sm" onclick="openListModal('${c.id}')">${escapeHtml(IV.edit_listing_btn)}</button><button class="btn btn-danger btn-sm" onclick="unlistCar('${c.id}')">${escapeHtml(IV.unlist_btn)}</button>`:''}
     </div>
-    ${!listed && !inWorkshop && !reserved? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;justify-content:center;" onclick="quickTrade('${c.id}')">${escapeHtml(t('inventory.quick_trade_btn',{price:money(Math.round(c.marketValue*0.78))}))}</button>`:''}
+    ${!listed && !inWorkshop && !reserved && !exchangeListed && !orderAssigned && !auctionAssigned? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;justify-content:center;" onclick="quickTrade('${c.id}')">${escapeHtml(t('inventory.quick_trade_btn',{price:money(Math.round(c.marketValue*0.78))}))}</button>`:''}
   </div>`;
 }
 function findCar(id){
@@ -6025,6 +6113,9 @@ function reservationChip(c){
 }
 function quickTrade(id){
   const c = findCar(id); if(!c) return;
+  if(c.dealerExchangeAuctionId){ notify(dxText('Das Fahrzeug befindet sich in einer laufenden Live-Auktion.','This vehicle is in an active live auction.'),'warn'); return; }
+  if(c.dealerExchangeOrderId){ notify(dxText('Das Fahrzeug ist verbindlich einem Großauftrag zugewiesen.','This vehicle is committed to a business order.'),'warn'); return; }
+  if(c.dealerExchangeListingId){ notify(dxText('Das Fahrzeug ist in der Händlerbörse LIVE aktiv. Ziehe das Inserat dort zuerst zurück.','This vehicle is active on Dealer Exchange LIVE. Withdraw that listing first.'),'warn'); return; }
   const p = Math.round(c.marketValue*0.78);
   state.inventory = state.inventory.filter(x=>x.id!==id);
   delete state.listings[id];
@@ -6083,6 +6174,9 @@ function customerWishBatchSummary(c, conditions){
 }
 function openWorkshopModal(carId){
   const c = findCar(carId); if(!c) return;
+  if(c.dealerExchangeAuctionId){ notify(dxText('Das Fahrzeug befindet sich in einer laufenden Live-Auktion.','This vehicle is in an active live auction.'),'warn'); return; }
+  if(c.dealerExchangeOrderId){ notify(dxText('Das Fahrzeug ist verbindlich einem Großauftrag zugewiesen.','This vehicle is committed to a business order.'),'warn'); return; }
+  if(c.dealerExchangeListingId){ notify(dxText('Ziehe das Händlerbörsen-Inserat zurück, bevor du das Fahrzeug in die Werkstatt gibst.','Withdraw the Dealer Exchange listing before sending this vehicle to the workshop.'),'warn'); return; }
   normalizeVehicleIssues(c);
   const vehicleFile = updateVehicleFileState(c);
   const issueJobs = c.issues.filter(i=>!i.repaired).map(issueRepairJob);
@@ -6119,7 +6213,7 @@ function startRepair(carId, jobId){
   const c = findCar(carId); if(c) normalizeVehicleIssues(c);
   const issue = jobId.startsWith('issue:') && c ? c.issues.find(i=>'issue:'+i.id===jobId) : null;
   const job = issue ? issueRepairJob(issue) : REPAIR_JOBS.find(j=>j.id===jobId);
-  if(!c||!job) return;
+  if(!c||!job||c.dealerExchangeListingId||c.dealerExchangeOrderId) return;
   const {cost, days} = workshopJobQuote(c, job);
   if(state.cash<cost) return;
   c.costs = c.costs || {};
@@ -6654,6 +6748,9 @@ function renderEcuTuning(){
 /* =============================== LISTINGS / OFFERS =============================== */
 function openListModal(carId){
   const c = findCar(carId); if(!c) return;
+  if(c.dealerExchangeAuctionId){ notify(dxText('Das Fahrzeug befindet sich in einer laufenden Live-Auktion.','This vehicle is in an active live auction.'),'warn'); return; }
+  if(c.dealerExchangeOrderId){ notify(dxText('Das Fahrzeug ist verbindlich einem Großauftrag zugewiesen.','This vehicle is committed to a business order.'),'warn'); return; }
+  if(c.dealerExchangeListingId){ notify(dxText('Das Fahrzeug ist bereits in der Händlerbörse LIVE gelistet.','This vehicle is already listed on Dealer Exchange LIVE.'),'warn'); return; }
   const existing = state.listings && state.listings[c.id] ? state.listings[c.id] : null;
   const costs = vehicleTotalCosts(c);
   const min = Math.max(300, Math.round(Math.min(c.marketValue*0.7, costs.total*0.8)/10)*10);
@@ -6825,6 +6922,8 @@ function updateListMargin(purchasePrice){
   el.style.color = margin>=0 ? 'var(--teal)' : 'var(--red)';
 }
 function listCarConfirm(carId){
+  const car = findCar(carId);
+  if(!car || car.dealerExchangeListingId){ notify(dxText('Dieses Fahrzeug kann nicht gleichzeitig auf beiden Märkten angeboten werden.','This vehicle cannot be offered on both markets at the same time.'),'warn'); closeModal(); return; }
   const price = Math.round(window.listingPrice || window._listVal || 0);
   const allowedPaymentMethods = selectedPaymentMethods('listPay');
   if(!allowedPaymentMethods.length){
@@ -10356,7 +10455,6 @@ function startConditionWheelSpin(offerId){
     return;
   }
   debugConditionWheel('spin-start', o, {nextAction:'animate wheel'});
-  playWheelSound();
   wheel.style.transition = 'none';
   wheel.style.transform = 'rotate(0deg)';
   void wheel.offsetHeight;
@@ -10381,7 +10479,6 @@ function finishConditionWheelSpin(offerId, token){
   wheel.style.transform = `rotate(${session.finalRotation}deg)`;
   resultEl.textContent = conditionWheelResultText(session.result);
   resultEl.style.color = session.result==='accepted' ? 'var(--teal)' : 'var(--crimson)';
-  playSound(session.result==='accepted' ? 'sale' : 'warn');
   debugConditionWheel('spin-finished', o, {nextAction:session.result==='accepted'?'acceptFinancingConditions':'rejectFinancingConditions'});
   setTimeout(()=>executeConditionWheelResult(offerId, token), CONDITION_WHEEL.settleMs);
 }
@@ -10420,22 +10517,6 @@ function runConditionWheelSelfTest(iterations){
     }
   }
   return {ok:failures.length===0, iterations:total, failures};
-}
-function playWheelSound(){
-  try{
-    const ctx = window._audioCtx || (window._audioCtx = new (window.AudioContext||window.webkitAudioContext)());
-    for(let i=0;i<26;i++){
-      const o = ctx.createOscillator(); const g = ctx.createGain();
-      o.type = i%2 ? 'triangle' : 'sine';
-      o.frequency.value = 420 + (i%7)*38;
-      o.connect(g); g.connect(ctx.destination);
-      const t = ctx.currentTime + i*0.075;
-      g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(0.09, t+0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t+0.055);
-      o.start(t); o.stop(t+0.07);
-    }
-  }catch(e){ /* Audio evtl. nicht verfügbar – ignorieren */ }
 }
 function acceptFinancingConditions(offerId){
   const o = state.offers.find(x=>x.id===offerId); if(!o) return;
@@ -10507,6 +10588,8 @@ function completeSaleFlowById(carId, offerId, amount){
   completeSaleFlow(c, amount, o, null);
 }
 function completeSaleFlow(c, amount, offer, financing){
+  if(c.dealerExchangeAuctionId){notify(dxText('Dieses Fahrzeug befindet sich in einer laufenden Live-Auktion.','This vehicle is in an active live auction.'),'warn');return;}
+  if(c.dealerExchangeOrderId){notify(dxText('Dieses Fahrzeug ist verbindlich einem Großauftrag zugewiesen.','This vehicle is committed to a business order.'),'warn');return;}
   const standDays = c.standDays;
   state.inventory = state.inventory.filter(x=>x.id!==c.id);
   delete state.listings[c.id];
@@ -10559,7 +10642,6 @@ function completeSaleFlow(c, amount, offer, financing){
   if(financing && financing.type==='leasing') trainEmployees('Leasingberater', 45, 'genehmigter Leasingabschluss');
   if(financing && financing.type==='finanzierung') trainEmployees('Finanzierungsberater', 45, 'genehmigte Finanzierung');
   const newAchievements = checkAchievements();
-  playSound('sale');
   showSaleCelebration({
     c, amount, profit, marginPct, standDays, repChange, repBefore, repAfter: state.reputation,
     xpGain, leveledUp, newAchievements, financing, customerName: offer.name, persona: offer.persona,
@@ -12045,7 +12127,7 @@ function calcInput(group,key,label,value){
 }
 
 /* =============================== EMPLOYEES =============================== */
-/* =============================== FINANZIERUNG / XP / ERFOLGE / SOUND =============================== */
+/* =============================== FINANZIERUNG / XP / ERFOLGE =============================== */
 const PAYMENT_METHODS = ['bar','finanzierung','leasing'];
 function paymentMethodMeta(method){
   return ({
@@ -12348,7 +12430,6 @@ function showAchievementPopup(a){
       ${a.xp?`<span class="achievement-xp">+${a.xp} XP</span>`:''}
     </div>`;
   stack.appendChild(el);
-  playSound('achievement');
   setTimeout(()=>{ if(el.parentNode) el.remove(); }, 5400);
 }
 function customerReaction(paid, offered){
@@ -12358,23 +12439,6 @@ function customerReaction(paid, offered){
   if(ratio<=1.25) return {emoji:'😐', text:t('market.reaction_neutral')};
   return {emoji:'😒', text:t('market.reaction_unhappy')};
 }
-function playSound(type){
-  try{
-    const ctx = window._audioCtx || (window._audioCtx = new (window.AudioContext||window.webkitAudioContext)());
-    const seq = type==='achievement' ? [659.25,783.99,987.77,1318.51] : (type==='sale' ? [523.25,659.25,783.99,1046.5] : [523.25,659.25]);
-    seq.forEach((freq,i)=>{
-      const o = ctx.createOscillator(); const g = ctx.createGain();
-      o.type='sine'; o.frequency.value=freq;
-      o.connect(g); g.connect(ctx.destination);
-      const t = ctx.currentTime + i*0.09;
-      g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(0.16, t+0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t+0.26);
-      o.start(t); o.stop(t+0.28);
-    });
-  }catch(e){ /* Audio evtl. nicht verfügbar – ignorieren */ }
-}
-
 function roleMeta(role){ return EMP_ROLES.find(r=>r.role===role) || EMP_ROLES[0]; }
 function normalizeEmployee(e){
   const skill = e.skill ?? e.efficiency ?? randInt(35,78);
@@ -12731,7 +12795,6 @@ function openLegacyReview(){
     </div>
   `, 'legacy-modal');
   animateCelebrationNumber('legacyValue', v.value);
-  playSound('achievement');
 }
 async function confirmLegacyStart(){
   const l = legacyState();
@@ -12963,9 +13026,6 @@ function renderUpdates(){
   const newest = regular.slice(0, 3);
   const older = regular.slice(3);
   const U = t('updates');
-  const statusLabel = (!updateUiState || updateUiState.status==='idle' || updateUiState.status==='current')
-    ? U.all_current
-    : (updateUiState.label || U.all_current);
   return `
     <div class="upd-hero">
       <div class="upd-hero-main">
@@ -12980,14 +13040,13 @@ function renderUpdates(){
         <div class="upd-version-panel">
           <small>${escapeHtml(U.status_label)}</small>
           <div class="vnum">${escapeHtml(U.status_current)}</div>
-          <span class="vstatus" id="updateStatusText">${escapeHtml(statusLabel)}</span>
+          <span class="vstatus">${escapeHtml(U.news_archive)}</span>
           <span class="upd-version-check">${UPD_SVG.check}</span>
         </div>
       </div>
     </div>
     <div class="upd-section-row">
       <h2 class="upd-section-label"><span class="star">★</span>${escapeHtml(U.highlight_section)}</h2>
-      <button class="upd-check-btn" onclick="checkForUpdatesManual()">${UPD_SVG.refresh} ${escapeHtml(U.check_btn)}</button>
     </div>
     ${pinned.map((e,i)=>renderUpdateCard(e,i)).join('')}
     ${newest.length?`<div class="upd-section-row upd-subsection"><h2 class="upd-section-label"><span class="star">•</span>${escapeHtml(U.more_updates)}</h2></div>`:''}
@@ -13038,10 +13097,8 @@ function renderSettings(){
     <div class="offer-card">
       <p class="subtle" style="margin:0 0 6px;">${escapeHtml(S.updates_desc)}</p>
       <div class="row-actions" style="max-width:520px;">
-        <button class="btn btn-primary" onclick="checkForUpdatesManual()">${escapeHtml(S.check_updates_btn)}</button>
         <button class="btn btn-ghost" onclick="navigateTo('updates')">${escapeHtml(S.open_updates_btn)}</button>
       </div>
-      <p class="subtle" id="updateStatusText" style="margin:10px 0 0;">${escapeHtml(updateUiState.label || S.not_checked_yet)}</p>
     </div>
     <h3 style="font-family:var(--font-d);font-size:13px;margin:18px 0 8px;">${escapeHtml(S.section_appearance)}</h3>
     <div class="offer-card">
@@ -13273,10 +13330,40 @@ function syncRealPlaytime(){
   return delta;
 }
 
+let dealerExchangeCycleQueued = false;
+let dealerExchangeAuctionPersistAt = 0;
+function scheduleDealerExchangeCycle(){
+  if(dealerExchangeCycleQueued || !state?.dealerExchange) return;
+  const exchange=state.dealerExchange, now=Date.now();
+  if(exchange.scheduler?.nextRunAt && now < exchange.scheduler.nextRunAt) return;
+  dealerExchangeCycleQueued = true;
+  queueMicrotask(()=>{
+    try{
+      if(!state?.dealerExchange) return;
+      const changed=runDealerExchangeCycle(dealerExchangeState(),Date.now(),{state,dealerName:activeProfileName||'Spieler-Autohaus'});
+      if(changed){
+        dealerExchangeFlushPlayerNotifications();
+        PM?.markWindowsDirty('dealerexchange');
+        if(currentPage==='dealerexchange'&&!isEditingElement(document.activeElement)) renderPageContent();
+        scheduleSave();
+      }
+    } finally { dealerExchangeCycleQueued=false; }
+  });
+}
+function dealerExchangeFlushPlayerNotifications(){
+  const exchange=dealerExchangeState();
+  exchange.playerNotifications.filter(item=>!item.notified).forEach(item=>{item.notified=true;notify(item.text,['sale','auction-won','auction-live'].includes(item.type)?'good':'info');if(item.type==='auction-live')showToast('OK',dxText(`<b>Ihre Auktion ist jetzt LIVE</b><br>${item.text}`,`<b>Your auction is now LIVE</b><br>${item.text}`),dxText('Auktion öffnen','Open auction'),()=>{dealerExchangeState().ui.tab='auctions';navigateTo('dealerexchange');});});
+  exchange.playerNotifications=exchange.playerNotifications.slice(-30);
+}
+function pulseDealerExchangeAuctionRuntime(){
+  if(!state?.dealerExchange)return;const now=Date.now(),result=pulseDealerExchangeAuctions(dealerExchangeState(),state,now);dealerExchangeDeliverAuctionWins();dealerExchangeFlushPlayerNotifications();if(currentPage==='dealerexchange'&&dealerExchangeState().ui.tab==='auctions'){if(result.changed&&!isEditingElement(document.activeElement))renderPageContent();else document.querySelectorAll('[data-dx-auction-countdown]').forEach(el=>{const auction=dealerExchangeState().auctions.find(a=>a.id===el.dataset.dxAuctionCountdown);if(auction)el.textContent=dealerExchangeAuctionTime(auction.remainingMs);});}if(result.changed||result.active&&now-dealerExchangeAuctionPersistAt>=5000){dealerExchangeAuctionPersistAt=now;PM?.markWindowsDirty('dealerexchange');scheduleSave();}
+}
 function startGameClock(){
   setInterval(()=>{
     if(!state || !activeProfileId){ return; }
     syncRealPlaytime();
+    scheduleDealerExchangeCycle();
+    pulseDealerExchangeAuctionRuntime();
     const dialogOpen = document.getElementById('modalOverlay') || document.getElementById('notifOverlay');
     if(dialogOpen){ return; } // Zeit pausiert, solange der Spieler in einem Dialog entscheidet
     dayElapsedMs += 200;
@@ -13730,7 +13817,6 @@ async function init(){
   installProgramLauncherShortcuts();
   initAppLifecycleBridge();
   await loadAppRuntimeInfo();
-  initUpdaterBridge();
   // Hintergruende aus assets/backgrounds/ erkennen; nach 2,5s weiterladen, Scan laeuft dann im Hintergrund fertig.
   await Promise.race([discoverAppBackgrounds(), new Promise(r=>setTimeout(r, 2500))]);
   await renderProfileLogin();
@@ -13817,7 +13903,7 @@ function migrateState(){
   (state.ecuRequests||[]).forEach(r=>{
     if(r.status==='scanning') r.status = 'in_lab';
     if(r.status==='programming') r.status = 'ready';
-    if(r.car) ensureVehiclePhoto(r.car);
+    if(r.car){ r.car.color=vehicleImagePaintName(r.car); ensureVehiclePhoto(r.car); }
   });
   state.purchaseRequests = state.purchaseRequests || [];
   state.purchaseRequestArchive = state.purchaseRequestArchive || [];
@@ -13843,9 +13929,9 @@ function migrateState(){
     if(r.messages===undefined) r.messages = [];
     if(r.draftText===undefined) r.draftText = '';
     ensurePurchaseChat(r);
-    if(r.car) ensureVehiclePhoto(r.car);
+    if(r.car){ r.car.color=vehicleImagePaintName(r.car); ensureVehiclePhoto(r.car); }
   });
-  (state.purchaseRequestArchive||[]).forEach(r=>{ clearBranchFields(r); ensurePurchaseChat(r); if(r.car){ clearBranchFields(r.car); ensureVehiclePhoto(r.car); } });
+  (state.purchaseRequestArchive||[]).forEach(r=>{ clearBranchFields(r); ensurePurchaseChat(r); if(r.car){ clearBranchFields(r.car); r.car.color=vehicleImagePaintName(r.car); ensureVehiclePhoto(r.car); } });
   (state.reviews||[]).forEach(r=>{ clearBranchFields(r); if(r.reply===undefined) r.reply = ''; });
   (state.deliveries||[]).forEach(dv=>{
     clearBranchFields(dv);
@@ -13889,6 +13975,7 @@ function migrateState(){
   state.inventory.forEach(c=>{
     clearBranchFields(c);
     if(c.reservedFor===undefined) c.reservedFor = null;
+    c.color = vehicleImagePaintName(c);
     ensureVehiclePhoto(c);
     if(!c.wearProfile){
       const wear = createVehicleWearProfile(c);
@@ -13900,7 +13987,7 @@ function migrateState(){
     normalizeVehicleIssues(c);
   });
   (state.market||[]).forEach(c=>{
-    clearBranchFields(c); ensureVehiclePhoto(c);
+    clearBranchFields(c); c.color=vehicleImagePaintName(c); ensureVehiclePhoto(c);
     if(!c.wearProfile){
       const wear = createVehicleWearProfile(c);
       c.wearProfile = {wearScore:wear.wearScore, owners:wear.owners, maintenanceScore:wear.maintenanceScore, individuality:wear.individuality};

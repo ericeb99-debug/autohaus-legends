@@ -2,9 +2,7 @@
 // Laedt das unveraenderte Spiel in einem nativen Fenster.
 // Das Spiel selbst wird hier NICHT veraendert.
 const { app, BrowserWindow, protocol, net, shell, nativeTheme, ipcMain, screen } = require('electron');
-const { autoUpdater } = require('electron-updater');
 const path = require('path');
-const fsSync = require('fs');
 const fs = require('fs/promises');
 const { pathToFileURL } = require('url');
 
@@ -23,8 +21,6 @@ const ROOT = __dirname;
 const savesDir = path.join(userDataDir, 'Saves');
 const storageDirs = ['Local Storage', 'Session Storage'];
 const backgroundImageExtensions = new Set(['.avif', '.gif', '.jpeg', '.jpg', '.png', '.webp']);
-let updateCheckInProgress = false;
-let updateReadyToInstall = false;
 const windowStatePath = path.join(userDataDir, 'window-state.json');
 const storageWriteQueues = new Map();
 let mainWindow = null;
@@ -83,45 +79,6 @@ function requestSafeQuit(reason) {
   win.show();
   win.focus();
   win.webContents.send('app-quit-requested', { reason: reason || 'system' });
-}
-
-// ============================================================================
-// ⚠️ NUR FUER DIE ENTWICKLUNGSPHASE: Signaturpruefung des Auto-Updaters
-// ============================================================================
-// Die Builds sind aktuell nicht code-signiert. electron-updater prueft unter
-// Windows aber die Authenticode-Signatur des heruntergeladenen Installers
-// gegen den konfigurierten Publisher ("Automotive Empire" in package.json,
-// build.win.signtoolOptions.publisherName) und bricht sonst ab mit:
-//   "New version ... is not signed by the application owner"
-//
-// Solange ALLOW_UNSIGNED_UPDATES = true ist, wird diese Pruefung uebersprungen
-// und unsignierte Updates werden akzeptiert.
-//
-// ⚠️⚠️ WICHTIG — VOR EINEM OEFFENTLICHEN RELEASE ZURUECKSTELLEN! ⚠️⚠️
-// Sobald die Builds mit einem echten Zertifikat signiert werden:
-//   ALLOW_UNSIGNED_UPDATES auf false setzen (oder den Block entfernen).
-// Damit greift automatisch wieder die Standard-Sicherheitspruefung von
-// electron-updater — es sind keine weiteren Aenderungen noetig.
-// ============================================================================
-const ALLOW_UNSIGNED_UPDATES = true;
-
-function isUpdateProviderConfigured() {
-  try {
-    const updateConfigPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'app-update.yml')
-      : path.join(ROOT, 'package.json');
-    const content = fsSync.readFileSync(updateConfigPath, 'utf8');
-    if (app.isPackaged) {
-      const owner = (content.match(/^owner:\s*(.+)$/m) || [])[1]?.trim();
-      const repo = (content.match(/^repo:\s*(.+)$/m) || [])[1]?.trim();
-      return !!(owner && repo && owner !== 'MEIN_GITHUB_NAME' && repo !== 'MEIN_REPO_NAME');
-    }
-    const config = JSON.parse(content);
-    const publish = Array.isArray(config.build?.publish) ? config.build.publish[0] : config.build?.publish;
-    return !!(publish?.owner && publish?.repo && publish.owner !== 'MEIN_GITHUB_NAME' && publish.repo !== 'MEIN_REPO_NAME');
-  } catch (e) {
-    return false;
-  }
 }
 
 function getFilenameForKey(key) {
@@ -211,111 +168,6 @@ async function resetGameData() {
   ));
 }
 
-function sendUpdateStatus(type, payload = {}) {
-  BrowserWindow.getAllWindows().forEach(win => {
-    if (!win.isDestroyed()) win.webContents.send('updater-status', { type, ...payload });
-  });
-}
-
-async function checkForUpdates(manual = false) {
-  if (isDevVariant) {
-    sendUpdateStatus('update-disabled', { manual, reason: 'dev-build' });
-    return { ok: false, devBuild: true };
-  }
-  if (!app.isPackaged) {
-    sendUpdateStatus('update-disabled', { manual, reason: 'development' });
-    return { ok: false, dev: true };
-  }
-  if (!isUpdateProviderConfigured()) {
-    sendUpdateStatus('update-disabled', { manual, reason: 'not-configured' });
-    return { ok: false, configured: false };
-  }
-  if (updateCheckInProgress) return { ok: false, busy: true };
-  updateCheckInProgress = true;
-  sendUpdateStatus('update-checking', { manual });
-  try {
-    await autoUpdater.checkForUpdates();
-    return { ok: true };
-  } catch (error) {
-    sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
-    return { ok: false, error: error && error.message ? error.message : String(error) };
-  } finally {
-    updateCheckInProgress = false;
-  }
-}
-
-function setupAutoUpdater() {
-  ipcMain.handle('update-check-manual', () => checkForUpdates(true));
-  ipcMain.handle('update-install-now', () => {
-    if (isDevVariant) return { ok: false, devBuild: true };
-    if (!app.isPackaged) return { ok: false, dev: true };
-    if (!updateReadyToInstall) return { ok: false, ready: false };
-    autoUpdater.quitAndInstall(false, true);
-    return { ok: true };
-  });
-
-  if (isDevVariant) {
-    console.log('[Updater] Auto-update disabled in DEV variant.');
-    return;
-  }
-
-  autoUpdater.autoDownload = false;
-  autoUpdater.allowDowngrade = false;
-  autoUpdater.allowPrerelease = false;
-
-  if (ALLOW_UNSIGNED_UPDATES) {
-    // Ersetzt die Windows-Signaturpruefung des Updaters. Rueckgabe null
-    // bedeutet fuer electron-updater "Signatur in Ordnung" — unsignierte
-    // Entwicklungs-Builds werden dadurch installiert.
-    // ⚠️ Vor einem oeffentlichen Release: ALLOW_UNSIGNED_UPDATES = false
-    // (siehe grossen Hinweisblock am Dateianfang).
-    autoUpdater.verifyUpdateCodeSignature = () => Promise.resolve(null);
-    console.log('[Updater] WARNUNG: Signaturpruefung deaktiviert (ALLOW_UNSIGNED_UPDATES=true, nur Entwicklungsphase).');
-  }
-
-  autoUpdater.on('checking-for-update', () => {
-    sendUpdateStatus('update-checking');
-  });
-  autoUpdater.on('update-available', info => {
-    sendUpdateStatus('update-available', { version: info.version });
-    autoUpdater.downloadUpdate().catch(error => {
-      sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
-    });
-  });
-  autoUpdater.on('update-not-available', info => {
-    sendUpdateStatus('update-not-available', { version: info.version });
-  });
-  autoUpdater.on('download-progress', progress => {
-    sendUpdateStatus('update-download-progress', {
-      percent: Math.round(progress.percent || 0),
-      transferred: progress.transferred,
-      total: progress.total,
-      bytesPerSecond: progress.bytesPerSecond,
-    });
-  });
-  autoUpdater.on('update-downloaded', info => {
-    updateReadyToInstall = true;
-    sendUpdateStatus('update-downloaded', { version: info.version });
-  });
-  autoUpdater.on('error', error => {
-    sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
-  });
-
-  if (!app.isPackaged) {
-    console.log('[Updater] Auto-update disabled in development mode.');
-    return;
-  }
-  if (!isUpdateProviderConfigured()) {
-    console.log('[Updater] Auto-update disabled until GitHub owner/repo are configured.');
-    return;
-  }
-  setTimeout(() => {
-    checkForUpdates(false).catch(error => {
-      sendUpdateStatus('update-error', { message: error && error.message ? error.message : String(error) });
-    });
-  }, 8000);
-}
-
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
@@ -348,7 +200,6 @@ if (!gotLock) {
     ipcMain.handle('app-info', () => ({
       name: APP_DISPLAY_NAME,
       isDev: isDevVariant,
-      updaterEnabled: !isDevVariant,
       userDataPath: app.getPath('userData'),
     }));
 
@@ -416,7 +267,6 @@ if (!gotLock) {
     });
 
     createWindow(await readWindowState());
-    setupAutoUpdater();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

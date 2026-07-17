@@ -1,0 +1,20 @@
+# Local tooling and agent runtime state
+.tools/
+.codex/
+.claude/
+.claude-flow/
+.swarm/
+ruvector.db
+
+# Generated builds and dependency trees
+node_modules/
+dist/
+dist-dev/
+win-unpacked/
+
+# Binary media is intentionally excluded from the initial codebase graph
+assets/backgrounds/
+assets/programs/heroes/
+assets/logos/
+assets/icons/
+assets/itch/

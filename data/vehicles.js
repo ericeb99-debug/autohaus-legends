@@ -59,7 +59,8 @@ Object.assign(BRANDS, {
   'Pagani':     {glyph:'???', models:{ 'Huayra':[2200000,3400000], 'Utopia':[2600000,3900000] }},
 });
 const SUV_MODELS = ['Tiguan','T-Roc','Kodiaq','Karoq','Grandland','Crossland','Kuga','Explorer','C-HR','RAV4','Land Cruiser','X1','X3','X5','GLA','GLC','GLE','Q2','Q3','Q5','Q7','e-tron','Macan','Cayenne','Kona','Tucson','Santa Fe','IONIQ 5','Sportage','Sorento','EV6','Captur','Austral','2008','3008','5008','C5 Aircross','500X','Arona','Ateca','Tarraco','Formentor','CX-3','CX-5','HR-V','CR-V','Juke','Qashqai','X-Trail','XC40','XC60','XC90','Evoque','Discovery Sport','Discovery','Defender','Range Rover','F-Pace','Countryman','Stelvio','Renegade','Compass','Grand Cherokee','Duster','Vitara','S-Cross','NX','RX','Bentayga','Urus'];
-const COLORS = ['Schwarz','Weiß','Silber','Grau','Blau','Rot','Anthrazit','Braun'];
+// Fahrzeugbilder werden pro Modell in zwei konsistenten Lackvarianten gepflegt.
+const COLORS = ['Schwarz','Silber'];
 const ENGINES = [
   {label:'Benzin', mult:1.0}, {label:'Diesel', mult:1.05},
   {label:'Hybrid', mult:1.18}, {label:'Elektro', mult:1.35}

@@ -1,0 +1,759 @@
+======================================================================
+AUTOMOTIVE EMPIRE
+HÄNDLERBÖRSE LIVE – GAMEPLAY DESIGN
+======================================================================
+
+Status: Gameplay-Konzept, keine Implementierung
+Datum: 15.07.2026
+
+======================================================================
+1. Spielerfantasie und Ziel
+======================================================================
+
+Die Händlerbörse LIVE erfüllt die Fantasie, Teil eines echten, lebenden
+Händlernetzwerks zu sein. Der Spieler durchsucht nicht einfach eine statische
+Fahrzeugliste. Er beobachtet Konkurrenten, erkennt wirtschaftliche Chancen,
+verhandelt unter Zeitdruck und baut sich durch kluge Geschäfte einen Namen auf.
+
+Die zentrale Spielerfantasie lautet:
+
+„Ich kenne den Markt, die Händler und ihre Interessen besser als meine
+Konkurrenz – deshalb erkenne ich Gelegenheiten früher und handle klüger.“
+
+Die Händlerbörse soll freiwillig geöffnet werden, weil dort regelmäßig neue,
+aber nicht beliebige Situationen entstehen:
+
+- ein Händler muss kurzfristig Liquidität schaffen,
+- ein Spezialist sucht genau das Fahrzeug im eigenen Bestand,
+- ein seltenes Modell taucht im Netzwerk auf,
+- mehrere Konkurrenten interessieren sich für dasselbe Angebot,
+- ein Großauftrag macht bislang gewöhnliche Fahrzeuge plötzlich wertvoll,
+- eine langfristig aufgebaute Händlerbeziehung öffnet eine exklusive Chance.
+
+======================================================================
+2. Kern des Spielerlebnisses
+======================================================================
+
+Die Händlerbörse verbindet fünf Gefühle:
+
+Entdecken
+  Es gibt etwas Neues, das für den eigenen Betrieb relevant sein könnte.
+
+Verstehen
+  Der Spieler erkennt, warum ein Angebot interessant ist und welche Händler
+  wahrscheinlich reagieren werden.
+
+Entscheiden
+  Kaufen, bieten, verhandeln, beobachten, ein eigenes Fahrzeug anbieten oder
+  bewusst verzichten.
+
+Konsequenz erleben
+  Der Markt reagiert. Ein Konkurrent kauft, ein Verkäufer kontert, ein Trend
+  dreht oder ein Geschäft zahlt sich später aus.
+
+Reputation aufbauen
+  Gute Entscheidungen schaffen nicht nur Geld, sondern Zugang, Vertrauen und
+  einen persönlichen Platz im Händlernetzwerk.
+
+======================================================================
+3. Gameplay Loop
+======================================================================
+
+3.1 Kurzer Wiederkehr-Loop
+
+1. Ein relevanter Impuls entsteht.
+2. Der Spieler öffnet die Händlerbörse.
+3. Er prüft neue Chancen, Marktbewegungen und Konkurrenzaktivität.
+4. Er bewertet Gewinn, Risiko, Zeitdruck und strategischen Nutzen.
+5. Er handelt oder entscheidet sich bewusst dagegen.
+6. Der Markt reagiert sichtbar auf diese Entscheidung.
+7. Der Spieler verfolgt offene Vorgänge oder kehrt ins Kerngeschäft zurück.
+
+Ein Besuch soll auch dann sinnvoll sein, wenn kein Kauf stattfindet. Wissen über
+Preise, Konkurrenten und Nachfrage ist selbst eine Belohnung.
+
+3.2 Mittlerer Handels-Loop
+
+1. Gelegenheit entdecken.
+2. Fahrzeug und Verkäufer einschätzen.
+3. Konkurrenzinteresse erkennen.
+4. Preislimit festlegen.
+5. Direkt kaufen, bieten, verhandeln oder beobachten.
+6. Fahrzeug sichern oder verlieren.
+7. Aufbereitung, Weiterverkauf oder Auftragserfüllung planen.
+8. Ergebnis als Gewinn, Beziehung, Ruf oder Marktkenntnis erhalten.
+
+3.3 Langfristiger Netzwerk-Loop
+
+1. Mit bestimmten Händlern wiederholt Geschäfte abschließen.
+2. Vertrauen und Verlässlichkeit beweisen.
+3. Bessere Informationen und frühere Angebote erhalten.
+4. Spezialisierungen und regionale Märkte erschließen.
+5. Rivalen und Partner entwickeln.
+6. Zugang zu seltenen Fahrzeugen und Großgeschäften gewinnen.
+7. Den eigenen Ruf als bestimmter Händlertyp formen.
+
+======================================================================
+4. Warum der Spieler wiederkommt
+======================================================================
+
+Die Börse darf nicht allein durch zufällige Schnäppchen motivieren. Sie benötigt
+mehrere verlässliche Rückkehrgründe:
+
+Relevante Veränderung
+  Seit dem letzten Besuch hat sich etwas Bedeutendes verändert: neues passendes
+  Angebot, Antwort, Konkurrenzkauf, Preisänderung oder Markttrend.
+
+Offene Geschichten
+  Beobachtete Fahrzeuge, Verhandlungen und Händlerbeziehungen entwickeln sich
+  weiter. Der Spieler möchte wissen, wie sie ausgehen.
+
+Informationsvorsprung
+  Regelmäßige Beobachtung hilft, typische Preise, aktive Konkurrenten und
+  Händlerbedürfnisse zu verstehen.
+
+Persönliche Chancen
+  Angebote beziehen sich zunehmend auf den eigenen Ruf, Bestand und die
+  aufgebauten Kontakte.
+
+Unterschiedliche Besuchsziele
+  Kaufen, Bestand verkaufen, Auftrag suchen, Verhandlung prüfen, Trends lesen,
+  Konkurrenz beobachten oder Kontakte pflegen.
+
+Seltene Höhepunkte
+  Außergewöhnliche Fahrzeuge und Geschäfte sind selten genug, um besonders zu
+  bleiben, aber nicht so selten, dass das System belanglos wirkt.
+
+======================================================================
+5. Typischer Spielerfluss
+======================================================================
+
+5.1 Spielstart
+
+Nach der Anmeldung erhält der Spieler keine Flut von Meldungen. Eine kompakte
+Zusammenfassung nennt nur relevante Veränderungen seit dem letzten Besuch:
+
+- eine beobachtete Gelegenheit läuft bald aus,
+- ein Händler hat auf ein Angebot reagiert,
+- ein gesuchtes Fahrzeug ist verfügbar,
+- ein bedeutender Markttrend hat sich verändert.
+
+5.2 Erster Impuls
+
+Beispiel: „Nordstern Automobile verkauft kurzfristig einen BMW M3. Zwei Händler
+beobachten das Angebot. Noch zwei Handelstage.“
+
+Die Meldung erklärt Relevanz und Dringlichkeit, ohne den Spieler zum Öffnen zu
+zwingen.
+
+5.3 Börse öffnen
+
+Der Spieler findet keine künstlich zurückgesetzte Liste vor, sondern einen
+fortlaufenden Markt. Er erkennt:
+
+- was seit dem letzten Besuch neu ist,
+- welche eigenen Vorgänge Aufmerksamkeit benötigen,
+- wo Konkurrenz aktiv geworden ist,
+- welche Gelegenheiten zum eigenen Betrieb passen.
+
+5.4 Entscheidung
+
+Der Spieler prüft Fahrzeug, Preis, mögliche Marge, Nachfrage und Konkurrenz.
+Er kann sofort kaufen, ein begrenztes Angebot abgeben, verhandeln, beobachten
+oder verzichten.
+
+5.5 Reaktion
+
+Der Verkäufer akzeptiert nicht automatisch. Er kann warten, ablehnen oder ein
+Gegenangebot stellen. Ein Konkurrent kann das Fahrzeug erwerben, wenn dessen
+wirtschaftliche Bewertung besser oder dessen Reaktion schneller war.
+
+5.6 Konsequenz
+
+Erfolg:
+  Der Spieler sichert das Fahrzeug, gewinnt Vertrauen und verfolgt seinen Plan.
+
+Misserfolg:
+  Ein Konkurrent kauft zuerst. Der Spieler erfährt, wer gekauft hat und warum
+  das eigene Vorgehen nicht ausreichte, ohne geheime KI-Grenzen offenzulegen.
+
+Verzicht:
+  Der Spieler wird später bestätigt, wenn das Fahrzeug liegen bleibt oder der
+  Preis fällt. Nicht zu kaufen kann sich ebenso klug anfühlen wie zu kaufen.
+
+5.7 Rückkehr ins Kerngeschäft
+
+Offene Vorgänge laufen weiter. Nur wirklich relevante Veränderungen melden sich.
+Die Börse ergänzt den Tagesablauf, statt ihn dauerhaft zu unterbrechen.
+
+======================================================================
+6. Zeitdruck ohne Frustration
+======================================================================
+
+Zeitdruck soll Entscheidungen schärfen, nicht den Spieler bestrafen.
+
+6.1 Angebotslaufzeiten
+
+Inserate besitzen nachvollziehbare Laufzeiten. Der Spieler erkennt frühzeitig,
+ob ein Angebot noch entspannt geprüft werden kann oder bald endet.
+
+Faire Regeln:
+
+- keine extrem kurzen Fristen ohne Vorwarnung,
+- relevante Fristen pausieren nicht heimlich anders als die Spielzeit,
+- bei Spielstart keine sofort ablaufenden Pflichtentscheidungen,
+- rechtzeitige Erinnerung nur bei beobachteten oder eigenen Vorgängen,
+- abgelaufene Chancen werden erklärt und verschwinden nicht kommentarlos.
+
+6.2 Konkurrenzdruck
+
+Interesse anderer Händler wird in groben, glaubwürdigen Signalen vermittelt:
+
+- wird beobachtet,
+- Angebot liegt vor,
+- hohe Nachfrage,
+- Reservierung läuft.
+
+Exakte geheime Gebote oder Kaufgrenzen bleiben verborgen.
+
+6.3 Großaufträge
+
+Großaufträge besitzen mehrere Etappen:
+
+- Interessenphase,
+- verbindliche Annahme,
+- Beschaffungsfrist,
+- Lieferfenster.
+
+Vor Annahme kann der Spieler kalkulieren. Erst die freiwillige Zusage erzeugt
+echten Zeitdruck.
+
+6.4 Exklusive Angebote
+
+Exklusive Kontakte geben dem Spieler ein faires Vorfenster. Danach kann das
+Angebot an den allgemeinen Markt gehen. So entsteht Dringlichkeit, ohne dass
+das Fahrzeug willkürlich verschwindet.
+
+6.5 Schutz vor Überforderung
+
+- maximal wenige gleichzeitig dringende Vorgänge,
+- klare Priorität eigener Angebote und Reservierungen,
+- Beobachten statt sofort entscheiden,
+- Benachrichtigungsfilter,
+- keine Strafe für ignorierte gewöhnliche Angebote,
+- seltene Ereignisse werden nicht ausschließlich in sehr kurzen Echtzeitfenstern
+  angeboten.
+
+======================================================================
+7. Konkurrenz
+======================================================================
+
+7.1 Erkennbare Händlerpersönlichkeiten
+
+Konkurrenten erhalten spielerisch lesbare Profile:
+
+- Markenspezialist,
+- vorsichtiger Margenhändler,
+- aggressiver Schnellkäufer,
+- Luxus- und Sammlerhändler,
+- Volumenhändler,
+- regionaler Allrounder,
+- Sanierungs- und Projektfahrzeughändler.
+
+Diese Profile sind keine kosmetischen Labels. Ihr Verhalten bleibt über Zeit
+wiedererkennbar.
+
+7.2 Konkurrenzkäufe
+
+Andere Händler kaufen nur, wenn ein Fahrzeug zu ihrem Geschäft passt. Dadurch
+lernt der Spieler:
+
+- Bei seltenen Porsche-Modellen reagiert Falkenstein Performance schnell.
+- CityDrive meidet riskante Reparaturen.
+- Nordstern kauft Flottenfahrzeuge in großen Mengen.
+
+Dieses Wissen ermöglicht Gegenstrategien.
+
+7.3 Überbieten
+
+Mehrere Händler können wirtschaftlich begründete Angebote abgeben. Der Spieler
+entscheidet, ob er:
+
+- sein Angebot erhöht,
+- ein Gegenangebot akzeptiert,
+- auf ein alternatives Fahrzeug ausweicht,
+- den Rivalen bewusst zu teuer kaufen lässt.
+
+Es gibt kein künstliches Hochbieten. Jeder Konkurrent besitzt ein eigenes Limit.
+
+7.4 Rivalität
+
+Wiederholte Konkurrenz um ähnliche Fahrzeuge schafft eine erkennbare Rivalität.
+Sie soll zunächst emotional und informativ wirken, nicht unfair:
+
+- Vergleich gemeinsamer Käufe,
+- Hinweise auf bevorzugte Segmente,
+- besondere Genugtuung bei einem gewonnenen Geschäft,
+- Wiedererkennen des Rivalen in späteren Situationen.
+
+7.5 Marktbewegungen
+
+Konkurrenz verändert den Markt:
+
+- mehrere Händler kaufen ein Segment leer,
+- ein Flottenabverkauf erhöht kurzfristig das Angebot,
+- Großaufträge steigern die Nachfrage,
+- lange Standzeiten führen zu Preissenkungen,
+- erfolgreiche Verkäufe ziehen weitere Händler an.
+
+======================================================================
+8. Emotionale Höhepunkte
+======================================================================
+
+8.1 Das Schnäppchen
+
+Der Spieler erkennt eine Fehlbewertung oder den Liquiditätsdruck eines Händlers,
+bevor die Konkurrenz reagiert. Die Freude entsteht aus Beobachtung und Wissen,
+nicht aus einem zufälligen Geschenk.
+
+8.2 Knapp verloren
+
+Ein bekannter Rivale kauft ein Fahrzeug kurz vor dem Spieler. Der Moment bleibt
+fair, wenn vorher Konkurrenzinteresse erkennbar war und der Spieler eine echte
+Entscheidungsmöglichkeit hatte.
+
+8.3 Gelungene Verhandlung
+
+Der Spieler hält sein Preislimit ein, lehnt ein zu hohes Gegenangebot ab und
+erhält später ein besseres Angebot. Spannung entsteht durch Unsicherheit, Stolz
+durch Disziplin.
+
+8.4 Der mutige Einkauf
+
+Ein seltenes Fahrzeug ist teuer und riskant. Der Spieler setzt auf Marktkenntnis,
+bereitet es erfolgreich auf und verkauft mit hoher Marge. Die Geschichte umfasst
+Kauf, Risiko, Arbeit und Ergebnis.
+
+8.5 Der kluge Verzicht
+
+Ein vermeintliches Highlight wird von einem Rivalen überteuert gekauft. Der
+Markt fällt oder das Fahrzeug bleibt lange stehen. Der Spieler erlebt, dass
+Selbstkontrolle eine echte Fähigkeit ist.
+
+8.6 Unerwartetes Direktangebot
+
+Ein Händler sucht genau ein Fahrzeug aus dem Spielerbestand und bietet einen
+attraktiven Preis. Der Moment belohnt Bestandskenntnis und Netzwerkaufbau.
+
+8.7 Vertrauensmoment
+
+Ein langjähriger Kontakt bietet dem Spieler ein besonderes Fahrzeug zuerst an.
+Die Belohnung fühlt sich verdient an, weil sie aus vorherigen Geschäften stammt.
+
+======================================================================
+9. Faire Risiken
+======================================================================
+
+Überzahlung
+  Der Spieler lässt sich von Konkurrenzdruck treiben und überschreitet seine
+  wirtschaftliche Grenze.
+
+Marktpreisrückgang
+  Nachfrage sinkt, das Segment wird überversorgt oder ein Trend endet.
+
+Lange Standzeit
+  Ein theoretisch profitables Fahrzeug bindet Kapital und Lagerplatz.
+
+Zustandsrisiko
+  Erwartete Aufbereitungskosten können die Marge reduzieren. Risiken müssen vor
+  dem Kauf grundsätzlich erkennbar oder durch Prüfung reduzierbar sein.
+
+Verhandlung scheitert
+  Ein zu niedriges Angebot wird abgelehnt oder ein Konkurrent handelt schneller.
+
+Auftragsfrist
+  Ein angenommener Großauftrag kann bei schlechter Planung nicht vollständig
+  erfüllt werden.
+
+Liquiditätsrisiko
+  Mehrere gute Käufe gleichzeitig können das normale Kerngeschäft schwächen.
+
+Reputationsrisiko
+  Häufige Rückzüge nach verbindlichen Zusagen oder nicht erfüllte Aufträge
+  reduzieren Vertrauen.
+
+Fairnessgrundsätze:
+
+- relevante Informationen sind vor der Entscheidung zugänglich,
+- Risiken entstehen aus Markt und Entscheidung, nicht aus versteckter Willkür,
+- ein einzelner Fehler zerstört nicht den gesamten Spielstand,
+- Verluste liefern Erkenntnis und neue Handlungsoptionen,
+- seltene Ereignisse garantieren keinen Gewinn.
+
+======================================================================
+10. Belohnungen
+======================================================================
+
+10.1 Wirtschaftliche Belohnungen
+
+- bessere Einkaufsmargen,
+- schnellerer Lagerumschlag,
+- profitable Direktverkäufe,
+- Großauftragsprämien,
+- Zugang zu größeren Handelsvolumen.
+
+10.2 Händlervertrauen
+
+Verlässliche Geschäfte erhöhen das Vertrauen einzelner Kontakte. Vertrauen kann
+ermöglichen:
+
+- frühere Informationen,
+- längere Antwortfenster,
+- direkte Angebote,
+- bessere Verhandlungsbereitschaft,
+- Zugang zu nicht öffentlichen Fahrzeugen.
+
+10.3 Netzwerk-Ruf
+
+Der Spieler entwickelt einen Ruf, beispielsweise:
+
+- fairer Geschäftspartner,
+- schneller Abnehmer,
+- Spezialist für Klassiker,
+- zuverlässiger Großauftragspartner,
+- harter, aber seriöser Verhandler.
+
+Ruf soll Spielstil spiegeln, nicht nur eine lineare Erfahrungspunkteleiste sein.
+
+10.4 Exklusive Kontakte
+
+Neue Kontakte entstehen durch passende Geschäfte, Empfehlungen und Reputation.
+Sie erweitern die Art der Chancen, nicht nur deren Profit.
+
+10.5 Besondere Fahrzeuge
+
+- seltene Konfigurationen,
+- begehrte Klassiker,
+- limitierte Modelle,
+- interessante Projektfahrzeuge,
+- Flottenpakete,
+- Fahrzeuge mit nachvollziehbarer Händlerhistorie.
+
+10.6 Neue Märkte
+
+- regionale Netzwerke,
+- Premium- und Sammlermarkt,
+- Nutzfahrzeug- und Flottennetzwerk,
+- später internationale Handelsräume.
+
+10.7 Wissen als Belohnung
+
+Der Spieler lernt konkrete Händler und Marktzyklen kennen. Dieses Wissen ist
+dauerhaft nützlich und schafft echte Meisterschaft.
+
+======================================================================
+11. Langzeitmotivation
+======================================================================
+
+11.1 Nach 10 Stunden
+
+Der Spieler entdeckt die grundlegenden Muster:
+
+- erste Händlerpersönlichkeiten kennenlernen,
+- kleine Preisunterschiede nutzen,
+- erste Direktangebote erhalten,
+- Beobachtungsliste sinnvoll einsetzen,
+- erste Rivalen erkennen,
+- den Unterschied zwischen gutem Preis und gutem Geschäft verstehen.
+
+Motivation: schnelle Lernfortschritte und regelmäßig erreichbare Chancen.
+
+11.2 Nach 50 Stunden
+
+Der Spieler verfolgt eigene Strategien:
+
+- Spezialisierung auf Marken oder Segmente,
+- gezielter Aufbau wichtiger Kontakte,
+- größere Verhandlungen,
+- Aufträge mit mehreren Fahrzeugen,
+- bewusste Konkurrenzstrategien,
+- Nutzung von Trends und saisonalen Bewegungen,
+- Ruf als bestimmter Händlertyp.
+
+Motivation: Netzwerk, strategische Identität und anspruchsvollere Geschäfte.
+
+11.3 Nach 200 Stunden
+
+Der Spieler agiert als etablierter Marktteilnehmer:
+
+- hochrangige und internationale Kontakte,
+- seltene Sammler- oder VIP-Angebote,
+- komplexe Großaufträge,
+- langfristige Rivalitäten,
+- Zugang zu exklusiven Handelskreisen,
+- Einfluss auf Segmentpreise durch große Geschäfte,
+- Geschichten und Historie mit bekannten Händlern.
+
+Motivation: Meisterschaft, Seltenheit, Prestige und emergente Marktgeschichten.
+
+11.4 Schutz vor Endgame-Routine
+
+- Händler wachsen, verändern Schwerpunkte oder geraten unter Druck.
+- Neue Marktregionen besitzen andere Nachfrageprofile.
+- Beziehungen eröffnen qualitative statt nur numerisch bessere Chancen.
+- Großaufträge verlangen unterschiedliche Beschaffungsstrategien.
+- Seltene Fahrzeuge bleiben selten.
+- Erfolgreiche Standardstrategien haben Opportunitätskosten und Gegenkonkurrenz.
+
+======================================================================
+12. Benachrichtigungen
+======================================================================
+
+12.1 Benachrichtigungskategorien
+
+Handlung erforderlich
+
+- Gegenangebot erhalten,
+- Reservierung läuft aus,
+- verbindlicher Auftrag nähert sich der Frist,
+- akzeptiertes Geschäft benötigt Abschluss.
+
+Persönliche Gelegenheit
+
+- passendes beobachtetes Fahrzeug verfügbar,
+- Direktangebot für eigenen Bestand,
+- exklusives Kontaktangebot,
+- Händler sucht ein vorhandenes Fahrzeug.
+
+Marktinformation
+
+- relevanter Segmenttrend verändert,
+- auffälliger Angebots- oder Nachfragewechsel,
+- bekannter Rivale kauft in der eigenen Spezialisierung.
+
+Ergebnis
+
+- Angebot akzeptiert oder abgelehnt,
+- Fahrzeug anderweitig verkauft,
+- Auftrag abgeschlossen,
+- Inserat abgelaufen oder zurückgezogen.
+
+12.2 Anti-Spam-Regeln
+
+- Meldungen nach Händler, Fahrzeug und Vorgang bündeln.
+- Nur Veränderungen melden, nicht unveränderte Zustände.
+- Gewöhnliche neue Inserate nicht einzeln melden.
+- Markttrends nur bei bedeutender und relevanter Änderung melden.
+- Eigene Vorgänge und freiwillig beobachtete Inhalte priorisieren.
+- Wiederholungen unterdrücken.
+- Unwichtige Marktaktivität nur in einer Zusammenfassung zeigen.
+- Der Spieler kann Kategorien und Dringlichkeit steuern.
+
+12.3 Gute Meldungen
+
+Eine gute Benachrichtigung beantwortet drei Fragen:
+
+- Was hat sich verändert?
+- Warum ist das für mich relevant?
+- Bis wann oder unter welcher Bedingung sollte ich reagieren?
+
+Beispiele:
+
+„Gegenangebot von König & Partner: 42.500 €. Gültig bis morgen.“
+
+„Ein beobachteter Audi RS4 wurde reserviert. Falls der Handel scheitert, bleibst
+du auf der Beobachtungsliste.“
+
+„Nachfrage nach kompakten Elektrofahrzeugen steigt. Zwei deiner Fahrzeuge passen
+zum aktuellen Suchprofil mehrerer Händler.“
+
+======================================================================
+13. Typische Spielsituationen
+======================================================================
+
+13.1 Liquiditätsverkauf
+
+Ein angesehener Händler benötigt kurzfristig Kapital und bietet drei Fahrzeuge
+knapp unter Marktwert an. Der Spieler kann nicht alle kaufen. Er muss Marge,
+Lagerplatz und Konkurrenz abwägen.
+
+13.2 Spezialisten-Duell
+
+Ein seltenes Fahrzeug passt sowohl zur Spezialisierung des Spielers als auch zu
+einem bekannten Rivalen. Beide besitzen wirtschaftlich begründetes Interesse.
+Der Spieler muss sein Limit kennen und darf sich nicht emotional überbieten.
+
+13.3 Suchauftrag
+
+Ein Händler sucht innerhalb mehrerer Tage drei bestimmte Fahrzeuge. Der Spieler
+kann normalen Markt, eigenen Bestand und Händlerbörse kombinieren. Die Börse
+ersetzt den normalen Markt nicht, sondern gibt der Beschaffung ein Ziel.
+
+13.4 Verdecktes Potenzial
+
+Ein unspektakuläres Fahrzeug passt zu einem steigenden regionalen Bedarf. Wer
+den Trend versteht, erkennt die Chance vor den offensichtlichen Premiumkäufen.
+
+13.5 Gescheiterte Reservierung
+
+Ein Konkurrent reserviert ein Fahrzeug, kann das Geschäft aber nicht abschließen.
+Beobachter erhalten eine zweite Chance. Geduld wird belohnt, ohne den ersten
+Käufer künstlich scheitern zu lassen.
+
+13.6 Direktangebot für Lagerhüter
+
+Ein Fahrzeug steht lange im Spielerbestand. Ein Spezialist bietet einen fairen,
+aber nicht maximalen Preis. Der Spieler entscheidet zwischen sicherer Liquidität
+und weiterem Warten.
+
+13.7 Flottenpaket
+
+Mehrere ähnliche Fahrzeuge werden gemeinsam angeboten. Der Einzelpreis ist gut,
+aber Kapital- und Lagerbedarf sind hoch. Die Entscheidung betrifft den gesamten
+Betrieb, nicht nur eine Karte.
+
+13.8 Trendwende
+
+Ein bisher starkes Segment verliert Nachfrage. Der Spieler kann früh verkaufen,
+abwarten oder günstig Fahrzeuge für eine spätere Erholung übernehmen.
+
+======================================================================
+14. Verhältnis zum normalen Fahrzeugmarkt
+======================================================================
+
+Der normale Fahrzeugmarkt bleibt die verlässliche Basis des Fahrzeughandels.
+
+Normaler Fahrzeugmarkt
+
+- breites, regelmäßig verfügbares Angebot,
+- planbare Standardbeschaffung,
+- geeignet für tägliches Kerngeschäft,
+- weniger soziale und zeitkritische Abhängigkeiten,
+- wichtig für Aufträge, Bestandsergänzung und solide Margen.
+
+Händlerbörse LIVE
+
+- kleineres, stärker wechselndes Angebot,
+- Händler-zu-Händler-Kontext,
+- Konkurrenz und Verhandlung,
+- exklusive oder strategische Chancen,
+- Beziehungen, Reputation und Marktgeschichten,
+- höhere Informations- und Entscheidungsdichte,
+- gelegentlich große Chancen, aber keine garantierten Gewinne.
+
+Balance-Regeln
+
+- Die Börse liefert nicht dauerhaft die günstigsten Fahrzeuge.
+- Viele Standardfahrzeuge bleiben auf dem normalen Markt leichter verfügbar.
+- Händlerangebote können Paket-, Zeit-, Ruf- oder Abnahmebedingungen besitzen.
+- Aufträge können Beschaffung aus beiden Märkten erfordern.
+- Börsenpreise reagieren stärker auf Konkurrenz und konkrete Händlerinteressen.
+- Der normale Markt bleibt die sichere Alternative, wenn Börsenverhandlungen
+  scheitern.
+- Erfolge an der Börse hängen stärker von Wissen und Beziehungen als von reinem
+  Kapital ab.
+
+======================================================================
+15. Progression ohne reine Zahlenleiter
+======================================================================
+
+Die Progression besteht aus vier parallelen Ebenen:
+
+Marktkenntnis
+  Der Spieler versteht Preise, Zeitpunkte, Händler und Segmente besser.
+
+Beziehungen
+  Einzelne Kontakte vertrauen dem Spieler und öffnen neue Arten von Geschäften.
+
+Reputation
+  Das Netzwerk erkennt den tatsächlichen Handelsstil des Spielers.
+
+Marktzugang
+  Neue Regionen, Händlergruppen und Fahrzeugklassen werden erreichbar.
+
+Neue Stufen sollen nicht einfach „10 % bessere Preise“ bedeuten. Sie sollen neue
+Entscheidungen ermöglichen:
+
+- zuerst informiert werden,
+- Pakete teilen oder vollständig übernehmen,
+- exklusive Suchaufträge erhalten,
+- seltene Fahrzeuge vermitteln,
+- größere Risiken freiwillig eingehen,
+- in neuen Marktsegmenten handeln.
+
+======================================================================
+16. Leitlinien für Spannung und Fairness
+======================================================================
+
+- Jede wichtige Gelegenheit besitzt einen nachvollziehbaren Ursprung.
+- Konkurrenz ist wirtschaftlich motiviert und nicht gegen den Spieler geskriptet.
+- Der Spieler erhält Signale, aber keine vollständige Sicherheit.
+- Zeitdruck folgt sichtbaren Fristen und freiwilligen Verpflichtungen.
+- Nicht jede Gelegenheit muss genutzt werden.
+- Gute Entscheidungen können auch im Verzicht bestehen.
+- Verluste sind begrenzt, verständlich und lehrreich.
+- Beziehungen schaffen Zugang, aber keine garantierten Gewinne.
+- Seltene Fahrzeuge bleiben besondere Ereignisse.
+- Benachrichtigungen dienen Entscheidungen, nicht künstlicher Aktivität.
+- Die Börse belohnt Aufmerksamkeit, ohne permanente Anwesenheit zu verlangen.
+
+======================================================================
+17. Erfolgskriterien des Gameplay-Designs
+======================================================================
+
+Das System erfüllt sein Ziel, wenn Spieler:
+
+- die Börse aus Neugier und nicht nur wegen Pflichtbelohnungen öffnen,
+- wiederkehrende Händler erkennen und deren Verhalten einschätzen,
+- Geschichten über gewonnene und verlorene Geschäfte erzählen können,
+- bewusst Preislimits setzen und gelegentlich stolz auf einen Verzicht sind,
+- normalen Markt und Händlerbörse strategisch kombinieren,
+- nach langer Spielzeit weiterhin neue Beziehungen und Situationen erleben,
+- Benachrichtigungen überwiegend als hilfreich wahrnehmen,
+- verstehen, warum ein Geschäft erfolgreich war oder scheiterte.
+
+======================================================================
+18. Abschluss
+======================================================================
+
+Warum wird ein Spieler die Händlerbörse freiwillig regelmäßig öffnen?
+
+Weil sie relevante Veränderungen, persönliche Chancen und fortlaufende
+Geschichten bietet. Jeder Besuch kann Wissen, einen Kontakt, eine Verhandlung,
+ein seltenes Fahrzeug oder eine strategische Gelegenheit liefern. Selbst ohne
+Kauf lernt der Spieler etwas über Markt und Konkurrenz.
+
+Welche Momente bleiben besonders in Erinnerung?
+
+- das seltene Fahrzeug, das knapp vor einem Rivalen gesichert wurde,
+- die Verhandlung, bei der Geduld zu einem besseren Gegenangebot führte,
+- das Schnäppchen, das nur durch gute Marktkenntnis erkannt wurde,
+- der schmerzhafte überteuerte Kauf aus Konkurrenzdruck,
+- der kluge Verzicht, nachdem ein Rivale zu viel zahlte,
+- das erste exklusive Angebot eines langjährig aufgebauten Kontakts,
+- ein unter Zeitdruck erfolgreich erfüllter Großauftrag.
+
+Wodurch unterscheidet sich die Händlerbörse deutlich vom normalen
+Fahrzeugmarkt?
+
+Der normale Markt ist die breite und planbare Beschaffungsbasis. Die
+Händlerbörse ist ein soziales, dynamisches und konkurrenzorientiertes Netzwerk.
+Fahrzeuge besitzen dort einen Verkäufer, einen Anlass, konkurrierende
+Interessenten und häufig eine Geschichte. Beziehungen und Information sind
+ebenso wichtig wie Kapital.
+
+Welche Mechaniken machen sie innerhalb von Automotive Empire einzigartig?
+
+- wiedererkennbare autonome Händler mit echten Interessen,
+- wirtschaftlich begründete Konkurrenz statt Fake-Gebote,
+- Verhandlungen und Direktangebote,
+- Vertrauen und Händlerbeziehungen als Zugangssystem,
+- beobachtbare Marktbewegungen aus realen Geschäften,
+- freiwilliger, fair angekündigter Zeitdruck,
+- Großaufträge und exklusive Handelsfenster,
+- Belohnung von Marktkenntnis, Geduld und bewusstem Verzicht,
+- langfristige Geschichten mit Rivalen und Partnern.
+
+Die Händlerbörse wird damit nicht nur ein weiterer Einkaufsort. Sie wird ein
+lebendiges Netzwerk, in dem Entscheidungen, Beziehungen und Marktkenntnis eine
+eigene Karrieregeschichte des Spielers erzeugen.
