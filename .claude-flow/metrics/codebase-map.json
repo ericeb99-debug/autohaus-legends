@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-17T05:04:06.555Z",
+  "timestamp": "2026-07-17T05:19:06.568Z",
   "projectRoot": "C:\\Users\\ericp\\Desktop\\AutoDealer",
   "structure": {
     "hasPackageJson": true,
@@ -7,5 +7,5 @@
     "hasClaudeConfig": true,
     "hasClaudeFlow": true
   },
-  "scannedAt": 1784264646555
+  "scannedAt": 1784265546568
 }

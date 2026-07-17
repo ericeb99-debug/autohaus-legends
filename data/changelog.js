@@ -359,6 +359,7 @@ const CHANGELOG = [
         'Kunden entscheiden nach der Analyse automatisch, welche möglichen Optimierungen durchgeführt werden sollen.'
       ],
       improved:[
+        'Im Performance Center wird das Fahrzeug auf Karten und Prüfstand ohne Klassenstudio freigestellt dargestellt, damit der Fokus vollständig auf dem Fahrzeug liegt.',
         'Performance-Center-Layout übersichtlicher gestaltet und stärker auf den Prüfstand fokussiert.',
         'Fahrzeugkarten, Kundenwünsche und Analysehinweise sind besser lesbar.',
         'Mehrere ECU-Aufträge werden kompakter als auswählbare Liste dargestellt.',
@@ -388,6 +389,7 @@ const CHANGELOG = [
           'After the analysis, customers automatically decide which possible optimizations should be carried out.'
         ],
         improved:[
+          'In the Performance Center, vehicles are shown as clean cutouts without the class studio on cards and the dyno bay, keeping the focus entirely on the vehicle.',
           'Performance Center layout made clearer and more focused on the dyno bay.',
           'Vehicle cards, customer requests and analysis notes are easier to read.',
           'Multiple ECU jobs are shown as a more compact, selectable list.',

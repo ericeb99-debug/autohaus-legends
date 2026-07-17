@@ -2511,7 +2511,10 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
 }
 .ecu-vehicle-card:hover{transform:translateY(-3px) scale(1.01);border-color:color-mix(in srgb,var(--brass) 70%,var(--line));box-shadow:var(--shadow-2),0 0 34px -18px var(--brass);}
 .ecu-vehicle-card:active{cursor:grabbing;transform:translateY(-6px) scale(1.025);filter:saturate(1.08);}
-.ecu-vehicle-photo{height:170px;overflow:hidden;background:var(--bg-2);}
+.ecu-vehicle-photo{height:170px;overflow:hidden;background:transparent;}
+.ecu-vehicle-photo .vehicle-photo-media,.ecu-center-car-img .vehicle-photo-media{width:100%;height:100%;margin:0;background-color:transparent!important;background-image:none!important;border:0;box-shadow:none;}
+.ecu-vehicle-photo .vehicle-photo-media::after,.ecu-center-car-img .vehicle-photo-media::after{display:none;}
+.ecu-vehicle-photo .photo-source,.ecu-center-car-img .photo-source{display:none;}
 .ecu-vehicle-photo .car-render,.ecu-vehicle-photo .car-photo,.ecu-vehicle-photo svg{height:100%;min-height:170px;}
 .ecu-drag-hint{position:absolute;top:12px;left:12px;right:12px;z-index:2;padding:9px 11px;border-radius:12px;text-align:center;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--brass);background:rgba(5,8,14,.72);border:1px solid color-mix(in srgb,var(--brass) 42%,transparent);backdrop-filter:blur(12px);}
 .ecu-vehicle-info{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px;}
@@ -2696,7 +2699,7 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
 .ecu-center-car.drive-in{animation:ecucenterin 1.25s var(--ease-premium) both;}
 .ecu-center-car.drive-out{animation:ecucenterout 1.25s var(--ease-premium) both;}
 .ecu-center-car-img{height:100%;overflow:visible;border-radius:0;}
-.ecu-center-car-img .car-media{height:100%;background:none;border:none;border-radius:0;margin:0;overflow:visible;box-shadow:none;}
+.ecu-center-car-img .car-media{height:100%;background:none!important;border:none;border-radius:0;margin:0;overflow:visible;box-shadow:none;}
 .ecu-center-car-img .car-media::after{display:none;}
 .ecu-center-car-img .photo-source{display:none;}
 .ecu-center-car-img .body-shape{display:block;height:100%;width:auto;min-height:0;margin:0 auto;}
