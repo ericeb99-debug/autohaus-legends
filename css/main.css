@@ -2515,6 +2515,8 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
 .ecu-vehicle-photo .vehicle-photo-media,.ecu-center-car-img .vehicle-photo-media{width:100%;height:100%;margin:0;background-color:transparent!important;background-image:none!important;border:0;box-shadow:none;}
 .ecu-vehicle-photo .vehicle-photo-media::after,.ecu-center-car-img .vehicle-photo-media::after{display:none;}
 .ecu-vehicle-photo .photo-source,.ecu-center-car-img .photo-source{display:none;}
+.ecu-vehicle-photo .vehicle-photo-image,.ecu-center-car-img .vehicle-photo-image{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 1px rgba(255,255,255,.42)) drop-shadow(0 9px 12px rgba(0,0,0,.5));}
+.ecu-vehicle-photo .vehicle-photo-image{transform:scale(.92);}
 .ecu-vehicle-photo .car-render,.ecu-vehicle-photo .car-photo,.ecu-vehicle-photo svg{height:100%;min-height:170px;}
 .ecu-drag-hint{position:absolute;top:12px;left:12px;right:12px;z-index:2;padding:9px 11px;border-radius:12px;text-align:center;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--brass);background:rgba(5,8,14,.72);border:1px solid color-mix(in srgb,var(--brass) 42%,transparent);backdrop-filter:blur(12px);}
 .ecu-vehicle-info{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px;}
@@ -2661,7 +2663,8 @@ body.theme-light .upd-art::after{background:linear-gradient(90deg, rgba(255,255,
 .ecu-vehicle-card{display:grid;grid-template-columns:118px minmax(0,1fr);margin-top:7px;border-radius:13px;}
 .ecu-vehicle-photo{height:82px;}
 .ecu-vehicle-photo .car-render,.ecu-vehicle-photo .car-photo,.ecu-vehicle-photo svg{min-height:82px;height:100%;}
-.ecu-drag-hint{top:6px;left:6px;right:auto;max-width:106px;padding:5px 7px;font-size:8.5px;line-height:1.2;}
+.ecu-drag-hint{top:6px;left:6px;right:auto;width:24px;height:24px;max-width:none;padding:0;display:grid;place-items:center;font-size:0;line-height:1;pointer-events:none;}
+.ecu-drag-hint::before{content:'↕';font:900 13px/1 var(--font-m);}
 .ecu-vehicle-info{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:6px;}
 .ecu-vehicle-info div{padding:5px 6px;}
 .ecu-vehicle-info div:nth-child(n+5){display:none;}

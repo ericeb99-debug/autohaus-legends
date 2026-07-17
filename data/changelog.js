@@ -370,6 +370,7 @@ const CHANGELOG = [
         'Abgeschlossene Softwareoptimierungen werden sauber abgerechnet, wirken sich auf Bewertungen und Reputation aus und erscheinen in einer eigenen Auftragshistorie.'
       ],
       fixed:[
+        'Der Drag-&-Drop-Hinweis verdeckt das ECU-Fahrzeug nicht mehr; ein kompakter Griff und eine dezente Kontur halten auch dunkle Fahrzeuge klar sichtbar.',
         'Falsche oder abgeschnittene Kundenwunsch-Texte wurden korrigiert.',
         'Umlaute und fehlerhafte Textdarstellungen im ECU-Bereich wurden bereinigt.',
         'Probleme mit nicht sichtbaren oder schwer greifbaren Fahrzeugen beim Drag & Drop wurden behoben.',
@@ -400,6 +401,7 @@ const CHANGELOG = [
           'Completed software optimizations are billed cleanly, affect reviews and reputation, and appear in their own job history.'
         ],
         fixed:[
+          'The drag-and-drop hint no longer covers the ECU vehicle; a compact handle and subtle outline keep dark vehicles clearly visible.',
           'Incorrect or truncated customer request texts were corrected.',
           'Accented characters and broken text rendering in the ECU area were cleaned up.',
           'Issues with invisible or hard-to-grab vehicles during drag & drop were fixed.',
